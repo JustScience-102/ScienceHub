@@ -42,3 +42,15 @@ begin;
   select set_config('sciencehub.allow_audit_clear', 'off', true);
 
 commit;
+
+
+-- ===== KIỂM TRA SAU KHI DỌN (mong đợi: 5 cột đầu = 0, manager_active >= 1, 2 mã kế tiếp = 1) =====
+select
+  (select count(*) from public.students)           as students,
+  (select count(*) from public.parents)            as parents,
+  (select count(*) from public.classes)            as classes,
+  (select count(*) from public.teachers)           as teachers,
+  (select count(*) from public.attendance_records) as attendance_records,
+  (select count(*) from public.profiles where role = 'manager' and active) as manager_active,
+  (select count(*) from public.profiles where role = 'teacher')            as teacher_profiles,
+  (select count(*) from public.audit_log)          as audit_rows;

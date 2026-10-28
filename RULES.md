@@ -22,7 +22,7 @@
 ## 3. Lệnh Cấm (Strict Prohibitions)
 1. **Cấm vượt phạm vi:** Tuyệt đối KHÔNG tự thêm chức năng quản lý thu học phí/công nợ, cổng thanh toán, tính lương giáo viên, hay tạo mã QR/gửi tin nhắn Zalo.
 2. **Cấm tự ý cài thư viện ngoài:** Chỉ dùng các thư viện đã có trong `package.json`. Muốn thêm thư viện phải hỏi và được duyệt trước.
-3. **Cấm sửa file đã khóa khi chưa xin phép:** Mọi file thuộc các lát cắt đã nghiệm thu đều đã khóa (V1, V2-1, V2-2, V2-3 và V2-4; danh sách file khóa của V2-2 nằm ở mục V2-2 và của V2-3/V2-4 nằm ở mục V2-4 trong `ROADMAP.md`, gồm cả `supabase/05_v2_2_teacher_access.sql`, `06_v2_3_audit_log.sql`, `07_v2_4_backup.sql`). Nếu lát cắt mới bắt buộc phải chạm vào file đã khóa, phải liệt kê rõ tên file và nội dung sửa trong Kế hoạch Bước 1 để chờ duyệt.
+3. **Cấm sửa file đã khóa khi chưa xin phép:** Mọi file thuộc các lát cắt đã nghiệm thu đều đã khóa (V1, V2-1, V2-2, V2-3, V2-4 và V2-5; danh sách file khóa của V2-2 nằm ở mục V2-2 và của V2-3/V2-4 nằm ở mục V2-4 và V2-5 trong `ROADMAP.md`, gồm cả `supabase/05_v2_2_teacher_access.sql`, `06_v2_3_audit_log.sql`, `07_v2_4_backup.sql`, `08_v2_5_bulk_import.sql`). Nếu lát cắt mới bắt buộc phải chạm vào file đã khóa, phải liệt kê rõ tên file và nội dung sửa trong Kế hoạch Bước 1 để chờ duyệt.
 4. **Cấm Xóa trắng (Hard Delete) dữ liệu nghiệp vụ:**
    - Giáo viên, Lớp học, Học sinh, Phụ huynh dùng xóa mềm qua cột `deleted_at`.
    - Nghỉ học dùng xóa mềm trên `class_enrollments` (`status = 'dropped'` kèm `left_at`).

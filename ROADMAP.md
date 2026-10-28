@@ -1,7 +1,7 @@
 # Tiến độ Dự án & Kế hoạch Triển khai (Roadmap)
 
 > **Câu nhắc mở đầu cho phiên chat mới:**
-> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`: kiểm tra trạng thái hiện tại ở mục 2 của `ROADMAP.md` (V2-1, V2-2, V2-3 và V2-4 đã nghiệm thu và khóa; bước hiện tại là triển khai lên Vercel theo mục 'Triển khai Vercel' cuối file). CHƯA viết code mới khi chưa được duyệt kế hoạch."
+> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`: kiểm tra trạng thái hiện tại ở mục 2 của `ROADMAP.md` (V2-1, V2-2, V2-3, V2-4 và V2-5 đã nghiệm thu và khóa; Vercel đã triển khai xong, bước hiện tại là nhập dữ liệu thật). CHƯA viết code mới khi chưa được duyệt kế hoạch."
 
 ---
 
@@ -122,7 +122,7 @@
 
 ---
 
-## 4. Lát cắt V2-5: Nhập học sinh hàng loạt từ file CSV — ĐÃ VIẾT CODE, CHỜ NGHIỆM THU (29/10/2026)
+## 4. Lát cắt V2-5: Nhập học sinh hàng loạt từ file CSV — ĐÃ NGHIỆM THU & ĐÃ KHÓA (29/10/2026)
 - **Quy tắc đã chốt với người dùng:** (a) CSV (không cài thư viện đọc Excel; Excel -> Save As CSV UTF-8). (b) Mỗi dòng gán lớp bằng cột "Tên lớp"; lớp phải được tạo trước. (c) Xem trước; còn bất kỳ lỗi nào thì không nhập gì (một giao dịch). (d) Chỉ Quản lý. (e) Học sinh nhận diện bằng Họ tên + SĐT phụ huynh; đã có thì chỉ ghi danh thêm lớp. (f) Họ tên phụ huynh không bắt buộc, để trống dùng tên tạm `(Chưa cập nhật tên)`, sửa sau ở hồ sơ học sinh; SĐT phụ huynh vẫn bắt buộc.
 - **Đã làm:**
   - SQL: `supabase/08_v2_5_bulk_import.sql` (RPC `import_students_bulk`, chạy lại an toàn).
@@ -135,3 +135,4 @@
   3. Điền thử ~5 dòng (có 1 em học 2 lớp, 1 dòng để trống tên phụ huynh, 1 dòng cố ý sai: lớp không tồn tại hoặc SĐT sai), lưu CSV UTF-8, chọn file: phải thấy lỗi theo dòng và KHÔNG nhập gì.
   4. Sửa dòng sai, chọn lại: phải báo hợp lệ + số liệu; bấm Nhập: học sinh xuất hiện đúng lớp/khối, phụ huynh có tên "(Chưa cập nhật tên)" ở dòng để trống.
   5. Chọn lại đúng file đó: báo không có gì mới (các dòng bỏ qua). Mở Nhật ký thay đổi: thấy các dòng tạo học sinh/ghi danh. Đăng nhập Giáo viên: không thấy nút "Nhập từ file".
+- **Kết quả:** Người dùng đã nhập thử và xác nhận ổn (29/10/2026). **Danh sách file khóa của V2-5:** `supabase/08_v2_5_bulk_import.sql`, `src/lib/importStudents.js`, `src/components/students/ImportStudentsModal.jsx`; `StudentsPage.jsx` và `errors.js` vốn đã khóa.
