@@ -21,7 +21,7 @@ Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 9. Trước khi nhập dữ liệu thật: chạy `supabase/check_before_launch.sql` để kiểm tra an toàn; nếu đã dùng dữ liệu thử, tải một bản sao lưu rồi dùng `supabase/reset_mock_data.sql` (đọc kỹ chú thích đầu file).
 
 ## Triển khai (Vercel)
-- Repo đã có `vercel.json` (SPA routing + Security Headers). Cấu hình biến môi trường `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` trên Vercel; tuyệt đối không dùng khóa `service_role`.
+- Bản đang chạy: https://science-hub-iota.vercel.app. Repo đã có `vercel.json` (SPA routing + Security Headers). Cấu hình biến môi trường `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` trên Vercel; tuyệt đối không dùng khóa `service_role`.
 - Chỉ triển khai công khai sau khi đã nghiệm thu file `04`, `05`, `06`, `07`. Trong Supabase Authentication: tắt đăng ký tự do, đặt Site URL và Redirect URL theo tên miền Vercel.
 
 ## Lệnh

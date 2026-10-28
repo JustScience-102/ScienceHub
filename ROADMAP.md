@@ -109,12 +109,13 @@
 
 ---
 
-## 3. Triển khai Vercel — ĐANG THỰC HIỆN (bắt đầu 28/10/2026)
+## 3. Triển khai Vercel — HOÀN TẤT (29/10/2026)
+Địa chỉ chạy thật: https://science-hub-iota.vercel.app (CSP đã ở chế độ chặn; người dùng `anon` chỉ nhận mảng rỗng/bị từ chối). Hệ thống sẵn sàng nhập dữ liệu thật. Việc tiếp theo: nhập giáo viên thật, tạo tài khoản và liên kết; tải sao lưu `.json` định kỳ (gói Supabase Free không có sao lưu tự động).
 Điều kiện đã đạt: V2-1 -> V2-4 đã nghiệm thu; lint/build sạch; không có `service_role` trong code/`.env`; `.env` nằm trong `.gitignore`; `vercel.json` hợp lệ.
 - [x] 1. Đã đẩy mã lên GitHub `JustScience-102/ScienceHub` (branch `main`; `.env` không bị theo dõi, không lộ khóa).
 - [x] 2. (Đã triển khai tại https://science-hub-iota.vercel.app, header bảo mật và SPA rewrite đã kiểm tra OK) Vercel: Import kho, Framework Vite, Build `npm run build`, Output `dist`; thêm biến `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Production + Preview).
 - [x] 3. (Đã xác nhận `disable_signup = true`) Supabase Authentication: Site URL = tên miền Vercel; thêm Redirect URL `https://<tên-miền>/**`; tắt đăng ký tự do (Allow new users to sign up = OFF).
 - [x] 4. (Người dùng xác nhận OK 29/10/2026: đăng nhập Quản lý/Giáo viên, đặt lại mật khẩu, Console không có cảnh báo CSP) Thử trên bản triển khai: đăng nhập Quản lý, đăng nhập Giáo viên, "Quên mật khẩu" (email quay về đúng tên miền), điểm danh giọng nói (cần HTTPS + quyền micro).
 - [x] 5. (Đã đổi sang chế độ chặn 29/10/2026) Mở Console xem có cảnh báo CSP không; nếu sạch thì đổi `Content-Security-Policy-Report-Only` thành `Content-Security-Policy` trong `vercel.json` (file khóa, cần duyệt) rồi triển khai lại.
-- [ ] 6. Chạy `check_before_launch.sql` lần cuối trên Database.
-- [ ] 7. Chuyển sang dữ liệu thật: tải 1 bản sao lưu `.json`, bỏ khối "KHÓA AN TOÀN" trong `reset_mock_data.sql` rồi chạy; xóa tay tài khoản giáo viên thử trong Authentication; tạo lại giáo viên thật + liên kết tài khoản.
+- [x] 6. (Người dùng xác nhận đã chạy 29/10/2026) Chạy `check_before_launch.sql` lần cuối trên Database.
+- [x] 7. (Đã dọn dữ liệu thử 29/10/2026; người dùng xác nhận dữ liệu cũ chỉ là mock nên không cần sao lưu) Chuyển sang dữ liệu thật: tải 1 bản sao lưu `.json`, bỏ khối "KHÓA AN TOÀN" trong `reset_mock_data.sql` rồi chạy; xóa tay tài khoản giáo viên thử trong Authentication; tạo lại giáo viên thật + liên kết tài khoản.
