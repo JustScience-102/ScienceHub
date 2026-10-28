@@ -111,7 +111,7 @@
 
 ## 3. Triển khai Vercel — ĐANG THỰC HIỆN (bắt đầu 28/10/2026)
 Điều kiện đã đạt: V2-1 -> V2-4 đã nghiệm thu; lint/build sạch; không có `service_role` trong code/`.env`; `.env` nằm trong `.gitignore`; `vercel.json` hợp lệ.
-- [ ] 1. Đưa mã nguồn lên GitHub (kho **Private**, không commit `.env`).
+- [~] 1. Đã `git init` + commit cục bộ (branch `main`, đã kiểm tra `.env` không bị theo dõi, không lộ khóa). CÒN: tạo kho GitHub **Private** và `git push` (người dùng làm).
 - [ ] 2. Vercel: Import kho, Framework Vite, Build `npm run build`, Output `dist`; thêm biến `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Production + Preview).
 - [ ] 3. Supabase Authentication: Site URL = tên miền Vercel; thêm Redirect URL `https://<tên-miền>/**`; tắt đăng ký tự do (Allow new users to sign up = OFF).
 - [ ] 4. Thử trên bản triển khai: đăng nhập Quản lý, đăng nhập Giáo viên, "Quên mật khẩu" (email quay về đúng tên miền), điểm danh giọng nói (cần HTTPS + quyền micro).
