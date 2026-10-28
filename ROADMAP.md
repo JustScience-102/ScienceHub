@@ -115,6 +115,6 @@
 - [x] 2. (Đã triển khai tại https://science-hub-iota.vercel.app, header bảo mật và SPA rewrite đã kiểm tra OK) Vercel: Import kho, Framework Vite, Build `npm run build`, Output `dist`; thêm biến `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Production + Preview).
 - [x] 3. (Đã xác nhận `disable_signup = true`) Supabase Authentication: Site URL = tên miền Vercel; thêm Redirect URL `https://<tên-miền>/**`; tắt đăng ký tự do (Allow new users to sign up = OFF).
 - [x] 4. (Người dùng xác nhận OK 29/10/2026: đăng nhập Quản lý/Giáo viên, đặt lại mật khẩu, Console không có cảnh báo CSP) Thử trên bản triển khai: đăng nhập Quản lý, đăng nhập Giáo viên, "Quên mật khẩu" (email quay về đúng tên miền), điểm danh giọng nói (cần HTTPS + quyền micro).
-- [ ] 5. Mở Console xem có cảnh báo CSP không; nếu sạch thì đổi `Content-Security-Policy-Report-Only` thành `Content-Security-Policy` trong `vercel.json` (file khóa, cần duyệt) rồi triển khai lại.
+- [x] 5. (Đã đổi sang chế độ chặn 29/10/2026) Mở Console xem có cảnh báo CSP không; nếu sạch thì đổi `Content-Security-Policy-Report-Only` thành `Content-Security-Policy` trong `vercel.json` (file khóa, cần duyệt) rồi triển khai lại.
 - [ ] 6. Chạy `check_before_launch.sql` lần cuối trên Database.
 - [ ] 7. Chuyển sang dữ liệu thật: tải 1 bản sao lưu `.json`, bỏ khối "KHÓA AN TOÀN" trong `reset_mock_data.sql` rồi chạy; xóa tay tài khoản giáo viên thử trong Authentication; tạo lại giáo viên thật + liên kết tài khoản.
