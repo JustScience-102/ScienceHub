@@ -1,0 +1,3133 @@
+Dưới đây là toàn bộ nội dung triển khai liền mạch cho **Lát cắt V2-3 (Nhật ký Thay đổi & Chu kỳ Năm học 15/06 – 12/06)** và **Lát cắt V2-4 (Sao lưu Thủ công JSON/CSV & Đóng gói Triển khai Vercel)** tuân thủ nghiêm ngặt quy ước trong `RULES.md` và `ARCHITECTURE.md`.
+
+---
+
+## Phần 1: Cơ sở dữ liệu (`supabase/`)
+
+### 1.1. File mới: `supabase/06_v2_3_audit_log.sql` (Lát cắt V2-3)
+
+File này tạo bảng `audit_log`, khóa quyền RLS chỉ cho Quản lý đọc, chặn sửa/xóa trực tiếp, gắn trigger tự động ghi nhật ký trên các bảng nghiệp vụ, hỗ trợ chu kỳ **Năm học (15/06 năm nay -> 12/06 năm sau)** và hàm làm mới nhật ký đầu năm học mới. Chạy lại được nhiều lần an toàn (Idempotent).
+
+```sql
+-- =====================================================================
+-- Trung tâm ScienceHub - FILE 06: V2-3 NHẬT KÝ THAY ĐỔI (AUDIT LOG)
+-- Chạy SAU 05_v2_2_teacher_access.sql. An toàn khi chạy lại nhiều lần.
+-- KHÔNG chạy lại 03_rpc_and_auth.sql.
+--
+-- Nội dung:
+--   1. Hàm tiện ích tính khoảng Năm học của Trung tâm (15/06 -> 12/06 năm sau).
+--   2. Bảng public.audit_log + Index + RLS (chỉ Quản lý đọc) + Trigger chặn sửa/xóa.
+--   3. Hàm nội bộ _write_audit_log & 6 Trigger tự động bắt thay đổi:
+--      - Điểm danh & Học bù (attendance_records, giữ nguyên price_snapshot đóng băng)
+--      - Ghi danh, Cho nghỉ, Đổi lớp (class_enrollments)
+--      - Thêm/Sửa/Ẩn/Khôi phục Lớp học (classes), Học sinh (students), Giáo viên (teachers)
+--      - Liên kết / Khóa / Mở khóa tài khoản Giáo viên (profiles)
+--   4. RPC cho Quản lý: query_audit_logs, clear_audit_logs_for_new_school_year.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 1. Hàm tiện ích xác định Năm học (15/06/YYYY -> 12/06/(YYYY+1))
+-- ---------------------------------------------------------------------
+create or replace function public.vn_school_year_bounds(p_start_year integer default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_today      date := public.vn_today();
+  v_year       integer := extract(year from v_today)::integer;
+  v_start_year integer;
+  v_start_date date;
+  v_end_date   date;
+begin
+  if p_start_year is not null then
+    v_start_year := p_start_year;
+  else
+    if v_today >= make_date(v_year, 6, 15) then
+      v_start_year := v_year;
+    else
+      v_start_year := v_year - 1;
+    end if;
+  end if;
+
+  v_start_date := make_date(v_start_year, 6, 15);
+  v_end_date   := make_date(v_start_year + 1, 6, 12);
+
+  return jsonb_build_object(
+    'school_year', v_start_year::text || '-' || (v_start_year + 1)::text,
+    'start_year',  v_start_year,
+    'end_year',    v_start_year + 1,
+    'start_date',  v_start_date,
+    'end_date',    v_end_date
+  );
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 2. Bảng audit_log & Chốt chặn toàn vẹn (RLS + Chặn UPDATE/DELETE)
+--    Các cột UUID liên kết không đặt FK RESTRICT để không cản trở thao tác
+--    xóa điểm danh (status = null) hoặc thay thế profile giáo viên.
+-- ---------------------------------------------------------------------
+create table if not exists public.audit_log (
+  id               uuid primary key default gen_random_uuid(),
+  created_at       timestamptz not null default now(),
+  actor_user_id    uuid,
+  actor_role       text not null default 'system'
+                   check (actor_role in ('manager', 'teacher', 'system')),
+  actor_teacher_id uuid,
+  actor_name       text not null default 'Hệ thống',
+  action           text not null,
+  table_name       text not null,
+  record_id        uuid,
+  class_id         uuid,
+  student_id       uuid,
+  summary          text not null,
+  old_data         jsonb,
+  new_data         jsonb
+);
+
+create index if not exists idx_audit_log_created_at
+  on public.audit_log (created_at desc);
+create index if not exists idx_audit_log_action
+  on public.audit_log (action);
+create index if not exists idx_audit_log_class_id
+  on public.audit_log (class_id) where class_id is not null;
+create index if not exists idx_audit_log_student_id
+  on public.audit_log (student_id) where student_id is not null;
+create index if not exists idx_audit_log_actor_teacher
+  on public.audit_log (actor_teacher_id) where actor_teacher_id is not null;
+
+alter table public.audit_log enable row level security;
+
+revoke all on table public.audit_log from anon, public;
+revoke insert, update, delete, truncate on table public.audit_log from authenticated;
+grant select on table public.audit_log to authenticated;
+
+drop policy if exists v2_manager_select_audit_log on public.audit_log;
+create policy v2_manager_select_audit_log on public.audit_log
+  for select to authenticated
+  using ((select public.is_manager()));
+
+-- Trigger chặn tuyệt đối UPDATE và DELETE trực tiếp trên audit_log.
+-- Chỉ mở khóa DELETE tạm thời trong giao dịch khi Quản lý gọi hàm làm mới năm học.
+create or replace function public._guard_audit_log_immutable()
+returns trigger
+language plpgsql
+as $$
+begin
+  if tg_op = 'DELETE'
+     and coalesce(current_setting('sciencehub.allow_audit_clear', true), '') = 'on' then
+    return old;
+  end if;
+  raise exception 'Trung tâm: Nhật ký thay đổi được bảo vệ toàn vẹn, không được phép chỉnh sửa hoặc xóa trực tiếp.';
+end;
+$$;
+
+revoke execute on function public._guard_audit_log_immutable() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_log_immutable on public.audit_log;
+create trigger trg_audit_log_immutable
+  before update or delete on public.audit_log
+  for each row execute function public._guard_audit_log_immutable();
+
+-- ---------------------------------------------------------------------
+-- 3. Hàm nội bộ ghi nhận Nhật ký (_write_audit_log)
+-- ---------------------------------------------------------------------
+create or replace function public._write_audit_log(
+  p_action     text,
+  p_table_name text,
+  p_record_id  uuid,
+  p_class_id   uuid,
+  p_student_id uuid,
+  p_summary    text,
+  p_old_data   jsonb,
+  p_new_data   jsonb
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid        uuid := auth.uid();
+  v_role       text;
+  v_teacher_id uuid;
+  v_actor_name text;
+  v_email      text;
+  v_tname      text;
+begin
+  if v_uid is not null then
+    select p.role, p.teacher_id
+      into v_role, v_teacher_id
+    from public.profiles p
+    where p.user_id = v_uid;
+
+    select u.email into v_email
+    from auth.users u
+    where u.id = v_uid;
+
+    if v_role = 'teacher' and v_teacher_id is not null then
+      select t.full_name into v_tname
+      from public.teachers t
+      where t.id = v_teacher_id;
+      v_actor_name := coalesce('GV ' || v_tname, v_email, 'Giáo viên');
+    elsif v_role = 'manager' then
+      v_actor_name := case
+        when v_email is not null then 'Quản lý (' || v_email || ')'
+        else 'Quản lý'
+      end;
+    else
+      v_role       := 'system';
+      v_actor_name := coalesce(v_email, 'Hệ thống');
+    end if;
+  else
+    v_role       := 'system';
+    v_actor_name := 'Hệ thống (SQL)';
+  end if;
+
+  insert into public.audit_log (
+    actor_user_id, actor_role, actor_teacher_id, actor_name,
+    action, table_name, record_id, class_id, student_id,
+    summary, old_data, new_data
+  ) values (
+    v_uid, v_role, v_teacher_id, v_actor_name,
+    p_action, p_table_name, p_record_id, p_class_id, p_student_id,
+    p_summary, p_old_data, p_new_data
+  );
+end;
+$$;
+
+revoke execute on function public._write_audit_log(text, text, uuid, uuid, uuid, text, jsonb, jsonb)
+  from anon, authenticated, public;
+
+-- Hàm tiện ích đổi trạng thái điểm danh sang nhãn tiếng Việt
+create or replace function public._attendance_status_label(p_status text, p_price integer)
+returns text
+language sql
+immutable
+as $$
+  select case p_status
+    when 'present' then 'Có mặt (' || coalesce(trim(to_char(p_price, '999G999G999')) || 'đ', '0đ') || ')'
+    when 'absent' then 'Vắng tính phí (' || coalesce(trim(to_char(p_price, '999G999G999')) || 'đ', '0đ') || ')'
+    when 'absent_excused' then 'Vắng có phép (0đ)'
+    else 'Chưa chấm'
+  end;
+$$;
+
+revoke execute on function public._attendance_status_label(text, integer)
+  from anon, authenticated, public;
+
+-- ---------------------------------------------------------------------
+-- 4. Các Trigger tự động ghi Nhật ký trên các bảng nghiệp vụ
+-- ---------------------------------------------------------------------
+
+-- 4.1 Trigger Điểm danh & Học bù (attendance_records)
+--     Giữ nguyên price_snapshot đã đóng băng, không tính lại theo classes.price_per_session.
+create or replace function public._trg_audit_attendance()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rec            public.attendance_records%rowtype;
+  v_enr            public.class_enrollments%rowtype;
+  v_class_name     text;
+  v_orig_class     text;
+  v_student_name   text;
+  v_student_code   text;
+  v_is_makeup      boolean := false;
+  v_action         text;
+  v_summary        text;
+  v_old_json       jsonb := null;
+  v_new_json       jsonb := null;
+begin
+  v_rec := case when tg_op = 'DELETE' then old else new end;
+
+  -- Bỏ qua nếu UPDATE nhưng trạng thái và đơn giá đóng băng không đổi
+  if tg_op = 'UPDATE'
+     and old.status is not distinct from new.status
+     and old.price_snapshot is not distinct from new.price_snapshot
+     and old.enrollment_id is not distinct from new.enrollment_id then
+    return new;
+  end if;
+
+  select * into v_enr from public.class_enrollments where id = v_rec.enrollment_id;
+  select c.name into v_class_name from public.classes c where c.id = v_rec.class_id;
+  select s.full_name, s.student_code
+    into v_student_name, v_student_code
+  from public.students s
+  where s.id = v_rec.student_id;
+
+  if v_enr.id is not null and v_enr.class_id <> v_rec.class_id then
+    v_is_makeup := true;
+    select c.name into v_orig_class from public.classes c where c.id = v_enr.class_id;
+  end if;
+
+  if tg_op in ('UPDATE', 'DELETE') then
+    v_old_json := jsonb_build_object(
+      'attendance_date', old.attendance_date,
+      'status',          old.status,
+      'price_snapshot',  old.price_snapshot,
+      'class_id',        old.class_id,
+      'class_name',      v_class_name,
+      'enrollment_id',   old.enrollment_id,
+      'orig_class_id',   v_enr.class_id,
+      'orig_class_name', coalesce(v_orig_class, v_class_name),
+      'student_id',      old.student_id,
+      'student_code',    v_student_code,
+      'student_name',    v_student_name,
+      'is_makeup',       v_is_makeup
+    );
+  end if;
+
+  if tg_op in ('INSERT', 'UPDATE') then
+    v_new_json := jsonb_build_object(
+      'attendance_date', new.attendance_date,
+      'status',          new.status,
+      'price_snapshot',  new.price_snapshot,
+      'class_id',        new.class_id,
+      'class_name',      v_class_name,
+      'enrollment_id',   new.enrollment_id,
+      'orig_class_id',   v_enr.class_id,
+      'orig_class_name', coalesce(v_orig_class, v_class_name),
+      'student_id',      new.student_id,
+      'student_code',    v_student_code,
+      'student_name',    v_student_name,
+      'is_makeup',       v_is_makeup
+    );
+  end if;
+
+  if tg_op = 'INSERT' then
+    if v_is_makeup then
+      v_action  := 'makeup_record';
+      v_summary := format(
+        'Ghi nhận học bù cho %s (%s) tại lớp %s ngày %s (bù cho lớp %s, đơn giá gốc %s)',
+        coalesce(v_student_name, 'Học sinh'),
+        coalesce(v_student_code, ''),
+        coalesce(v_class_name, ''),
+        to_char(new.attendance_date, 'DD/MM/YYYY'),
+        coalesce(v_orig_class, ''),
+        public._attendance_status_label(new.status, new.price_snapshot)
+      );
+    else
+      v_action  := 'attendance_create';
+      v_summary := format(
+        'Điểm danh %s (%s) lớp %s ngày %s: %s',
+        coalesce(v_student_name, 'Học sinh'),
+        coalesce(v_student_code, ''),
+        coalesce(v_class_name, ''),
+        to_char(new.attendance_date, 'DD/MM/YYYY'),
+        public._attendance_status_label(new.status, new.price_snapshot)
+      );
+    end if;
+  elsif tg_op = 'UPDATE' then
+    v_action  := 'attendance_update';
+    v_summary := format(
+      'Đổi điểm danh %s (%s) lớp %s ngày %s: %s -> %s',
+      coalesce(v_student_name, 'Học sinh'),
+      coalesce(v_student_code, ''),
+      coalesce(v_class_name, ''),
+      to_char(new.attendance_date, 'DD/MM/YYYY'),
+      public._attendance_status_label(old.status, old.price_snapshot),
+      public._attendance_status_label(new.status, new.price_snapshot)
+    );
+  else
+    v_action  := 'attendance_delete';
+    v_summary := format(
+      'Xóa điểm danh%s của %s (%s) tại lớp %s ngày %s (trước đó: %s)',
+      case when v_is_makeup then ' học bù' else '' end,
+      coalesce(v_student_name, 'Học sinh'),
+      coalesce(v_student_code, ''),
+      coalesce(v_class_name, ''),
+      to_char(old.attendance_date, 'DD/MM/YYYY'),
+      public._attendance_status_label(old.status, old.price_snapshot)
+    );
+  end if;
+
+  perform public._write_audit_log(
+    v_action,
+    'attendance_records',
+    v_rec.id,
+    v_rec.class_id,
+    v_rec.student_id,
+    v_summary,
+    v_old_json,
+    v_new_json
+  );
+
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+revoke execute on function public._trg_audit_attendance() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_attendance on public.attendance_records;
+create trigger trg_audit_attendance
+  after insert or update or delete on public.attendance_records
+  for each row execute function public._trg_audit_attendance();
+
+-- 4.2 Trigger Ghi danh / Cho nghỉ / Đổi lớp (class_enrollments)
+create or replace function public._trg_audit_enrollments()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_class_name     text;
+  v_student_name   text;
+  v_student_code   text;
+  v_transfer_enr   public.class_enrollments%rowtype;
+  v_new_class_name text;
+  v_action         text;
+  v_summary        text;
+begin
+  select c.name into v_class_name from public.classes c where c.id = new.class_id;
+  select s.full_name, s.student_code
+    into v_student_name, v_student_code
+  from public.students s
+  where s.id = new.student_id;
+
+  if tg_op = 'INSERT' then
+    v_action  := 'enrollment_create';
+    v_summary := format(
+      'Ghi danh %s (%s) vào lớp %s từ ngày %s',
+      coalesce(v_student_name, 'Học sinh'),
+      coalesce(v_student_code, ''),
+      coalesce(v_class_name, ''),
+      to_char(new.joined_at, 'DD/MM/YYYY')
+    );
+
+    perform public._write_audit_log(
+      v_action,
+      'class_enrollments',
+      new.id,
+      new.class_id,
+      new.student_id,
+      v_summary,
+      null,
+      jsonb_build_object(
+        'class_id',     new.class_id,
+        'class_name',   v_class_name,
+        'student_id',   new.student_id,
+        'student_code', v_student_code,
+        'student_name', v_student_name,
+        'status',       new.status,
+        'joined_at',    new.joined_at
+      )
+    );
+  elsif tg_op = 'UPDATE' and old.status = 'active' and new.status = 'dropped' then
+    -- Kiểm tra xem việc nghỉ lớp này có nằm trong giao dịch Đổi lớp (transfer_enrollment) không
+    select * into v_transfer_enr
+    from public.class_enrollments e
+    where e.student_id = new.student_id
+      and e.id <> new.id
+      and e.status = 'active'
+      and e.joined_at = new.left_at
+      and e.created_at = transaction_timestamp()
+    order by e.created_at desc
+    limit 1;
+
+    if found then
+      select c.name into v_new_class_name from public.classes c where c.id = v_transfer_enr.class_id;
+      v_action  := 'enrollment_transfer';
+      v_summary := format(
+        'Đổi lớp cho %s (%s): từ lớp %s sang lớp %s (ngày chuyển %s)',
+        coalesce(v_student_name, 'Học sinh'),
+        coalesce(v_student_code, ''),
+        coalesce(v_class_name, ''),
+        coalesce(v_new_class_name, ''),
+        to_char(new.left_at, 'DD/MM/YYYY')
+      );
+
+      perform public._write_audit_log(
+        v_action,
+        'class_enrollments',
+        new.id,
+        new.class_id,
+        new.student_id,
+        v_summary,
+        jsonb_build_object(
+          'from_class_id',   new.class_id,
+          'from_class_name', v_class_name,
+          'joined_at',       old.joined_at,
+          'status',          old.status
+        ),
+        jsonb_build_object(
+          'to_class_id',     v_transfer_enr.class_id,
+          'to_class_name',   v_new_class_name,
+          'transfer_date',   new.left_at,
+          'new_enrollment',  v_transfer_enr.id,
+          'status',          new.status
+        )
+      );
+    else
+      v_action  := 'enrollment_drop';
+      v_summary := format(
+        'Cho %s (%s) nghỉ lớp %s từ ngày %s',
+        coalesce(v_student_name, 'Học sinh'),
+        coalesce(v_student_code, ''),
+        coalesce(v_class_name, ''),
+        to_char(new.left_at, 'DD/MM/YYYY')
+      );
+
+      perform public._write_audit_log(
+        v_action,
+        'class_enrollments',
+        new.id,
+        new.class_id,
+        new.student_id,
+        v_summary,
+        jsonb_build_object(
+          'class_id',     new.class_id,
+          'class_name',   v_class_name,
+          'student_id',   new.student_id,
+          'student_code', v_student_code,
+          'student_name', v_student_name,
+          'status',       old.status,
+          'joined_at',    old.joined_at,
+          'left_at',      old.left_at
+        ),
+        jsonb_build_object(
+          'class_id',     new.class_id,
+          'class_name',   v_class_name,
+          'student_id',   new.student_id,
+          'student_code', v_student_code,
+          'student_name', v_student_name,
+          'status',       new.status,
+          'joined_at',    new.joined_at,
+          'left_at',      new.left_at
+        )
+      );
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public._trg_audit_enrollments() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_enrollments on public.class_enrollments;
+create trigger trg_audit_enrollments
+  after insert or update on public.class_enrollments
+  for each row execute function public._trg_audit_enrollments();
+
+-- 4.3 Trigger Lớp học (classes): Thêm / Sửa / Ẩn / Khôi phục
+create or replace function public._trg_audit_classes()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_old_teacher text;
+  v_new_teacher text;
+  v_action      text;
+  v_summary     text;
+begin
+  select t.full_name into v_new_teacher from public.teachers t where t.id = new.teacher_id;
+
+  if tg_op = 'INSERT' then
+    v_action  := 'class_create';
+    v_summary := format(
+      'Tạo lớp %s (Khối %s, GV: %s, đơn giá: %sđ/buổi)',
+      new.name,
+      coalesce(new.grade::text, '-'),
+      coalesce(v_new_teacher, '-'),
+      trim(to_char(new.price_per_session, '999G999G999'))
+    );
+
+    perform public._write_audit_log(
+      v_action,
+      'classes',
+      new.id,
+      new.id,
+      null,
+      v_summary,
+      null,
+      jsonb_build_object(
+        'name',              new.name,
+        'subject',           new.subject,
+        'grade',             new.grade,
+        'class_no',          new.class_no,
+        'teacher_id',        new.teacher_id,
+        'teacher_name',      v_new_teacher,
+        'price_per_session', new.price_per_session
+      )
+    );
+  elsif tg_op = 'UPDATE' then
+    select t.full_name into v_old_teacher from public.teachers t where t.id = old.teacher_id;
+
+    if old.deleted_at is null and new.deleted_at is not null then
+      v_action  := 'class_hide';
+      v_summary := format('Ẩn lớp %s', new.name);
+    elsif old.deleted_at is not null and new.deleted_at is null then
+      v_action  := 'class_restore';
+      v_summary := format('Khôi phục lớp %s', new.name);
+    elsif old.name is distinct from new.name
+       or old.subject is distinct from new.subject
+       or old.grade is distinct from new.grade
+       or old.class_no is distinct from new.class_no
+       or old.teacher_id is distinct from new.teacher_id
+       or old.price_per_session is distinct from new.price_per_session then
+      v_action  := 'class_update';
+      v_summary := format(
+        'Cập nhật lớp %s (GV: %s -> %s, đơn giá: %sđ -> %sđ)',
+        new.name,
+        coalesce(v_old_teacher, '-'),
+        coalesce(v_new_teacher, '-'),
+        trim(to_char(old.price_per_session, '999G999G999')),
+        trim(to_char(new.price_per_session, '999G999G999'))
+      );
+    else
+      return new;
+    end if;
+
+    perform public._write_audit_log(
+      v_action,
+      'classes',
+      new.id,
+      new.id,
+      null,
+      v_summary,
+      jsonb_build_object(
+        'name',              old.name,
+        'subject',           old.subject,
+        'grade',             old.grade,
+        'class_no',          old.class_no,
+        'teacher_id',        old.teacher_id,
+        'teacher_name',      v_old_teacher,
+        'price_per_session', old.price_per_session,
+        'deleted_at',        old.deleted_at
+      ),
+      jsonb_build_object(
+        'name',              new.name,
+        'subject',           new.subject,
+        'grade',             new.grade,
+        'class_no',          new.class_no,
+        'teacher_id',        new.teacher_id,
+        'teacher_name',      v_new_teacher,
+        'price_per_session', new.price_per_session,
+        'deleted_at',        new.deleted_at
+      )
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public._trg_audit_classes() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_classes on public.classes;
+create trigger trg_audit_classes
+  after insert or update on public.classes
+  for each row execute function public._trg_audit_classes();
+
+-- 4.4 Trigger Học sinh (students): Thêm / Sửa / Tự ẩn / Tự hiện
+create or replace function public._trg_audit_students()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_old_parent_name  text;
+  v_old_parent_phone text;
+  v_new_parent_name  text;
+  v_new_parent_phone text;
+  v_action           text;
+  v_summary          text;
+begin
+  select p.full_name, p.phone
+    into v_new_parent_name, v_new_parent_phone
+  from public.parents p
+  where p.id = new.parent_id;
+
+  if tg_op = 'INSERT' then
+    v_action  := 'student_create';
+    v_summary := format(
+      'Tạo hồ sơ học sinh %s (%s) — Phụ huynh: %s (%s)',
+      new.full_name,
+      new.student_code,
+      coalesce(v_new_parent_name, '-'),
+      coalesce(v_new_parent_phone, '-')
+    );
+
+    perform public._write_audit_log(
+      v_action,
+      'students',
+      new.id,
+      null,
+      new.id,
+      v_summary,
+      null,
+      jsonb_build_object(
+        'student_code', new.student_code,
+        'full_name',    new.full_name,
+        'phone',        new.phone,
+        'grade',        new.grade,
+        'parent_id',    new.parent_id,
+        'parent_name',  v_new_parent_name,
+        'parent_phone', v_new_parent_phone
+      )
+    );
+  elsif tg_op = 'UPDATE' then
+    -- Bỏ qua cập nhật tự động gán khối lần đầu ngay lúc vừa tạo học sinh
+    if old.grade is null and new.grade is not null
+       and old.full_name is not distinct from new.full_name
+       and old.phone is not distinct from new.phone
+       and old.parent_id is not distinct from new.parent_id
+       and old.deleted_at is not distinct from new.deleted_at then
+      return new;
+    end if;
+
+    select p.full_name, p.phone
+      into v_old_parent_name, v_old_parent_phone
+    from public.parents p
+    where p.id = old.parent_id;
+
+    if old.deleted_at is null and new.deleted_at is not null then
+      v_action  := 'student_hide';
+      v_summary := format('Tự động ẩn học sinh %s (%s) do đã nghỉ hết các lớp', new.full_name, new.student_code);
+    elsif old.deleted_at is not null and new.deleted_at is null then
+      v_action  := 'student_restore';
+      v_summary := format('Hiện lại học sinh %s (%s) khi ghi danh vào lớp mới', new.full_name, new.student_code);
+    elsif old.full_name is distinct from new.full_name
+       or old.phone is distinct from new.phone
+       or old.parent_id is distinct from new.parent_id
+       or old.grade is distinct from new.grade then
+      v_action  := 'student_update';
+      v_summary := format('Cập nhật hồ sơ học sinh %s (%s)', new.full_name, new.student_code);
+    else
+      return new;
+    end if;
+
+    perform public._write_audit_log(
+      v_action,
+      'students',
+      new.id,
+      null,
+      new.id,
+      v_summary,
+      jsonb_build_object(
+        'student_code', old.student_code,
+        'full_name',    old.full_name,
+        'phone',        old.phone,
+        'grade',        old.grade,
+        'parent_id',    old.parent_id,
+        'parent_name',  v_old_parent_name,
+        'parent_phone', v_old_parent_phone,
+        'deleted_at',   old.deleted_at
+      ),
+      jsonb_build_object(
+        'student_code', new.student_code,
+        'full_name',    new.full_name,
+        'phone',        new.phone,
+        'grade',        new.grade,
+        'parent_id',    new.parent_id,
+        'parent_name',  v_new_parent_name,
+        'parent_phone', v_new_parent_phone,
+        'deleted_at',   new.deleted_at
+      )
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public._trg_audit_students() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_students on public.students;
+create trigger trg_audit_students
+  after insert or update on public.students
+  for each row execute function public._trg_audit_students();
+
+-- 4.5 Trigger Giáo viên (teachers): Thêm / Sửa / Ẩn / Khôi phục
+create or replace function public._trg_audit_teachers()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_action  text;
+  v_summary text;
+begin
+  if tg_op = 'INSERT' then
+    v_action  := 'teacher_create';
+    v_summary := format('Thêm giáo viên %s (SĐT: %s)', new.full_name, coalesce(new.phone, '-'));
+
+    perform public._write_audit_log(
+      v_action,
+      'teachers',
+      new.id,
+      null,
+      null,
+      v_summary,
+      null,
+      jsonb_build_object(
+        'full_name', new.full_name,
+        'phone',     new.phone,
+        'email',     new.email
+      )
+    );
+  elsif tg_op = 'UPDATE' then
+    if old.deleted_at is null and new.deleted_at is not null then
+      v_action  := 'teacher_hide';
+      v_summary := format('Ẩn giáo viên %s', new.full_name);
+    elsif old.deleted_at is not null and new.deleted_at is null then
+      v_action  := 'teacher_restore';
+      v_summary := format('Khôi phục giáo viên %s', new.full_name);
+    elsif old.full_name is distinct from new.full_name
+       or old.phone is distinct from new.phone
+       or old.email is distinct from new.email then
+      v_action  := 'teacher_update';
+      v_summary := format('Cập nhật thông tin giáo viên %s', new.full_name);
+    else
+      return new;
+    end if;
+
+    perform public._write_audit_log(
+      v_action,
+      'teachers',
+      new.id,
+      null,
+      null,
+      v_summary,
+      jsonb_build_object(
+        'full_name',  old.full_name,
+        'phone',      old.phone,
+        'email',      old.email,
+        'deleted_at', old.deleted_at
+      ),
+      jsonb_build_object(
+        'full_name',  new.full_name,
+        'phone',      new.phone,
+        'email',      new.email,
+        'deleted_at', new.deleted_at
+      )
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public._trg_audit_teachers() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_teachers on public.teachers;
+create trigger trg_audit_teachers
+  after insert or update on public.teachers
+  for each row execute function public._trg_audit_teachers();
+
+-- 4.6 Trigger Tài khoản Giáo viên (profiles): Liên kết / Khóa / Mở khóa
+create or replace function public._trg_audit_profiles()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tname   text;
+  v_email   text;
+  v_action  text;
+  v_summary text;
+begin
+  if new.role <> 'teacher' then
+    return new;
+  end if;
+
+  select t.full_name into v_tname from public.teachers t where t.id = new.teacher_id;
+  select u.email into v_email from auth.users u where u.id = new.user_id;
+
+  if tg_op = 'INSERT' then
+    v_action  := 'teacher_account_link';
+    v_summary := format(
+      'Liên kết tài khoản %s cho giáo viên %s',
+      coalesce(v_email, ''),
+      coalesce(v_tname, '')
+    );
+
+    perform public._write_audit_log(
+      v_action,
+      'profiles',
+      new.teacher_id,
+      null,
+      null,
+      v_summary,
+      null,
+      jsonb_build_object(
+        'user_id',      new.user_id,
+        'email',        v_email,
+        'teacher_id',   new.teacher_id,
+        'teacher_name', v_tname,
+        'active',       new.active
+      )
+    );
+  elsif tg_op = 'UPDATE' then
+    if old.active = true and new.active = false then
+      v_action  := 'teacher_account_lock';
+      v_summary := format('Khóa tài khoản đăng nhập của giáo viên %s (%s)', coalesce(v_tname, ''), coalesce(v_email, ''));
+    elsif old.active = false and new.active = true then
+      v_action  := 'teacher_account_unlock';
+      v_summary := format('Mở khóa tài khoản đăng nhập của giáo viên %s (%s)', coalesce(v_tname, ''), coalesce(v_email, ''));
+    elsif old.teacher_id is distinct from new.teacher_id then
+      v_action  := 'teacher_account_link';
+      v_summary := format('Cập nhật liên kết tài khoản %s cho giáo viên %s', coalesce(v_email, ''), coalesce(v_tname, ''));
+    else
+      return new;
+    end if;
+
+    perform public._write_audit_log(
+      v_action,
+      'profiles',
+      new.teacher_id,
+      null,
+      null,
+      v_summary,
+      jsonb_build_object(
+        'user_id',    old.user_id,
+        'teacher_id', old.teacher_id,
+        'active',     old.active
+      ),
+      jsonb_build_object(
+        'user_id',      new.user_id,
+        'email',        v_email,
+        'teacher_id',   new.teacher_id,
+        'teacher_name', v_tname,
+        'active',       new.active
+      )
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public._trg_audit_profiles() from anon, authenticated, public;
+
+drop trigger if exists trg_audit_profiles on public.profiles;
+create trigger trg_audit_profiles
+  after insert or update on public.profiles
+  for each row execute function public._trg_audit_profiles();
+
+-- ---------------------------------------------------------------------
+-- 5. Các RPC dành cho Quản lý tra cứu & làm mới Nhật ký theo Năm học
+-- ---------------------------------------------------------------------
+
+-- 5.1 Tra cứu nhật ký thay đổi (có lọc theo khoảng ngày, vai trò, giáo viên, nhóm thao tác, lớp, học sinh, từ khóa)
+create or replace function public.query_audit_logs(
+  p_from_date      date default null,
+  p_to_date        date default null,
+  p_actor_role     text default null,
+  p_teacher_id     uuid default null,
+  p_action_group   text default null,
+  p_class_id       uuid default null,
+  p_student_id     uuid default null,
+  p_search         text default null,
+  p_limit          integer default 100,
+  p_offset         integer default 0
+) returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_limit   integer := greatest(1, least(coalesce(p_limit, 100), 500));
+  v_offset  integer := greatest(0, coalesce(p_offset, 0));
+  v_search  text    := nullif(trim(coalesce(p_search, '')), '');
+  v_total   integer;
+  v_items   jsonb;
+begin
+  perform public.assert_manager();
+
+  with filtered as (
+    select l.*
+    from public.audit_log l
+    where (p_from_date is null or (l.created_at at time zone 'Asia/Ho_Chi_Minh')::date >= p_from_date)
+      and (p_to_date   is null or (l.created_at at time zone 'Asia/Ho_Chi_Minh')::date <= p_to_date)
+      and (p_actor_role is null or p_actor_role = '' or l.actor_role = p_actor_role)
+      and (p_teacher_id is null or l.actor_teacher_id = p_teacher_id)
+      and (p_class_id   is null or l.class_id = p_class_id)
+      and (p_student_id is null or l.student_id = p_student_id)
+      and (
+        p_action_group is null or p_action_group = ''
+        or (p_action_group = 'attendance'  and l.action in ('attendance_create', 'attendance_update', 'attendance_delete'))
+        or (p_action_group = 'makeup'      and l.action = 'makeup_record')
+        or (p_action_group = 'enrollment'  and l.action in ('enrollment_create', 'enrollment_drop', 'enrollment_transfer'))
+        or (p_action_group = 'class'       and l.action in ('class_create', 'class_update', 'class_hide', 'class_restore'))
+        or (p_action_group = 'student'     and l.action in ('student_create', 'student_update', 'student_hide', 'student_restore'))
+        or (p_action_group = 'teacher'     and l.action in ('teacher_create', 'teacher_update', 'teacher_hide', 'teacher_restore', 'teacher_account_link', 'teacher_account_lock', 'teacher_account_unlock'))
+        or l.action = p_action_group
+      )
+      and (
+        v_search is null
+        or l.summary ilike '%' || v_search || '%'
+        or l.actor_name ilike '%' || v_search || '%'
+      )
+  )
+  select
+    count(*),
+    coalesce(
+      (
+        select jsonb_agg(to_jsonb(p.*) order by p.created_at desc)
+        from (
+          select *
+          from filtered
+          order by created_at desc
+          limit v_limit offset v_offset
+        ) p
+      ),
+      '[]'::jsonb
+    )
+  into v_total, v_items
+  from filtered;
+
+  return jsonb_build_object(
+    'total',       coalesce(v_total, 0),
+    'limit',       v_limit,
+    'offset',      v_offset,
+    'school_year', public.vn_school_year_bounds(),
+    'items',       v_items
+  );
+end;
+$$;
+
+-- 5.2 Xóa nhật ký cũ sau khi đã tải file sao lưu để bắt đầu Năm học mới (15/06 -> 12/06)
+create or replace function public.clear_audit_logs_for_new_school_year(
+  p_confirm_text text,
+  p_before_date  date default null
+) returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_deleted integer := 0;
+begin
+  perform public.assert_manager();
+
+  if trim(coalesce(p_confirm_text, '')) <> 'XOA NHAT KY' then
+    raise exception 'Trung tâm: Vui lòng nhập đúng cụm từ xác nhận "XOA NHAT KY" sau khi đã tải file sao lưu.';
+  end if;
+
+  -- Mở khóa tạm thời trong giao dịch hiện tại cho phép xóa dòng trong audit_log
+  perform set_config('sciencehub.allow_audit_clear', 'on', true);
+
+  if p_before_date is null then
+    delete from public.audit_log;
+  else
+    delete from public.audit_log
+    where (created_at at time zone 'Asia/Ho_Chi_Minh')::date <= p_before_date;
+  end if;
+
+  get diagnostics v_deleted = row_count;
+
+  perform set_config('sciencehub.allow_audit_clear', 'off', true);
+
+  -- Ghi lại 1 dòng nhật ký mở đầu năm học mới
+  perform public._write_audit_log(
+    'audit_log_clear',
+    'audit_log',
+    null,
+    null,
+    null,
+    format(
+      'Quản lý đã sao lưu và làm mới %s dòng nhật ký để bắt đầu năm học mới%s.',
+      v_deleted,
+      case
+        when p_before_date is not null then ' (xóa dữ liệu đến hết ngày ' || to_char(p_before_date, 'DD/MM/YYYY') || ')'
+        else ''
+      end
+    ),
+    jsonb_build_object('deleted_count', v_deleted, 'before_date', p_before_date),
+    jsonb_build_object('reset_at', now())
+  );
+
+  return v_deleted;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 6. Chốt quyền EXECUTE
+-- ---------------------------------------------------------------------
+revoke execute on function public.vn_school_year_bounds(integer)                                                           from anon, public;
+revoke execute on function public.query_audit_logs(date, date, text, uuid, text, uuid, uuid, text, integer, integer)       from anon, public;
+revoke execute on function public.clear_audit_logs_for_new_school_year(text, date)                                         from anon, public;
+
+grant execute on function public.vn_school_year_bounds(integer)                                                            to authenticated;
+grant execute on function public.query_audit_logs(date, date, text, uuid, text, uuid, uuid, text, integer, integer)        to authenticated;
+grant execute on function public.clear_audit_logs_for_new_school_year(text, date)                                          to authenticated;
+
+notify pgrst, 'reload schema';
+
+```
+
+---
+
+### 1.2. File mới: `supabase/07_v2_4_backup.sql` (Lát cắt V2-4)
+
+File này bổ sung 2 hàm RPC dành riêng cho Quản lý (`assert_manager()`) để xuất trọn vẹn bản sao lưu JSON toàn Trung tâm (hoặc riêng Nhật ký năm học) và xuất báo cáo Điểm danh – Học phí theo tháng (cộng từ `price_snapshot` đã đóng băng).
+
+```sql
+-- =====================================================================
+-- Trung tâm ScienceHub - FILE 07: V2-4 SAO LƯU DỮ LIỆU THỦ CÔNG (JSON/CSV)
+-- Chạy SAU 06_v2_3_audit_log.sql. An toàn khi chạy lại nhiều lần.
+--
+-- Nội dung:
+--   1. export_center_backup(p_include_audit_log): Xuất toàn bộ dữ liệu
+--      các bảng nghiệp vụ trong 1 giao dịch đồng nhất (chỉ Quản lý).
+--   2. export_monthly_attendance_report(p_year, p_month): Xuất bảng tổng hợp
+--      điểm danh & học phí tháng theo đúng price_snapshot đóng băng.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 1. Xuất toàn bộ dữ liệu Trung tâm ra JSON (chỉ Quản lý)
+-- ---------------------------------------------------------------------
+create or replace function public.export_center_backup(
+  p_include_audit_log boolean default true
+) returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_parents     jsonb;
+  v_teachers    jsonb;
+  v_students    jsonb;
+  v_classes     jsonb;
+  v_schedules   jsonb;
+  v_enrollments jsonb;
+  v_attendance  jsonb;
+  v_profiles    jsonb;
+  v_audit_logs  jsonb := '[]'::jsonb;
+begin
+  perform public.assert_manager();
+
+  select coalesce(jsonb_agg(to_jsonb(p.*) order by p.parent_code), '[]'::jsonb)
+    into v_parents
+  from public.parents p;
+
+  select coalesce(jsonb_agg(to_jsonb(t.*) order by t.full_name), '[]'::jsonb)
+    into v_teachers
+  from public.teachers t;
+
+  select coalesce(jsonb_agg(to_jsonb(s.*) order by s.student_code), '[]'::jsonb)
+    into v_students
+  from public.students s;
+
+  select coalesce(jsonb_agg(to_jsonb(c.*) order by c.name), '[]'::jsonb)
+    into v_classes
+  from public.classes c;
+
+  select coalesce(jsonb_agg(to_jsonb(cs.*) order by cs.class_id, cs.day_of_week), '[]'::jsonb)
+    into v_schedules
+  from public.class_schedules cs;
+
+  select coalesce(jsonb_agg(to_jsonb(ce.*) order by ce.joined_at desc, ce.created_at desc), '[]'::jsonb)
+    into v_enrollments
+  from public.class_enrollments ce;
+
+  select coalesce(jsonb_agg(to_jsonb(ar.*) order by ar.attendance_date desc, ar.created_at desc), '[]'::jsonb)
+    into v_attendance
+  from public.attendance_records ar;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'user_id',      pr.user_id,
+        'email',        u.email,
+        'role',         pr.role,
+        'teacher_id',   pr.teacher_id,
+        'active',       pr.active,
+        'created_at',   pr.created_at
+      )
+      order by pr.role, pr.created_at
+    ),
+    '[]'::jsonb
+  )
+  into v_profiles
+  from public.profiles pr
+  left join auth.users u on u.id = pr.user_id;
+
+  if coalesce(p_include_audit_log, true) then
+    select coalesce(jsonb_agg(to_jsonb(al.*) order by al.created_at desc), '[]'::jsonb)
+      into v_audit_logs
+    from public.audit_log al;
+  end if;
+
+  return jsonb_build_object(
+    'metadata', jsonb_build_object(
+      'center',            'Trung tâm ScienceHub',
+      'version',           'V2-4',
+      'exported_at',       now(),
+      'vn_date',           public.vn_today(),
+      'school_year',       public.vn_school_year_bounds(),
+      'include_audit_log', coalesce(p_include_audit_log, true),
+      'counts', jsonb_build_object(
+        'parents',            jsonb_array_length(v_parents),
+        'teachers',           jsonb_array_length(v_teachers),
+        'students',           jsonb_array_length(v_students),
+        'classes',            jsonb_array_length(v_classes),
+        'class_schedules',    jsonb_array_length(v_schedules),
+        'class_enrollments',  jsonb_array_length(v_enrollments),
+        'attendance_records', jsonb_array_length(v_attendance),
+        'profiles',           jsonb_array_length(v_profiles),
+        'audit_log',          jsonb_array_length(v_audit_logs)
+      )
+    ),
+    'tables', jsonb_build_object(
+      'parents',            v_parents,
+      'teachers',           v_teachers,
+      'students',           v_students,
+      'classes',            v_classes,
+      'class_schedules',    v_schedules,
+      'class_enrollments',  v_enrollments,
+      'attendance_records', v_attendance,
+      'profiles',           v_profiles,
+      'audit_log',          v_audit_logs
+    )
+  );
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 2. Xuất báo cáo Điểm danh & Học phí theo tháng (chỉ Quản lý)
+--    Tính tiền tuyệt đối từ attendance_records.price_snapshot (đơn giá đóng băng).
+-- ---------------------------------------------------------------------
+create or replace function public.export_monthly_attendance_report(
+  p_year  integer,
+  p_month integer
+) returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_start date;
+  v_next  date;
+  v_rows  jsonb;
+begin
+  perform public.assert_manager();
+
+  if p_year is null or p_month is null
+     or p_year not between 2000 and 2100 or p_month not between 1 and 12 then
+    raise exception 'Trung tâm: Tháng hoặc năm xuất báo cáo không hợp lệ.';
+  end if;
+
+  v_start := make_date(p_year, p_month, 1);
+  v_next  := (v_start + interval '1 month')::date;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'student_code',     x.student_code,
+        'student_name',     x.student_name,
+        'student_phone',    x.student_phone,
+        'grade',            x.grade,
+        'parent_code',      x.parent_code,
+        'parent_name',      x.parent_name,
+        'parent_phone',     x.parent_phone,
+        'class_name',       x.class_name,
+        'subject',          x.subject,
+        'teacher_name',     x.teacher_name,
+        'enrollment_status',x.enrollment_status,
+        'present_count',    x.present_count,
+        'makeup_count',     x.makeup_count,
+        'absent_count',     x.absent_count,
+        'excused_count',    x.excused_count,
+        'charged_sessions', x.charged_sessions,
+        'total_tuition',    x.total_tuition
+      )
+      order by x.class_name, x.student_name
+    ),
+    '[]'::jsonb
+  )
+  into v_rows
+  from (
+    select
+      s.student_code,
+      s.full_name as student_name,
+      coalesce(s.phone, '') as student_phone,
+      coalesce(c.grade, s.grade) as grade,
+      coalesce(p.parent_code, '') as parent_code,
+      coalesce(p.full_name, '') as parent_name,
+      coalesce(p.phone, '') as parent_phone,
+      c.name as class_name,
+      coalesce(c.subject, '') as subject,
+      coalesce(t.full_name, '') as teacher_name,
+      e.status as enrollment_status,
+      count(a.id) filter (where a.status = 'present' and a.class_id = e.class_id) as present_count,
+      count(a.id) filter (where a.status = 'present' and a.class_id <> e.class_id) as makeup_count,
+      count(a.id) filter (where a.status = 'absent') as absent_count,
+      count(a.id) filter (where a.status = 'absent_excused') as excused_count,
+      count(a.id) filter (where a.status in ('present', 'absent')) as charged_sessions,
+      coalesce(sum(a.price_snapshot) filter (where a.status in ('present', 'absent')), 0) as total_tuition
+    from public.class_enrollments e
+    join public.students s on s.id = e.student_id
+    left join public.parents p on p.id = s.parent_id
+    join public.classes c on c.id = e.class_id
+    left join public.teachers t on t.id = c.teacher_id
+    left join public.attendance_records a
+      on a.enrollment_id = e.id
+     and a.attendance_date >= v_start
+     and a.attendance_date < v_next
+    where e.joined_at < v_next
+      and (e.left_at is null or e.left_at >= v_start)
+    group by
+      s.id, s.student_code, s.full_name, s.phone, s.grade,
+      p.parent_code, p.full_name, p.phone,
+      c.id, c.name, c.subject, c.grade,
+      t.full_name, e.id, e.status
+  ) x;
+
+  return jsonb_build_object(
+    'year',  p_year,
+    'month', p_month,
+    'rows',  v_rows
+  );
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 3. Chốt quyền EXECUTE
+-- ---------------------------------------------------------------------
+revoke execute on function public.export_center_backup(boolean)                    from anon, public;
+revoke execute on function public.export_monthly_attendance_report(integer, integer) from anon, public;
+
+grant execute on function public.export_center_backup(boolean)                     to authenticated;
+grant execute on function public.export_monthly_attendance_report(integer, integer)  to authenticated;
+
+notify pgrst, 'reload schema';
+
+```
+
+---
+
+## Phần 2: Các File Frontend Tạo Mới (`src/` & `vercel.json`)
+
+### 2.1. File mới: `src/lib/auditLog.js`
+
+Xử lý truy vấn nhật ký, định dạng thời gian theo múi giờ `Asia/Ho_Chi_Minh`, tính kỳ Năm học (`15/06 -> 12/06`) và hiển thị chi tiết dữ liệu cũ/mới bằng tiếng Việt.
+
+```javascript
+import { supabase } from './supabaseClient';
+
+export const ACTION_GROUP_OPTIONS = [
+  { value: '', label: 'Tất cả thao tác' },
+  { value: 'attendance', label: 'Điểm danh (Có mặt / Vắng / Xóa)' },
+  { value: 'makeup', label: 'Học bù' },
+  { value: 'enrollment', label: 'Ghi danh · Cho nghỉ · Đổi lớp' },
+  { value: 'class', label: 'Lớp học (Tạo / Sửa / Ẩn / Khôi phục)' },
+  { value: 'student', label: 'Học sinh (Tạo / Sửa / Ẩn / Hiện)' },
+  { value: 'teacher', label: 'Giáo viên & Tài khoản đăng nhập' },
+];
+
+export const ACTION_META = {
+  attendance_create: { label: 'Điểm danh mới', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  attendance_update: { label: 'Sửa điểm danh', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  attendance_delete: { label: 'Xóa điểm danh', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  makeup_record: { label: 'Học bù', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  enrollment_create: { label: 'Ghi danh', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  enrollment_drop: { label: 'Cho nghỉ học', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  enrollment_transfer: { label: 'Đổi lớp', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  class_create: { label: 'Tạo lớp học', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  class_update: { label: 'Sửa lớp học', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  class_hide: { label: 'Ẩn lớp học', badge: 'bg-slate-100 text-slate-700 border-slate-300' },
+  class_restore: { label: 'Khôi phục lớp', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
+  student_create: { label: 'Tạo học sinh', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  student_update: { label: 'Sửa học sinh', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  student_hide: { label: 'Ẩn học sinh', badge: 'bg-slate-100 text-slate-700 border-slate-300' },
+  student_restore: { label: 'Hiện lại học sinh', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
+  teacher_create: { label: 'Thêm giáo viên', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  teacher_update: { label: 'Sửa giáo viên', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  teacher_hide: { label: 'Ẩn giáo viên', badge: 'bg-slate-100 text-slate-700 border-slate-300' },
+  teacher_restore: { label: 'Khôi phục GV', badge: 'bg-teal-50 text-teal-700 border-teal-200' },
+  teacher_account_link: { label: 'Liên kết TK GV', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  teacher_account_lock: { label: 'Khóa TK GV', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  teacher_account_unlock: { label: 'Mở khóa TK GV', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  audit_log_clear: { label: 'Làm mới nhật ký', badge: 'bg-slate-100 text-slate-800 border-slate-300' },
+};
+
+export function getActionMeta(action) {
+  return (
+    ACTION_META[action] || {
+      label: action || 'Khác',
+      badge: 'bg-slate-100 text-slate-700 border-slate-200',
+    }
+  );
+}
+
+/**
+ * Lấy ngày hiện tại theo múi giờ Asia/Ho_Chi_Minh (YYYY-MM-DD), không dùng toISOString().
+ */
+export function getVnTodayISO() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const d = parts.find((p) => p.type === 'day')?.value;
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Tính khoảng Năm học hiện tại (15/06 năm bắt đầu -> 12/06 năm kế tiếp)
+ */
+export function getCurrentSchoolYearBounds(todayISO = getVnTodayISO()) {
+  const [yStr, mStr, dStr] = todayISO.split('-');
+  const year = Number(yStr);
+  const month = Number(mStr);
+  const day = Number(dStr);
+
+  const isOnOrAfterJune15 = month > 6 || (month === 6 && day >= 15);
+  const startYear = isOnOrAfterJune15 ? year : year - 1;
+  const endYear = startYear + 1;
+
+  return {
+    schoolYear: `${startYear}-${endYear}`,
+    startYear,
+    endYear,
+    startDate: `${startYear}-06-15`,
+    endDate: `${endYear}-06-12`,
+    label: `Năm học ${startYear} - ${endYear} (15/06/${startYear} – 12/06/${endYear})`,
+  };
+}
+
+/**
+ * Định dạng mốc thời gian sang DD/MM/YYYY HH:mm theo múi giờ Việt Nam
+ */
+export function formatVnDateTime(isoTimestamp) {
+  if (!isoTimestamp) return '-';
+  try {
+    const dt = new Date(isoTimestamp);
+    return new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(dt);
+  } catch {
+    return String(isoTimestamp);
+  }
+}
+
+export function formatCurrencyVnd(amount) {
+  if (amount === null || amount === undefined) return '-';
+  const num = Number(amount);
+  if (Number.isNaN(num)) return '-';
+  return `${num.toLocaleString('vi-VN')}đ`;
+}
+
+const FIELD_LABELS = {
+  attendance_date: 'Ngày điểm danh',
+  status: 'Trạng thái',
+  price_snapshot: 'Đơn giá đóng băng',
+  class_name: 'Lớp học',
+  orig_class_name: 'Lớp gốc',
+  from_class_name: 'Từ lớp',
+  to_class_name: 'Sang lớp',
+  transfer_date: 'Ngày chuyển lớp',
+  student_code: 'Mã học sinh',
+  student_name: 'Học sinh',
+  full_name: 'Họ tên',
+  phone: 'Số điện thoại',
+  email: 'Email',
+  grade: 'Khối',
+  subject: 'Môn học',
+  class_no: 'Thứ tự lớp',
+  teacher_name: 'Giáo viên',
+  price_per_session: 'Đơn giá / buổi',
+  parent_name: 'Phụ huynh',
+  parent_phone: 'SĐT phụ huynh',
+  joined_at: 'Ngày vào lớp',
+  left_at: 'Ngày nghỉ học',
+  active: 'Kích hoạt tài khoản',
+  deleted_at: 'Trạng thái ẩn',
+  is_makeup: 'Học bù',
+  deleted_count: 'Số dòng nhật ký đã xóa',
+};
+
+const STATUS_VALUE_LABELS = {
+  present: 'Có mặt',
+  absent: 'Vắng (tính phí)',
+  absent_excused: 'Vắng có phép (0đ)',
+  active: 'Đang học',
+  dropped: 'Đã nghỉ',
+};
+
+export function formatAuditPayload(data) {
+  if (!data || typeof data !== 'object') return [];
+  const entries = [];
+  for (const [key, rawVal] of Object.entries(data)) {
+    if (
+      key.endsWith('_id') ||
+      key === 'new_enrollment' ||
+      rawVal === undefined
+    ) {
+      continue;
+    }
+    const label = FIELD_LABELS[key] || key;
+    let display = rawVal;
+
+    if (rawVal === null || rawVal === '') {
+      display = 'Trống';
+    } else if (key === 'price_snapshot' || key === 'price_per_session') {
+      display = formatCurrencyVnd(rawVal);
+    } else if (key === 'status' && STATUS_VALUE_LABELS[rawVal]) {
+      display = STATUS_VALUE_LABELS[rawVal];
+    } else if (typeof rawVal === 'boolean') {
+      display = rawVal ? 'Có' : 'Không';
+    } else if (
+      (key.endsWith('_date') || key === 'joined_at' || key === 'left_at') &&
+      typeof rawVal === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(rawVal)
+    ) {
+      const [y, m, d] = rawVal.split('-');
+      display = `${d}/${m}/${y}`;
+    }
+
+    entries.push({ key, label, value: String(display) });
+  }
+  return entries;
+}
+
+export async function fetchAuditLogs({
+  fromDate = null,
+  toDate = null,
+  actorRole = null,
+  teacherId = null,
+  actionGroup = null,
+  classId = null,
+  studentId = null,
+  search = null,
+  limit = 100,
+  offset = 0,
+} = {}) {
+  const { data, error } = await supabase.rpc('query_audit_logs', {
+    p_from_date: fromDate || null,
+    p_to_date: toDate || null,
+    p_actor_role: actorRole || null,
+    p_teacher_id: teacherId || null,
+    p_action_group: actionGroup || null,
+    p_class_id: classId || null,
+    p_student_id: studentId || null,
+    p_search: search ? search.trim() : null,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (error) throw error;
+  return (
+    data || {
+      total: 0,
+      limit,
+      offset,
+      items: [],
+    }
+  );
+}
+
+export async function clearAuditLogsForNewSchoolYear({
+  confirmText,
+  beforeDate = null,
+}) {
+  const { data, error } = await supabase.rpc(
+    'clear_audit_logs_for_new_school_year',
+    {
+      p_confirm_text: confirmText,
+      p_before_date: beforeDate || null,
+    }
+  );
+  if (error) throw error;
+  return data;
+}
+
+```
+
+---
+
+### 2.2. File mới: `src/lib/backup.js`
+
+Xử lý tải bản sao lưu `.json` và xuất các bảng tính `.csv` (có UTF-8 BOM `\uFEFF` để mở trên Microsoft Excel hiển thị chuẩn tiếng Việt, sắp xếp học sinh theo **TÊN gọi** đúng quy ước `RULES.md`).
+
+```javascript
+import { supabase } from './supabaseClient';
+import {
+  getVnTodayISO,
+  getCurrentSchoolYearBounds,
+  formatVnDateTime,
+  getActionMeta,
+} from './auditLog';
+
+/**
+ * So sánh tên tiếng Việt theo TÊN GỌI (từ cuối của họ tên) đúng quy ước RULES.md
+ */
+export function compareVietnameseGivenNames(fullNameA = '', fullNameB = '') {
+  const cleanA = String(fullNameA).trim();
+  const cleanB = String(fullNameB).trim();
+  const partsA = cleanA.split(/\s+/);
+  const partsB = cleanB.split(/\s+/);
+  const givenA = partsA[partsA.length - 1] || '';
+  const givenB = partsB[partsB.length - 1] || '';
+
+  const cmpGiven = givenA.localeCompare(givenB, 'vi', { sensitivity: 'base' });
+  if (cmpGiven !== 0) return cmpGiven;
+  return cleanA.localeCompare(cleanB, 'vi', { sensitivity: 'base' });
+}
+
+function escapeCsvCell(value) {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (/[",\r\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+export function buildCsvContent(headers, rows) {
+  const headerLine = headers.map((h) => escapeCsvCell(h.label)).join(',');
+  const bodyLines = rows.map((row) =>
+    headers.map((h) => escapeCsvCell(row[h.key])).join(',')
+  );
+  // Gắn UTF-8 BOM (\uFEFF) để Excel trên Windows/macOS nhận đúng tiếng Việt
+  return '\uFEFF' + [headerLine, ...bodyLines].join('\r\n');
+}
+
+export function triggerFileDownload(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function formatDateDdMmYyyy(isoDate) {
+  if (!isoDate || typeof isoDate !== 'string') return '';
+  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return isoDate;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+const DAY_LABELS = {
+  2: 'Thứ 2',
+  3: 'Thứ 3',
+  4: 'Thứ 4',
+  5: 'Thứ 5',
+  6: 'Thứ 6',
+  7: 'Thứ 7',
+  8: 'Chủ nhật',
+};
+
+/**
+ * 1. Tải bản sao lưu toàn bộ Trung tâm (.json)
+ */
+export async function downloadFullCenterBackupJson({
+  includeAuditLog = true,
+} = {}) {
+  const { data, error } = await supabase.rpc('export_center_backup', {
+    p_include_audit_log: includeAuditLog,
+  });
+  if (error) throw error;
+
+  const today = getVnTodayISO();
+  const filename = `sciencehub_backup_${today}.json`;
+  const jsonString = JSON.stringify(data, null, 2);
+  triggerFileDownload(
+    jsonString,
+    filename,
+    'application/json;charset=utf-8'
+  );
+  return { filename, metadata: data?.metadata, rawData: data };
+}
+
+/**
+ * 2. Tải riêng file Sao lưu Nhật ký Năm học (.json & .csv) phục vụ kết thúc năm học (15/06 -> 12/06)
+ */
+export async function downloadSchoolYearAuditBackup({
+  fromDate,
+  toDate,
+  format = 'json',
+} = {}) {
+  const bounds = getCurrentSchoolYearBounds();
+  const start = fromDate || bounds.startDate;
+  const end = toDate || bounds.endDate;
+
+  const { data, error } = await supabase.rpc('query_audit_logs', {
+    p_from_date: start,
+    p_to_date: end,
+    p_limit: 500,
+    p_offset: 0,
+  });
+  if (error) throw error;
+
+  // Nếu có nhiều hơn 500 dòng trong năm học, tải tiếp các trang còn lại
+  let allItems = [...(data?.items || [])];
+  const total = Number(data?.total || allItems.length);
+  let offset = 500;
+  while (allItems.length < total && offset < 20000) {
+    const { data: nextPage, error: pageErr } = await supabase.rpc(
+      'query_audit_logs',
+      {
+        p_from_date: start,
+        p_to_date: end,
+        p_limit: 500,
+        p_offset: offset,
+      }
+    );
+    if (pageErr) throw pageErr;
+    const batch = nextPage?.items || [];
+    if (batch.length === 0) break;
+    allItems = allItems.concat(batch);
+    offset += 500;
+  }
+
+  const today = getVnTodayISO();
+  const baseName = `sciencehub_nhat_ky_nam_hoc_${bounds.schoolYear}_${today}`;
+
+  if (format === 'csv') {
+    const headers = [
+      { key: 'created_at', label: 'Thời gian (VN)' },
+      { key: 'actor_name', label: 'Người thực hiện' },
+      { key: 'actor_role', label: 'Vai trò' },
+      { key: 'action_label', label: 'Loại thao tác' },
+      { key: 'summary', label: 'Nội dung chi tiết' },
+      { key: 'old_data', label: 'Dữ liệu cũ (JSON)' },
+      { key: 'new_data', label: 'Dữ liệu mới (JSON)' },
+    ];
+    const rows = allItems.map((item) => ({
+      created_at: formatVnDateTime(item.created_at),
+      actor_name: item.actor_name,
+      actor_role:
+        item.actor_role === 'manager'
+          ? 'Quản lý'
+          : item.actor_role === 'teacher'
+          ? 'Giáo viên'
+          : 'Hệ thống',
+      action_label: getActionMeta(item.action).label,
+      summary: item.summary,
+      old_data: item.old_data ? JSON.stringify(item.old_data) : '',
+      new_data: item.new_data ? JSON.stringify(item.new_data) : '',
+    }));
+    const csv = buildCsvContent(headers, rows);
+    const filename = `${baseName}.csv`;
+    triggerFileDownload(csv, filename, 'text/csv;charset=utf-8');
+    return { filename, count: allItems.length, schoolYear: bounds.schoolYear };
+  }
+
+  const payload = {
+    center: 'Trung tâm ScienceHub',
+    school_year: bounds.schoolYear,
+    period: { start_date: start, end_date: end },
+    exported_at: new Date().toISOString(),
+    vn_date: today,
+    total_records: allItems.length,
+    items: allItems,
+  };
+  const filename = `${baseName}.json`;
+  triggerFileDownload(
+    JSON.stringify(payload, null, 2),
+    filename,
+    'application/json;charset=utf-8'
+  );
+  return { filename, count: allItems.length, schoolYear: bounds.schoolYear };
+}
+
+/**
+ * 3. Xuất CSV Danh sách Học sinh & Phụ huynh (sắp theo TÊN gọi tiếng Việt)
+ */
+export async function downloadStudentsCsv() {
+  const { data, error } = await supabase.rpc('export_center_backup', {
+    p_include_audit_log: false,
+  });
+  if (error) throw error;
+
+  const tables = data?.tables || {};
+  const students = [...(tables.students || [])].sort((a, b) =>
+    compareVietnameseGivenNames(a.full_name, b.full_name)
+  );
+  const parentsById = new Map(
+    (tables.parents || []).map((p) => [p.id, p])
+  );
+  const classesById = new Map(
+    (tables.classes || []).map((c) => [c.id, c])
+  );
+  const activeEnrollmentsByStudent = new Map();
+
+  for (const enr of tables.class_enrollments || []) {
+    if (enr.status === 'active') {
+      const cls = classesById.get(enr.class_id);
+      const list = activeEnrollmentsByStudent.get(enr.student_id) || [];
+      if (cls?.name) list.push(cls.name);
+      activeEnrollmentsByStudent.set(enr.student_id, list);
+    }
+  }
+
+  const headers = [
+    { key: 'student_code', label: 'Mã HS' },
+    { key: 'full_name', label: 'Họ và tên học sinh' },
+    { key: 'grade', label: 'Khối' },
+    { key: 'phone', label: 'SĐT học sinh' },
+    { key: 'active_classes', label: 'Các lớp đang học' },
+    { key: 'parent_code', label: 'Mã PH' },
+    { key: 'parent_name', label: 'Họ tên phụ huynh' },
+    { key: 'parent_phone', label: 'SĐT phụ huynh' },
+    { key: 'status', label: 'Trạng thái' },
+  ];
+
+  const rows = students.map((s) => {
+    const parent = parentsById.get(s.parent_id);
+    const activeClasses = activeEnrollmentsByStudent.get(s.id) || [];
+    return {
+      student_code: s.student_code,
+      full_name: s.full_name,
+      grade: s.grade ?? '',
+      phone: s.phone ?? '',
+      active_classes: activeClasses.join('; '),
+      parent_code: parent?.parent_code ?? '',
+      parent_name: parent?.full_name ?? '',
+      parent_phone: parent?.phone ?? '',
+      status: s.deleted_at ? 'Đã ẩn (Nghỉ học)' : 'Đang học',
+    };
+  });
+
+  const csv = buildCsvContent(headers, rows);
+  const filename = `sciencehub_hoc_sinh_${getVnTodayISO()}.csv`;
+  triggerFileDownload(csv, filename, 'text/csv;charset=utf-8');
+  return { filename, count: rows.length };
+}
+
+/**
+ * 4. Xuất CSV Danh sách Lớp học & Lịch học
+ */
+export async function downloadClassesCsv() {
+  const { data, error } = await supabase.rpc('export_center_backup', {
+    p_include_audit_log: false,
+  });
+  if (error) throw error;
+
+  const tables = data?.tables || {};
+  const teachersById = new Map(
+    (tables.teachers || []).map((t) => [t.id, t])
+  );
+  const schedulesByClass = new Map();
+  for (const sch of tables.class_schedules || []) {
+    const list = schedulesByClass.get(sch.class_id) || [];
+    const dayName = DAY_LABELS[sch.day_of_week] || `Thứ ${sch.day_of_week}`;
+    const start = String(sch.start_time || '').slice(0, 5);
+    const end = String(sch.end_time || '').slice(0, 5);
+    list.push(`${dayName} (${start}-${end})`);
+    schedulesByClass.set(sch.class_id, list);
+  }
+
+  const activeCountByClass = new Map();
+  for (const enr of tables.class_enrollments || []) {
+    if (enr.status === 'active') {
+      activeCountByClass.set(
+        enr.class_id,
+        (activeCountByClass.get(enr.class_id) || 0) + 1
+      );
+    }
+  }
+
+  const headers = [
+    { key: 'name', label: 'Tên lớp' },
+    { key: 'subject', label: 'Môn học' },
+    { key: 'grade', label: 'Khối' },
+    { key: 'teacher_name', label: 'Giáo viên phụ trách' },
+    { key: 'price_per_session', label: 'Đơn giá hiện tại (VNĐ)' },
+    { key: 'active_students', label: 'Sĩ số đang học' },
+    { key: 'schedule', label: 'Lịch học trong tuần' },
+    { key: 'status', label: 'Trạng thái' },
+  ];
+
+  const rows = (tables.classes || []).map((c) => {
+    const teacher = teachersById.get(c.teacher_id);
+    const schList = schedulesByClass.get(c.id) || [];
+    return {
+      name: c.name,
+      subject: c.subject ?? '',
+      grade: c.grade ?? '',
+      teacher_name: teacher?.full_name ?? '',
+      price_per_session: c.price_per_session ?? 0,
+      active_students: activeCountByClass.get(c.id) || 0,
+      schedule: schList.join('; '),
+      status: c.deleted_at ? 'Đã ẩn' : 'Đang hoạt động',
+    };
+  });
+
+  const csv = buildCsvContent(headers, rows);
+  const filename = `sciencehub_lop_hoc_${getVnTodayISO()}.csv`;
+  triggerFileDownload(csv, filename, 'text/csv;charset=utf-8');
+  return { filename, count: rows.length };
+}
+
+/**
+ * 5. Xuất CSV Bảng tổng hợp Điểm danh & Học phí theo tháng (tính từ price_snapshot đóng băng)
+ */
+export async function downloadMonthlyAttendanceTuitionCsv(year, month) {
+  const { data, error } = await supabase.rpc(
+    'export_monthly_attendance_report',
+    {
+      p_year: Number(year),
+      p_month: Number(month),
+    }
+  );
+  if (error) throw error;
+
+  const rawRows = [...(data?.rows || [])].sort((a, b) => {
+    const cmpClass = String(a.class_name || '').localeCompare(
+      String(b.class_name || ''),
+      'vi'
+    );
+    if (cmpClass !== 0) return cmpClass;
+    return compareVietnameseGivenNames(a.student_name, b.student_name);
+  });
+
+  const headers = [
+    { key: 'class_name', label: 'Lớp học' },
+    { key: 'subject', label: 'Môn' },
+    { key: 'grade', label: 'Khối' },
+    { key: 'teacher_name', label: 'Giáo viên' },
+    { key: 'student_code', label: 'Mã HS' },
+    { key: 'student_name', label: 'Họ tên học sinh' },
+    { key: 'parent_code', label: 'Mã PH' },
+    { key: 'parent_name', label: 'Phụ huynh' },
+    { key: 'parent_phone', label: 'SĐT phụ huynh' },
+    { key: 'present_count', label: 'Số buổi Có mặt' },
+    { key: 'makeup_count', label: 'Số buổi Học bù' },
+    { key: 'absent_count', label: 'Số buổi Vắng (tính phí)' },
+    { key: 'excused_count', label: 'Số buổi Có phép (0đ)' },
+    { key: 'charged_sessions', label: 'Tổng số buổi tính phí' },
+    { key: 'total_tuition', label: 'Tổng học phí tháng (VNĐ)' },
+    { key: 'enrollment_status', label: 'Trạng thái ghi danh' },
+  ];
+
+  const rows = rawRows.map((r) => ({
+    ...r,
+    enrollment_status:
+      r.enrollment_status === 'active'
+        ? 'Đang học'
+        : `Đã nghỉ (${formatDateDdMmYyyy(r.left_at)})`,
+  }));
+
+  const paddedMonth = String(month).padStart(2, '0');
+  const csv = buildCsvContent(headers, rows);
+  const filename = `sciencehub_diem_danh_hoc_phi_${year}-${paddedMonth}.csv`;
+  triggerFileDownload(csv, filename, 'text/csv;charset=utf-8');
+  return { filename, count: rows.length };
+}
+
+```
+
+---
+
+### 2.3. File mới: `src/components/audit/AuditLogModal.jsx`
+
+Hộp thoại tra cứu Nhật ký thay đổi cho Quản lý (hiển thị dạng Bảng trên máy tính `hidden md:block`, dạng Thẻ trên điện thoại `md:hidden`, nút cao tối thiểu 40–44px, có chọn nhanh **Kỳ Năm học 15/06 – 12/06**, lọc theo Lớp/Học sinh/Giáo viên/Loại thao tác và xem chi tiết dữ liệu cũ -> mới).
+
+```jsx
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  History,
+  X,
+  Search,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  Filter,
+  ShieldAlert,
+} from 'lucide-react';
+import {
+  ACTION_GROUP_OPTIONS,
+  getActionMeta,
+  getVnTodayISO,
+  getCurrentSchoolYearBounds,
+  formatVnDateTime,
+  formatAuditPayload,
+  fetchAuditLogs,
+} from '../../lib/auditLog';
+import { supabase } from '../../lib/supabaseClient';
+
+export default function AuditLogModal({
+  open,
+  onClose,
+  initialClassId = null,
+  initialClassName = '',
+  initialStudentId = null,
+  initialStudentName = '',
+}) {
+  const schoolYear = getCurrentSchoolYearBounds();
+
+  const [fromDate, setFromDate] = useState(schoolYear.startDate);
+  const [toDate, setToDate] = useState(getVnTodayISO());
+  const [actorRole, setActorRole] = useState('');
+  const [teacherId, setTeacherId] = useState('');
+  const [actionGroup, setActionGroup] = useState('');
+  const [search, setSearch] = useState('');
+  const [teachers, setTeachers] = useState([]);
+
+  const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let mounted = true;
+    supabase
+      .from('teachers')
+      .select('id, full_name')
+      .order('full_name')
+      .then(({ data }) => {
+        if (mounted && data) setTeachers(data);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
+
+  const loadLogs = useCallback(async () => {
+    if (!open) return;
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetchAuditLogs({
+        fromDate: fromDate || null,
+        toDate: toDate || null,
+        actorRole: actorRole || null,
+        teacherId: teacherId || null,
+        actionGroup: actionGroup || null,
+        classId: initialClassId || null,
+        studentId: initialStudentId || null,
+        search: search || null,
+        limit: 150,
+        offset: 0,
+      });
+      setLogs(res.items || []);
+      setTotal(res.total || 0);
+    } catch (err) {
+      setErrorMsg(
+        err?.message ||
+          'Trung tâm: Không thể tải nhật ký thay đổi. Hãy kiểm tra lại đã chạy file 06_v2_3_audit_log.sql chưa.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    open,
+    fromDate,
+    toDate,
+    actorRole,
+    teacherId,
+    actionGroup,
+    initialClassId,
+    initialStudentId,
+    search,
+  ]);
+
+  useEffect(() => {
+    if (open) {
+      loadLogs();
+    }
+  }, [open, loadLogs]);
+
+  if (!open) return null;
+
+  const handleSelectCurrentSchoolYear = () => {
+    setFromDate(schoolYear.startDate);
+    setToDate(schoolYear.endDate);
+  };
+
+  const handleSelectToday = () => {
+    const today = getVnTodayISO();
+    setFromDate(today);
+    setToDate(today);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-6xl max-h-[92vh] sm:rounded-2xl rounded-t-2xl border border-slate-200 shadow-xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center">
+              <History className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">
+                Nhật ký Thay đổi Hệ thống
+                {initialClassName ? ` — Lớp ${initialClassName}` : ''}
+                {initialStudentName ? ` — HS ${initialStudentName}` : ''}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {schoolYear.label} · Dữ liệu chỉ đọc, bảo vệ toàn vẹn
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition"
+            aria-label="Đóng"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Bộ lọc */}
+        <div className="p-4 sm:px-6 border-b border-slate-200 bg-white space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Từ ngày
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Đến ngày
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Loại thao tác
+              </label>
+              <select
+                value={actionGroup}
+                onChange={(e) => setActionGroup(e.target.value)}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+              >
+                {ACTION_GROUP_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Vai trò người thao tác
+              </label>
+              <select
+                value={actorRole}
+                onChange={(e) => {
+                  setActorRole(e.target.value);
+                  if (e.target.value !== 'teacher') setTeacherId('');
+                }}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+              >
+                <option value="">Tất cả (Quản lý & Giáo viên)</option>
+                <option value="manager">Chỉ Quản lý</option>
+                <option value="teacher">Chỉ Giáo viên</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Lọc theo Giáo viên
+              </label>
+              <select
+                value={teacherId}
+                onChange={(e) => {
+                  setTeacherId(e.target.value);
+                  if (e.target.value) setActorRole('teacher');
+                }}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+              >
+                <option value="">Tất cả giáo viên</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm theo tên học sinh, mã HS, tên lớp, người thực hiện..."
+                className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSelectToday}
+                className="min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 inline-flex items-center gap-1.5"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectCurrentSchoolYear}
+                className="min-h-[40px] px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1.5"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Cả năm học ({schoolYear.schoolYear})
+              </button>
+              <button
+                type="button"
+                onClick={loadLogs}
+                disabled={loading}
+                className="min-h-[40px] px-3.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 inline-flex items-center gap-1.5"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}
+                />
+                Làm mới
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Nội dung danh sách */}
+        <div className="flex-1 overflow-y-auto p-4 sm:px-6 bg-slate-50">
+          {errorMsg && (
+            <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-2.5">
+              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <div className="mb-2.5 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Tìm thấy <strong className="text-slate-800">{total}</strong> bản
+              ghi nhật ký
+              {total > logs.length ? ` (đang hiển thị ${logs.length} bản ghi mới nhất)` : ''}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+              Đang tải nhật ký thay đổi...
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+              Chưa có bản ghi nhật ký nào khớp với bộ lọc hiện tại.
+            </div>
+          ) : (
+            <>
+              {/* Bảng trên máy tính (hidden md:block) */}
+              <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+                      <th className="py-3 px-4 w-40">Thời gian</th>
+                      <th className="py-3 px-4 w-44">Người thực hiện</th>
+                      <th className="py-3 px-4 w-40">Thao tác</th>
+                      <th className="py-3 px-4">Nội dung chi tiết</th>
+                      <th className="py-3 px-4 w-28 text-right">Dữ liệu</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-sm">
+                    {logs.map((log) => {
+                      const meta = getActionMeta(log.action);
+                      const isExpanded = expandedId === log.id;
+                      const oldList = formatAuditPayload(log.old_data);
+                      const newList = formatAuditPayload(log.new_data);
+
+                      return (
+                        <React.Fragment key={log.id}>
+                          <tr className="hover:bg-slate-50/80">
+                            <td className="py-3 px-4 text-xs text-slate-600 whitespace-nowrap">
+                              {formatVnDateTime(log.created_at)}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-medium text-slate-800 text-xs">
+                                {log.actor_name}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                {log.actor_role === 'manager'
+                                  ? 'Quản lý'
+                                  : log.actor_role === 'teacher'
+                                  ? 'Giáo viên'
+                                  : 'Hệ thống'}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${meta.badge}`}
+                              >
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-slate-800">
+                              {log.summary}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {(oldList.length > 0 || newList.length > 0) && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedId(isExpanded ? null : log.id)
+                                  }
+                                  className="min-h-[36px] px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1"
+                                >
+                                  Chi tiết
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-slate-50/90">
+                              <td colSpan={5} className="p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                    <div className="font-semibold text-slate-600 mb-2">
+                                      Dữ liệu trước thay đổi
+                                    </div>
+                                    {oldList.length === 0 ? (
+                                      <span className="text-slate-400">
+                                        Không có (Bản ghi mới)
+                                      </span>
+                                    ) : (
+                                      <dl className="space-y-1">
+                                        {oldList.map((item) => (
+                                          <div
+                                            key={item.key}
+                                            className="flex justify-between gap-2"
+                                          >
+                                            <dt className="text-slate-500">
+                                              {item.label}:
+                                            </dt>
+                                            <dd className="font-medium text-slate-800 text-right">
+                                              {item.value}
+                                            </dd>
+                                          </div>
+                                        ))}
+                                      </dl>
+                                    )}
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                    <div className="font-semibold text-blue-700 mb-2">
+                                      Dữ liệu sau thay đổi
+                                    </div>
+                                    {newList.length === 0 ? (
+                                      <span className="text-slate-400">
+                                        Đã xóa bản ghi
+                                      </span>
+                                    ) : (
+                                      <dl className="space-y-1">
+                                        {newList.map((item) => (
+                                          <div
+                                            key={item.key}
+                                            className="flex justify-between gap-2"
+                                          >
+                                            <dt className="text-slate-500">
+                                              {item.label}:
+                                            </dt>
+                                            <dd className="font-medium text-slate-900 text-right">
+                                              {item.value}
+                                            </dd>
+                                          </div>
+                                        ))}
+                                      </dl>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Thẻ trên điện thoại (md:hidden) */}
+              <div className="md:hidden space-y-2.5">
+                {logs.map((log) => {
+                  const meta = getActionMeta(log.action);
+                  const isExpanded = expandedId === log.id;
+                  const oldList = formatAuditPayload(log.old_data);
+                  const newList = formatAuditPayload(log.new_data);
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${meta.badge}`}
+                        >
+                          {meta.label}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {formatVnDateTime(log.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-800 font-medium">
+                        {log.summary}
+                      </p>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-500">
+                        <span>Thực hiện: {log.actor_name}</span>
+                        {(oldList.length > 0 || newList.length > 0) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedId(isExpanded ? null : log.id)
+                            }
+                            className="min-h-[36px] px-2 text-blue-600 font-medium inline-flex items-center gap-1"
+                          >
+                            Chi tiết
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      {isExpanded && (
+                        <div className="pt-2 space-y-2 text-xs border-t border-slate-200">
+                          {oldList.length > 0 && (
+                            <div className="bg-slate-50 p-2.5 rounded-lg">
+                              <div className="font-semibold text-slate-600 mb-1">
+                                Trước thay đổi:
+                              </div>
+                              {oldList.map((item) => (
+                                <div
+                                  key={item.key}
+                                  className="flex justify-between py-0.5"
+                                >
+                                  <span className="text-slate-500">
+                                    {item.label}:
+                                  </span>
+                                  <span className="font-medium text-slate-800">
+                                    {item.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {newList.length > 0 && (
+                            <div className="bg-blue-50/50 p-2.5 rounded-lg">
+                              <div className="font-semibold text-blue-700 mb-1">
+                                Sau thay đổi:
+                              </div>
+                              {newList.map((item) => (
+                                <div
+                                  key={item.key}
+                                  className="flex justify-between py-0.5"
+                                >
+                                  <span className="text-slate-500">
+                                    {item.label}:
+                                  </span>
+                                  <span className="font-medium text-slate-900">
+                                    {item.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+---
+
+### 2.4. File mới: `src/components/backup/BackupModal.jsx`
+
+Hộp thoại **Sao lưu Dữ liệu & Kết thúc Năm học (15/06 – 12/06)** dành cho Quản lý:
+
+1. Sao lưu toàn bộ hệ thống ra file `.json`.
+2. Xuất các bảng tính Excel `.csv` (Danh sách Học sinh & Phụ huynh, Lớp học & Lịch học, Điểm danh & Học phí theo tháng).
+3. Quy trình 2 bước **Sao lưu Nhật ký 1 năm học (15/06 -> 12/06) rồi Xóa sạch nhật ký cũ để bắt đầu năm học mới**.
+
+```jsx
+import React, { useState } from 'react';
+import {
+  Download,
+  FileSpreadsheet,
+  Database,
+  ArchiveRestore,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  getVnTodayISO,
+  getCurrentSchoolYearBounds,
+  clearAuditLogsForNewSchoolYear,
+} from '../../lib/auditLog';
+import {
+  downloadFullCenterBackupJson,
+  downloadSchoolYearAuditBackup,
+  downloadStudentsCsv,
+  downloadClassesCsv,
+  downloadMonthlyAttendanceTuitionCsv,
+} from '../../lib/backup';
+
+export default function BackupModal({ open, onClose }) {
+  const todayISO = getVnTodayISO();
+  const [initYear, initMonth] = todayISO.split('-').map(Number);
+  const schoolYear = getCurrentSchoolYearBounds(todayISO);
+
+  const [includeAuditInJson, setIncludeAuditInJson] = useState(true);
+  const [reportYear, setReportYear] = useState(initYear);
+  const [reportMonth, setReportMonth] = useState(initMonth);
+
+  // State cho quy trình Kết thúc năm học (15/06 -> 12/06)
+  const [hasBackedUpSchoolYear, setHasBackedUpSchoolYear] = useState(false);
+  const [confirmClearText, setConfirmClearText] = useState('');
+
+  const [busyKey, setBusyKey] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  if (!open) return null;
+
+  const runTask = async (key, fn) => {
+    setBusyKey(key);
+    setStatusMsg('');
+    setErrorMsg('');
+    try {
+      await fn();
+    } catch (err) {
+      setErrorMsg(
+        err?.message ||
+          'Trung tâm: Thao tác không thành công. Hãy kiểm tra lại đã chạy file 06 và 07 trong Supabase chưa.'
+      );
+    } finally {
+      setBusyKey('');
+    }
+  };
+
+  const handleFullBackupJson = () =>
+    runTask('full_json', async () => {
+      const res = await downloadFullCenterBackupJson({
+        includeAuditLog: includeAuditInJson,
+      });
+      setStatusMsg(
+        `Đã tải xuống bản sao lưu hệ thống: ${res.filename}`
+      );
+    });
+
+  const handleStudentsCsv = () =>
+    runTask('students_csv', async () => {
+      const res = await downloadStudentsCsv();
+      setStatusMsg(
+        `Đã xuất bảng tính Excel danh sách ${res.count} học sinh (${res.filename}).`
+      );
+    });
+
+  const handleClassesCsv = () =>
+    runTask('classes_csv', async () => {
+      const res = await downloadClassesCsv();
+      setStatusMsg(
+        `Đã xuất bảng tính Excel danh sách ${res.count} lớp học (${res.filename}).`
+      );
+    });
+
+  const handleMonthlyReportCsv = () =>
+    runTask('monthly_csv', async () => {
+      const res = await downloadMonthlyAttendanceTuitionCsv(
+        reportYear,
+        reportMonth
+      );
+      setStatusMsg(
+        `Đã xuất bảng Điểm danh & Học phí tháng ${reportMonth}/${reportYear} (${res.count} dòng — ${res.filename}).`
+      );
+    });
+
+  const handleDownloadSchoolYearAudit = (format) =>
+    runTask(`sy_audit_${format}`, async () => {
+      const res = await downloadSchoolYearAuditBackup({ format });
+      setHasBackedUpSchoolYear(true);
+      setStatusMsg(
+        `Đã tải file sao lưu Nhật ký năm học ${res.schoolYear} (${res.count} bản ghi — ${res.filename}). Bây giờ bạn có thể làm mới nhật ký ở Bước 2.`
+      );
+    });
+
+  const handleClearSchoolYearAudit = () =>
+    runTask('clear_audit', async () => {
+      const deletedCount = await clearAuditLogsForNewSchoolYear({
+        confirmText: confirmClearText,
+        beforeDate: null,
+      });
+      setConfirmClearText('');
+      setStatusMsg(
+        `Trung tâm đã xóa ${deletedCount} bản ghi nhật ký cũ và khởi tạo nhật ký mới cho năm học mới.`
+      );
+    });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-3xl max-h-[92vh] sm:rounded-2xl rounded-t-2xl border border-slate-200 shadow-xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">
+                Sao lưu Dữ liệu & Chu kỳ Năm học
+              </h2>
+              <p className="text-xs text-slate-500">
+                Xuất dữ liệu dự phòng JSON / Excel CSV & Kết thúc năm học (15/06 – 12/06)
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition"
+            aria-label="Đóng"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Nội dung */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-50">
+          {statusMsg && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-start gap-2.5">
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
+              <span>{statusMsg}</span>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-2.5">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Khu vực 1: Sao lưu toàn bộ hệ thống JSON */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  1. Sao lưu toàn bộ Cơ sở dữ liệu (.json)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tải về 1 file JSON chứa toàn bộ Phụ huynh, Giáo viên, Học sinh,
+                  Lớp học, Lịch học, Ghi danh và Điểm danh để lưu trữ dự phòng an toàn.
+                </p>
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeAuditInJson}
+                onChange={(e) => setIncludeAuditInJson(e.target.checked)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Đính kèm cả toàn bộ Nhật ký thay đổi (audit_log) trong file JSON
+            </label>
+
+            <div>
+              <button
+                type="button"
+                onClick={handleFullBackupJson}
+                disabled={Boolean(busyKey)}
+                className="min-h-[42px] px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {busyKey === 'full_json'
+                  ? 'Đang tạo file sao lưu...'
+                  : 'Tải bản sao lưu toàn hệ thống (.json)'}
+              </button>
+            </div>
+          </div>
+
+          {/* Khu vực 2: Xuất bảng tính Excel CSV */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 space-y-3.5">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                2. Xuất Bảng tính mở bằng Excel / Google Sheets (.csv chuẩn tiếng Việt)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Học sinh được sắp xếp chuẩn theo Tên gọi; học phí tháng được cộng chính xác từ đơn giá đóng băng lúc điểm danh.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={handleStudentsCsv}
+                disabled={Boolean(busyKey)}
+                className="min-h-[42px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs sm:text-sm font-medium hover:bg-slate-50 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                {busyKey === 'students_csv'
+                  ? 'Đang xuất...'
+                  : 'Xuất DS Học sinh & Phụ huynh (.csv)'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClassesCsv}
+                disabled={Boolean(busyKey)}
+                className="min-h-[42px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs sm:text-sm font-medium hover:bg-slate-50 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+                {busyKey === 'classes_csv'
+                  ? 'Đang xuất...'
+                  : 'Xuất DS Lớp học & Lịch học (.csv)'}
+              </button>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-end gap-2.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Tháng
+                </label>
+                <select
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(Number(e.target.value))}
+                  className="min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>
+                      Tháng {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Năm
+                </label>
+                <input
+                  type="number"
+                  min={2020}
+                  max={2100}
+                  value={reportYear}
+                  onChange={(e) => setReportYear(Number(e.target.value))}
+                  className="w-24 min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleMonthlyReportCsv}
+                disabled={Boolean(busyKey)}
+                className="min-h-[40px] px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {busyKey === 'monthly_csv'
+                  ? 'Đang xuất báo cáo...'
+                  : `Xuất Điểm danh & Học phí T${reportMonth}/${reportYear} (.csv)`}
+              </button>
+            </div>
+          </div>
+
+          {/* Khu vực 3: Chu kỳ Năm học (15/06 -> 12/06 năm sau) */}
+          <div className="bg-amber-50/70 rounded-xl border border-amber-200 p-4 sm:p-5 space-y-3.5">
+            <div className="flex items-start gap-2.5">
+              <ArchiveRestore className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  3. Kết thúc Năm học ({schoolYear.label}) — Sao lưu & Làm mới Nhật ký
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Theo quy trình năm học của Trung tâm (từ <strong>15/06 năm nay</strong> đến{' '}
+                  <strong>12/06 năm sau</strong>): hãy tải file sao lưu nhật ký của cả năm học về máy trước, sau đó xóa toàn bộ nhật ký cũ để giải phóng dung lượng và bắt đầu năm học mới.
+                </p>
+              </div>
+            </div>
+
+            {/* Bước 1 */}
+            <div className="bg-white rounded-lg border border-amber-200 p-3.5 space-y-2">
+              <div className="text-xs font-semibold text-slate-800">
+                Bước 1: Tải file sao lưu Nhật ký năm học {schoolYear.schoolYear}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSchoolYearAudit('json')}
+                  disabled={Boolean(busyKey)}
+                  className="min-h-[40px] px-3.5 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 disabled:opacity-60 inline-flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {busyKey === 'sy_audit_json'
+                    ? 'Đang tải...'
+                    : 'Tải Nhật ký Năm học (.json)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSchoolYearAudit('csv')}
+                  disabled={Boolean(busyKey)}
+                  className="min-h-[40px] px-3.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs font-medium hover:bg-amber-100 disabled:opacity-60 inline-flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  {busyKey === 'sy_audit_csv'
+                    ? 'Đang tải...'
+                    : 'Tải Nhật ký Năm học (.csv Excel)'}
+                </button>
+              </div>
+            </div>
+
+            {/* Bước 2 */}
+            <div className="bg-white rounded-lg border border-rose-200 p-3.5 space-y-2.5">
+              <div className="text-xs font-semibold text-rose-800">
+                Bước 2: Xóa toàn bộ nhật ký cũ để bắt đầu Năm học mới
+              </div>
+              <p className="text-xs text-slate-600">
+                Sau khi đã tải file sao lưu ở Bước 1, nhập chữ{' '}
+                <code className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-mono font-semibold">
+                  XOA NHAT KY
+                </code>{' '}
+                vào ô bên dưới để xác nhận làm mới nhật ký:
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={confirmClearText}
+                  onChange={(e) => setConfirmClearText(e.target.value)}
+                  disabled={!hasBackedUpSchoolYear}
+                  placeholder={
+                    hasBackedUpSchoolYear
+                      ? 'Nhập XOA NHAT KY'
+                      : 'Hãy tải file sao lưu ở Bước 1 trước'
+                  }
+                  className="min-h-[40px] px-3 py-1.5 text-sm rounded-lg border border-slate-300 disabled:bg-slate-100"
+                />
+                <button
+                  type="button"
+                  onClick={handleClearSchoolYearAudit}
+                  disabled={
+                    !hasBackedUpSchoolYear ||
+                    confirmClearText.trim() !== 'XOA NHAT KY' ||
+                    Boolean(busyKey)
+                  }
+                  className="min-h-[40px] px-4 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 disabled:opacity-50"
+                >
+                  {busyKey === 'clear_audit'
+                    ? 'Đang xóa...'
+                    : 'Xóa nhật ký & Bắt đầu năm học mới'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+---
+
+### 2.5. File mới: `vercel.json` (Đặt ở thư mục gốc dự án, ngang hàng `package.json`)
+
+Cấu hình SPA routing cho Vite React và bộ Security Headers chuẩn.
+(Lưu ý quan trọng: `Permissions-Policy` giữ `microphone=(self)` để tính năng **Điểm danh giọng nói** Web Speech API `vi-VN` của Trung tâm hoạt động bình thường trên tên miền Vercel).
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
+        }
+      ]
+    }
+  ]
+}
+
+```
+
+---
+
+## Phần 3: Cập nhật Nhẹ vào 4 File Đã Khóa (Đã được duyệt ở Kế hoạch Bước 1)
+
+Vì bạn chưa đính kèm 4 file `.js`/`.jsx` dưới đây trong tin nhắn, tôi viết sẵn các đoạn code ghép nối chính xác để bạn dán vào (hoặc nếu bạn muốn tôi xuất nguyên file hoàn chỉnh cho 4 file này, bạn chỉ cần gửi 4 file đó lên nhé):
+
+### 3.1. `src/lib/errors.js`
+
+Tuân thủ quy tắc số 6 trong `RULES.md` (**chỉ thêm nhánh mới đặt TRƯỚC nhánh cũ**, không làm thay đổi kết quả các mẫu lỗi cũ):
+
+```javascript
+  // --- THÊM ĐOẠN NÀY LÊN TRƯỚC CÁC NHÁNH KIỂM TRA LỖI CŨ TRONG src/lib/errors.js ---
+  if (
+    raw.includes('query_audit_logs') ||
+    raw.includes('clear_audit_logs_for_new_school_year') ||
+    raw.includes('vn_school_year_bounds')
+  ) {
+    return 'Trung tâm: Chưa cài đặt hàm Nhật ký thay đổi. Vui lòng chạy file supabase/06_v2_3_audit_log.sql trong Supabase SQL Editor.';
+  }
+  if (
+    raw.includes('export_center_backup') ||
+    raw.includes('export_monthly_attendance_report')
+  ) {
+    return 'Trung tâm: Chưa cài đặt hàm Sao lưu dữ liệu. Vui lòng chạy file supabase/07_v2_4_backup.sql trong Supabase SQL Editor.';
+  }
+  if (raw.includes('Nhật ký thay đổi được bảo vệ toàn vẹn')) {
+    return 'Trung tâm: Nhật ký thay đổi được bảo vệ toàn vẹn, không được phép chỉnh sửa hoặc xóa trực tiếp.';
+  }
+
+```
+
+### 3.2. `src/pages/DashboardPage.jsx`
+
+Gắn 2 nút **"Nhật ký thay đổi"** và **"Sao lưu dữ liệu"** trên thanh tiêu đề của trang Tổng quan (trang này vốn chỉ Quản lý mới truy cập được):
+
+```jsx
+// 1. Thêm import ở đầu file src/pages/DashboardPage.jsx:
+import { History, Database } from 'lucide-react';
+import AuditLogModal from '../components/audit/AuditLogModal';
+import BackupModal from '../components/backup/BackupModal';
+
+// 2. Thêm 2 state bên trong component DashboardPage:
+const [auditOpen, setAuditOpen] = useState(false);
+const [backupOpen, setBackupOpen] = useState(false);
+
+// 3. Đặt 2 nút cạnh bộ chọn Tháng/Năm ở đầu trang DashboardPage:
+<div className="flex flex-wrap items-center gap-2">
+  <button
+    type="button"
+    onClick={() => setAuditOpen(true)}
+    className="min-h-[40px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 inline-flex items-center gap-2"
+  >
+    <History className="w-4 h-4 text-blue-600" />
+    Nhật ký thay đổi
+  </button>
+  <button
+    type="button"
+    onClick={() => setBackupOpen(true)}
+    className="min-h-[40px] px-3.5 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 inline-flex items-center gap-2"
+  >
+    <Database className="w-4 h-4" />
+    Sao lưu & Năm học
+  </button>
+</div>
+
+// 4. Đặt 2 Modal ở cuối JSX của DashboardPage:
+<AuditLogModal open={auditOpen} onClose={() => setAuditOpen(false)} />
+<BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
+
+```
+
+### 3.3. `src/components/classes/ClassRoster.jsx` & `src/components/students/StudentProfile.jsx`
+
+Thêm nút nhỏ **"Lịch sử"** (chỉ hiển thị khi là Quản lý `role === 'manager'` hoặc `isManager`) để mở nhanh nhật ký đã lọc sẵn theo đúng Lớp học hoặc Học sinh đang xem:
+
+* **Trong `src/components/classes/ClassRoster.jsx`:**
+
+```jsx
+// Import ở đầu file:
+import { History } from 'lucide-react';
+import AuditLogModal from '../audit/AuditLogModal';
+
+// State trong ClassRoster:
+const [classAuditOpen, setClassAuditOpen] = useState(false);
+
+// Nút bấm (chỉ hiện cho Quản lý):
+{isManager && (
+  <button
+    type="button"
+    onClick={() => setClassAuditOpen(true)}
+    className="min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs sm:text-sm font-medium hover:bg-slate-50 inline-flex items-center gap-1.5"
+  >
+    <History className="w-4 h-4 text-blue-600" />
+    Lịch sử lớp
+  </button>
+)}
+
+// Modal ở cuối JSX của ClassRoster:
+{isManager && (
+  <AuditLogModal
+    open={classAuditOpen}
+    onClose={() => setClassAuditOpen(false)}
+    initialClassId={classItem?.id}
+    initialClassName={classItem?.name}
+  />
+)}
+
+```
+
+* **Trong `src/components/students/StudentProfile.jsx`:**
+
+```jsx
+// Import ở đầu file:
+import { History } from 'lucide-react';
+import AuditLogModal from '../audit/AuditLogModal';
+
+// State trong StudentProfile:
+const [studentAuditOpen, setStudentAuditOpen] = useState(false);
+
+// Nút bấm (chỉ hiện cho Quản lý):
+{isManager && (
+  <button
+    type="button"
+    onClick={() => setStudentAuditOpen(true)}
+    className="min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs sm:text-sm font-medium hover:bg-slate-50 inline-flex items-center gap-1.5"
+  >
+    <History className="w-4 h-4 text-blue-600" />
+    Lịch sử thay đổi
+  </button>
+)}
+
+// Modal ở cuối JSX của StudentProfile:
+{isManager && (
+  <AuditLogModal
+    open={studentAuditOpen}
+    onClose={() => setStudentAuditOpen(false)}
+    initialStudentId={student?.id}
+    initialStudentName={student?.full_name}
+  />
+)}
+
+```
+
+---
+
+## Phần 4: Script Dọn Sạch `mock_data` Trước Khi Nhập Dữ Liệu Thật (Dành cho V2-4)
+
+Khi bạn đã nghiệm thu xong V2-3 và V2-4 trên dữ liệu thử và chuẩn bị nhập dữ liệu học sinh/phụ huynh thật của Trung tâm, hãy:
+
+1. Vào màn hình **Tổng quan -> Sao lưu & Năm học** bấm tải thử 1 bản `.json` để kiểm tra.
+2. Nếu trước đó bạn có chạy `mock_data.sql`, chạy đoạn SQL dưới đây trong **Supabase SQL Editor** để xóa sạch dữ liệu giả lập (giữ nguyên tài khoản Quản lý trong `profiles`) trước khi nhập dữ liệu thật:
+
+
+
+```sql
+-- CHỈ CHẠY KHI MUỐN XÓA TOÀN BỘ DỮ LIỆU THỬ (MOCK DATA) ĐỂ BẮT ĐẦU VẬN HÀNH THẬT
+begin;
+  select set_config('sciencehub.allow_audit_clear', 'on', true);
+  delete from public.attendance_records;
+  delete from public.class_enrollments;
+  delete from public.class_schedules;
+  delete from public.classes;
+  delete from public.students;
+  delete from public.parents;
+  delete from public.profiles where role = 'teacher';
+  delete from public.teachers;
+  delete from public.audit_log;
+  alter sequence public.parent_code_seq restart with 1;
+  alter sequence public.student_code_seq restart with 1;
+  select set_config('sciencehub.allow_audit_clear', 'off', true);
+commit;
+
+```
+
+---
+
+## Phần 5: Hướng dẫn Kiểm tra & Kịch bản Nghiệm thu (Bước 3)
+
+1. **Chạy SQL trên Supabase SQL Editor:**
+* Chạy `supabase/06_v2_3_audit_log.sql`, sau đó chạy tiếp `supabase/07_v2_4_backup.sql` (tuyệt đối **không** chạy lại `03_rpc_and_auth.sql`).
+
+
+
+
+2. **Kiểm tra Build & Lint ở máy local:**
+* Chạy `npm run lint` và `npm run build` để đảm bảo sạch lỗi biên dịch.
+
+
+
+
+3. Nghiệm thu V2-3 (Nhật ký Thay đổi & Phân quyền):
+
+
+* Đăng nhập bằng tài khoản **Giáo viên**: thực hiện thử điểm danh, học bù, cho nghỉ hoặc đổi lớp trong tháng hiện tại. Mở DevTools Console thử gọi `supabase.from('audit_log').select('*')` -> kết quả trả về mảng rỗng `[]` (Giáo viên không đọc được nhật ký).
+
+
+* Đăng nhập bằng tài khoản **Quản lý**:
+* Vào **Tổng quan -> Nhật ký thay đổi**: kiểm tra các thao tác của Giáo viên và Quản lý vừa làm đều hiện đúng tên người thực hiện, vai trò, thời gian (`DD/MM/YYYY HH:mm`) và bấm **Chi tiết** thấy rõ dữ liệu cũ -> mới (đặc biệt `price_snapshot` đóng băng giữ nguyên giá gốc).
+
+
+* Vào chi tiết một Lớp học hoặc Hồ sơ một Học sinh -> bấm nút **Lịch sử** -> thấy đúng nhật ký của riêng Lớp/Học sinh đó.
+* Thử chạy `delete from public.audit_log;` từ client -> bị trigger chặn cứng với thông báo: *"Trung tâm: Nhật ký thay đổi được bảo vệ toàn vẹn, không được phép chỉnh sửa hoặc xóa trực tiếp."*
+
+
+
+4. Nghiệm thu V2-4 (Sao lưu JSON/CSV, Chu kỳ Năm học 15/06 – 12/06 & Vercel):
+
+
+* Vào **Tổng quan -> Sao lưu & Năm học**:
+* Bấm tải **Bản sao lưu toàn hệ thống (`.json`)** và mở kiểm tra đủ 9 bảng.
+* Bấm xuất 3 file **Excel `.csv**` (DS Học sinh & Phụ huynh, DS Lớp học, Điểm danh & Học phí tháng) -> mở bằng Excel kiểm tra tiếng Việt có dấu hiển thị chuẩn và danh sách học sinh sắp theo Tên gọi.
+
+
+* Tại mục **3. Kết thúc Năm học (15/06 – 12/06)**: bấm **Bước 1 (Tải Nhật ký Năm học `.json`)** -> ô xác nhận Bước 2 mở khóa -> gõ `XOA NHAT KY` và bấm xóa -> toàn bộ nhật ký cũ được dọn sạch và tự động ghi 1 dòng nhật ký mới mở đầu năm học mới.
+
+
+
+
