@@ -12,7 +12,8 @@
 7. `06_v2_3_audit_log.sql` (V2-3): chạy sau file 05. Bảng `audit_log` (chỉ Quản lý đọc, chặn UPDATE/DELETE/TRUNCATE), 11 trigger (9 trigger ghi nhật ký tự động trên 8 bảng nghiệp vụ + 2 trigger bảo vệ nhật ký) và 3 RPC chỉ Quản lý (`vn_school_year_bounds`, `query_audit_logs`, `clear_audit_logs_before`). Chạy lại an toàn.
 8. `07_v2_4_backup.sql` (V2-4): chạy sau file 06. RPC xuất dữ liệu `export_center_backup`, `export_monthly_attendance_report` (chỉ Quản lý). Chạy lại an toàn.
 9. Tệp tiện ích tùy chọn (không nằm trong chuỗi chạy bắt buộc): `check_before_launch.sql` (chỉ đọc, danh sách kiểm tra an toàn) và `reset_mock_data.sql` (xóa toàn bộ dữ liệu thử; có khóa an toàn ở đầu file, phải xóa khối khóa mới chạy được).
-10. Từ V2-5 trở đi: tạo migration mới đánh số tiếp (`08_...`), viết chạy lại được nhiều lần; không tạo lại các file `sliceN_migration.sql` cũ.
+10. `08_v2_5_bulk_import.sql` (V2-5): chạy sau file 07. RPC `import_students_bulk` (chỉ Quản lý) nhập học sinh hàng loạt từ file CSV + hàm nội bộ `_import_norm_name`. Chạy lại an toàn.
+11. Từ V2-6 trở đi: tạo migration mới đánh số tiếp (`09_...`), viết chạy lại được nhiều lần; không tạo lại các file `sliceN_migration.sql` cũ.
 
 ### 1.2. Chi tiết 8 bảng dữ liệu (`ON DELETE RESTRICT` cho các khóa ngoại nghiệp vụ)
 - **`parents`**: `id`, `parent_code` (`PH0001`..., tự sinh, không đổi), `full_name`, `phone` (bắt buộc, 10 số bắt đầu bằng `0`, duy nhất), `created_at`, `deleted_at`.
@@ -54,6 +55,9 @@
   - `query_audit_logs(p_from_date, p_to_date, p_actor_role, p_teacher_id, p_action_group, p_class_id, p_student_id, p_search, p_limit, p_offset)`: chỉ Quản lý; trả `{total, limit, offset, school_year, items}`.
   - `clear_audit_logs_before(p_before_date, p_expected_count, p_confirm_text)`: chỉ Quản lý; ngoại lệ có kiểm soát duy nhất để xóa nhật ký (xem 2.4).
   - `export_center_backup(p_include_audit_log, p_tables)` và `export_monthly_attendance_report(p_year, p_month)`: chỉ Quản lý; mỗi lần xuất ghi 1 dòng nhật ký `backup_export`.
+- **Hàm của V2-5 (`08_v2_5_bulk_import.sql`):**
+  - `import_students_bulk(p_rows jsonb, p_dry_run boolean)`: chỉ Quản lý, tối đa 500 dòng/lần. Mỗi dòng `{line, student_name, student_phone, parent_name, parent_phone, class_name, joined_at}`. `p_dry_run = true` chỉ kiểm tra (không ghi, không tiêu hao mã HS/PH); `false` kiểm tra lại rồi ghi toàn bộ trong 1 giao dịch, còn lỗi thì không ghi gì. Trả `{dry_run, ok, applied, total_rows, errors[{line,message}], warnings[], missing_classes[], summary{new_parents,new_students,existing_students,enrollments,skipped}}`.
+  - Quy tắc: học sinh nhận diện bằng Họ tên (không phân biệt hoa/thường) + SĐT phụ huynh; học sinh/phụ huynh đã có thì dùng lại, chỉ ghi danh thêm lớp (đang học đúng lớp đó: cảnh báo và bỏ qua dòng); phụ huynh trùng SĐT khác tên: giữ tên cũ và cảnh báo; không có tên phụ huynh: dùng tên tạm `(Chưa cập nhật tên)`; lớp phải có sẵn và đang hiển thị; cùng khối và ngày vào lớp không ở tương lai.
   - Hàm nội bộ (đã thu quyền EXECUTE): `_write_audit_log`, `_guard_audit_log_immutable`, `_guard_audit_log_truncate`, `_fmt_vnd`, `_attendance_status_label`, `_attendance_payload`, `_schedule_snap_label` và các hàm trigger `_trg_audit_*`.
 
 ---
@@ -109,7 +113,7 @@
   - `students/`: `StudentProfile.jsx`, `TransferClassModal.jsx`, `AddClassModal.jsx`, `ClassPickList.jsx`.
   - `teachers/`: `TeacherProfile.jsx`, `TeacherAccountPanel.jsx` (liên kết/khóa tài khoản), `AccountBadge.jsx`.
   - `classes/` có thêm `TeacherStatsBar.jsx` (thống kê riêng của Giáo viên ở đầu trang Lớp học). `lib/` có thêm `teacherAccount.js`.
-  - V2-3/V2-4: `audit/AuditLogModal.jsx` (tra cứu nhật ký, lọc, gộp theo `batch_id`, "Xem thêm"), `backup/BackupModal.jsx` (sao lưu, xuất CSV, kết thúc Năm học); `lib/auditLog.js` (nhãn thao tác, định dạng, gọi RPC), `lib/backup.js` (JSON/CSV). Ở thư mục gốc có `vercel.json` (SPA routing + Security Headers + CSP chế độ Report-Only).
+  - V2-3/V2-4: `audit/AuditLogModal.jsx` (tra cứu nhật ký, lọc, gộp theo `batch_id`, "Xem thêm"), `backup/BackupModal.jsx` (sao lưu, xuất CSV, kết thúc Năm học); `lib/auditLog.js` (nhãn thao tác, định dạng, gọi RPC), `lib/backup.js` (JSON/CSV). V2-5: `students/ImportStudentsModal.jsx` (nhập từ file CSV: chọn file -> kiểm tra -> Nhập), `lib/importStudents.js` (đọc CSV dấu `,` `;` hoặc Tab, chuẩn hóa SĐT/ngày, file mẫu, danh sách tên lớp). Ở thư mục gốc có `vercel.json` (SPA routing + Security Headers + CSP chế độ Report-Only).
 - **`src/pages/`**: `LoginPage.jsx`, `DashboardPage.jsx`, `ClassesPage.jsx`, `StudentsPage.jsx`, `TeachersPage.jsx`.
 ---
 
@@ -148,6 +152,7 @@
 ### 4.4. Màn hình Học sinh & Hồ sơ Đa môn (`StudentsPage`, `StudentProfile`)
 - **Danh sách Học sinh (`StudentsPage`):**
   - Tìm kiếm không dấu theo tên, mã `HS...`, SĐT học sinh hoặc SĐT phụ huynh. Bộ lọc theo Khối và Môn học. Công tắc *"Hiện cả học sinh đã ẩn"*.
+  - Nút **"Nhập từ file"** (chỉ Quản lý): nhập hàng loạt từ CSV, xem kết quả kiểm tra (lỗi/lưu ý theo dòng) rồi mới bấm Nhập; có nút tải file mẫu và danh sách tên lớp.
   - Nút **"Đăng ký học sinh mới"** (`RegisterStudentFlow`): bắt buộc chọn lớp đầu tiên, nhập thông tin học sinh và SĐT/họ tên phụ huynh.
 - **Hồ sơ Chi tiết Học sinh (`StudentProfile`):**
   - Thông tin cá nhân, Mã HS, Khối hiện tại, Họ tên & SĐT Phụ huynh (kèm mã `PH...`).

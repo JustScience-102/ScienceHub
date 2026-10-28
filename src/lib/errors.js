@@ -8,6 +8,15 @@ export function toVietnameseError(error) {
   // Thông báo do chính Database của Trung tâm viết (RAISE EXCEPTION) đã là tiếng Việt.
   if (error.code === 'P0001') return message
 
+  // V2-5: thiếu hàm nhập học sinh hàng loạt của 08_v2_5_bulk_import.sql.
+  // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
+  if (
+    (error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(message)) &&
+    /import_students_bulk/.test(text)
+  ) {
+    return 'Database chưa được cập nhật đầy đủ. Hãy chạy file 08_v2_5_bulk_import.sql trong Supabase SQL Editor.'
+  }
+
   // V2-3 / V2-4: thiếu hàm/bảng của 06_v2_3_audit_log.sql và 07_v2_4_backup.sql.
   // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
   if (

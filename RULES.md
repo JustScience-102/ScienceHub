@@ -35,8 +35,8 @@
    - Giáo viên chỉ có quyền `SELECT` qua RLS; mọi thao tác ghi của Giáo viên đi qua RPC `SECURITY DEFINER` (không thêm policy INSERT/UPDATE/DELETE cho Giáo viên). Giáo viên không được đổi tên phụ huynh.
 
 ## 3b. Quy ước SQL (`supabase/`)
-- Bộ SQL hiện hành: `01_schema.sql` -> `02_triggers.sql` -> `03_rpc_and_auth.sql` -> `04_lockdown_rls.sql` -> `05_v2_2_teacher_access.sql` -> `06_v2_3_audit_log.sql` -> `07_v2_4_backup.sql` (+ `mock_data.sql`, `check_before_launch.sql`, `reset_mock_data.sql` tùy chọn). Không tạo lại các file `sliceN_migration.sql` cũ. Không chạy lại `03` sau `05` (sẽ ghi đè các hàm đã nâng cấp).
-- Thay đổi mới là migration đánh số tiếp (`08_...`, `09_...`), viết an toàn khi chạy lại nhiều lần (`create or replace`, `if not exists`, `drop ... if exists`).
+- Bộ SQL hiện hành: `01_schema.sql` -> `02_triggers.sql` -> `03_rpc_and_auth.sql` -> `04_lockdown_rls.sql` -> `05_v2_2_teacher_access.sql` -> `06_v2_3_audit_log.sql` -> `07_v2_4_backup.sql` -> `08_v2_5_bulk_import.sql` (+ `mock_data.sql`, `check_before_launch.sql`, `reset_mock_data.sql` tùy chọn). Không tạo lại các file `sliceN_migration.sql` cũ. Không chạy lại `03` sau `05` (sẽ ghi đè các hàm đã nâng cấp).
+- Thay đổi mới là migration đánh số tiếp (`09_...`, `10_...`), viết an toàn khi chạy lại nhiều lần (`create or replace`, `if not exists`, `drop ... if exists`).
 - Bảng `audit_log` là bảng duy nhất được xóa dòng, và chỉ qua `clear_audit_logs_before` (đã sao lưu, khớp số dòng, có cụm xác nhận). Mọi dữ liệu nghiệp vụ khác vẫn cấm hard delete (mục 3.4); riêng `reset_mock_data.sql` chỉ dùng một lần để dọn dữ liệu thử trước khi vận hành thật. Trigger nhật ký mới trên bảng nghiệp vụ phải dùng `_write_audit_log` và không được tính lại giá theo `classes.price_per_session`.
 - Hàm RPC chỉ Quản lý gọi: đặt `perform public.assert_manager();` ở dòng đầu. Hàm RPC mở cho Giáo viên (từ V2-2) bắt buộc `SECURITY DEFINER` + `set search_path = public` và tự kiểm tra vai trò/phạm vi lớp/tháng hiện tại bên trong hàm. Hàm nội bộ (tiền tố `_`) phải thu quyền EXECUTE của `anon`, `authenticated`, `public`.
 - Thông báo `RAISE EXCEPTION` bằng tiếng Việt, xưng "Trung tâm".

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, GraduationCap } from 'lucide-react'
+import { Plus, Search, GraduationCap, Upload } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -9,6 +9,7 @@ import Notice from '../components/Notice'
 import RowActions from '../components/RowActions'
 import RegisterStudentFlow from '../components/classes/RegisterStudentFlow'
 import StudentProfile from '../components/students/StudentProfile'
+import ImportStudentsModal from '../components/students/ImportStudentsModal'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
 import { normalizeText, compareVietnameseNames } from '../lib/text'
@@ -213,6 +214,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [openedId, setOpenedId] = useState(null) // học sinh đang mở hồ sơ
+  const [importing, setImporting] = useState(false) // hộp thoại nhập từ file (chỉ Quản lý)
 
   useEffect(() => {
     if (!supabase) return undefined
@@ -383,6 +385,16 @@ export default function StudentsPage({ isTeacher = false } = {}) {
           <Plus size={18} aria-hidden="true" />
           Đăng ký học sinh
         </button>
+        {!isTeacher && (
+          <button
+            type="button"
+            onClick={() => setImporting(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50"
+          >
+            <Upload size={18} aria-hidden="true" />
+            Nhập từ file
+          </button>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <SelectField
@@ -620,6 +632,16 @@ export default function StudentsPage({ isTeacher = false } = {}) {
             reload()
           }}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {importing && !isTeacher && (
+        <ImportStudentsModal
+          onDone={(message) => {
+            setNotice({ type: 'success', text: message })
+            setImporting(false)
+            reload()
+          }}
+          onClose={() => setImporting(false)}
         />
       )}
       {deleting && (

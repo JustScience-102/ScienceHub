@@ -119,3 +119,19 @@
 - [x] 5. (Đã đổi sang chế độ chặn 29/10/2026) Mở Console xem có cảnh báo CSP không; nếu sạch thì đổi `Content-Security-Policy-Report-Only` thành `Content-Security-Policy` trong `vercel.json` (file khóa, cần duyệt) rồi triển khai lại.
 - [x] 6. (Người dùng xác nhận đã chạy 29/10/2026) Chạy `check_before_launch.sql` lần cuối trên Database.
 - [x] 7. (Đã dọn dữ liệu thử 29/10/2026; người dùng xác nhận dữ liệu cũ chỉ là mock nên không cần sao lưu) Chuyển sang dữ liệu thật: tải 1 bản sao lưu `.json`, bỏ khối "KHÓA AN TOÀN" trong `reset_mock_data.sql` rồi chạy; xóa tay tài khoản giáo viên thử trong Authentication; tạo lại giáo viên thật + liên kết tài khoản.
+
+---
+
+## 4. Lát cắt V2-5: Nhập học sinh hàng loạt từ file CSV — ĐÃ VIẾT CODE, CHỜ NGHIỆM THU (29/10/2026)
+- **Quy tắc đã chốt với người dùng:** (a) CSV (không cài thư viện đọc Excel; Excel -> Save As CSV UTF-8). (b) Mỗi dòng gán lớp bằng cột "Tên lớp"; lớp phải được tạo trước. (c) Xem trước; còn bất kỳ lỗi nào thì không nhập gì (một giao dịch). (d) Chỉ Quản lý. (e) Học sinh nhận diện bằng Họ tên + SĐT phụ huynh; đã có thì chỉ ghi danh thêm lớp. (f) Họ tên phụ huynh không bắt buộc, để trống dùng tên tạm `(Chưa cập nhật tên)`, sửa sau ở hồ sơ học sinh; SĐT phụ huynh vẫn bắt buộc.
+- **Đã làm:**
+  - SQL: `supabase/08_v2_5_bulk_import.sql` (RPC `import_students_bulk`, chạy lại an toàn).
+  - Frontend mới: `src/lib/importStudents.js`, `src/components/students/ImportStudentsModal.jsx`.
+  - File khóa đã chạm (đã được duyệt): `StudentsPage.jsx` (nút "Nhập từ file", chỉ Quản lý), `errors.js` (nhánh mới đặt trước).
+- **Đã tự kiểm tra:** `npm run lint`, `npm run build` sạch. Chạy thật chuỗi `01 -> 08` trên Postgres 18 (PGlite) và 30 tình huống của RPC đều đạt: dry-run không ghi/không tiêu hao mã, lỗi từng dòng, lớp thiếu/lớp ẩn, ngày sai/tương lai, nhập thật đúng mã HS/PH và khối, nhập lại bỏ qua, học sinh có sẵn, phụ huynh khác tên, khác khối, trùng SĐT, anh chị em cùng SĐT phụ huynh, quá 500 dòng, người không phải Quản lý bị từ chối, nhật ký tự ghi. 15 tình huống đọc CSV đạt (dấu `;`/`,`, BOM, CRLF, ngoặc kép, mất số 0, ngày D/M/YYYY, lỗi font, thiếu cột).
+- **Kịch bản nghiệm thu (người dùng làm):**
+  1. Chạy `08_v2_5_bulk_import.sql` trong Supabase SQL Editor; `git push` để Vercel triển khai.
+  2. Tạo sẵn giáo viên và lớp. Học sinh -> **Nhập từ file**: tải **file mẫu** và **danh sách tên lớp**.
+  3. Điền thử ~5 dòng (có 1 em học 2 lớp, 1 dòng để trống tên phụ huynh, 1 dòng cố ý sai: lớp không tồn tại hoặc SĐT sai), lưu CSV UTF-8, chọn file: phải thấy lỗi theo dòng và KHÔNG nhập gì.
+  4. Sửa dòng sai, chọn lại: phải báo hợp lệ + số liệu; bấm Nhập: học sinh xuất hiện đúng lớp/khối, phụ huynh có tên "(Chưa cập nhật tên)" ở dòng để trống.
+  5. Chọn lại đúng file đó: báo không có gì mới (các dòng bỏ qua). Mở Nhật ký thay đổi: thấy các dòng tạo học sinh/ghi danh. Đăng nhập Giáo viên: không thấy nút "Nhập từ file".
