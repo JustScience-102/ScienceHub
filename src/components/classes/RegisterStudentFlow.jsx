@@ -6,6 +6,7 @@ import EnrollStudentModal from './EnrollStudentModal'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { compareVietnameseNames } from '../../lib/text'
+import { classTitle } from '../../lib/dashboard'
 
 // Đăng ký học sinh từ trang Học sinh: BẮT BUỘC chọn lớp trước (mọi học sinh phải thuộc ít nhất
 // một lớp), sau đó dùng chung hộp thoại thêm học sinh vào lớp.
@@ -83,7 +84,7 @@ export default function RegisterStudentFlow({ isTeacher = false, onDone, onClose
         >
           {sorted.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.name}
+              {classTitle(item)}
             </option>
           ))}
         </SelectField>

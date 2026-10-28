@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { compareVietnameseNames } from '../../lib/text'
+import { classTitle } from '../../lib/dashboard'
 
 // Màn hình chi tiết lớp: danh sách học sinh, thêm học sinh, cho nghỉ.
 // Có tab "Điểm danh". initialTab / initialDate cho phép mở thẳng tab điểm danh
@@ -121,7 +122,7 @@ export default function ClassRoster({
     setNotice({
       type: 'success',
       text:
-        `Trung tâm đã cho ${name} nghỉ khỏi lớp ${cls.name} từ ${formatDate(leftAt)}. Lịch sử vẫn được giữ.` +
+        `Trung tâm đã cho ${name} nghỉ khỏi lớp ${classTitle(cls)} từ ${formatDate(leftAt)}. Lịch sử vẫn được giữ.` +
         (dropping.isLastClass
           ? ` ${name} không còn học lớp nào nên đã được ẩn khỏi danh sách học sinh, và sẽ hiện lại khi được thêm vào một lớp.`
           : '') +
@@ -250,7 +251,7 @@ export default function ClassRoster({
   }
 
   return (
-    <PageShell title={`Lớp ${cls.name}`} description="Danh sách học sinh và điểm danh của lớp.">
+    <PageShell title={`Lớp ${classTitle(cls)}`} description="Danh sách học sinh và điểm danh của lớp.">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"

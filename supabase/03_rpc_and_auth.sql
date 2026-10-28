@@ -13,6 +13,24 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. CHỐT CHẶN: KHÔNG CHO CHẠY LẠI FILE NÀY SAU KHI ĐÃ CHẠY FILE 05
+-- File 05 (V2-2) đã nâng cấp save_class, save_attendance, dashboard_summary,
+-- drop_enrollment, record_makeup, register_student_in_class, transfer_enrollment,
+-- update_student. Chạy lại file 03 sẽ ghi đè về bản cũ và làm hỏng quyền Giáo viên.
+-- assert_staff() chỉ do file 05 tạo ra, nên có nó nghĩa là 05 đã được chạy.
+-- ---------------------------------------------------------------------
+do $guard$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'assert_staff'
+  ) then
+    raise exception 'DUNG LAI: Database da chay file 05 tro di. KHONG chay lai 03_rpc_and_auth.sql (se ghi de cac ham da nang cap). Neu can cap nhat, hay chay file migration moi nhat (vi du 09).';
+  end if;
+end
+$guard$;
+
+-- ---------------------------------------------------------------------
 -- 1. CÁC HÀM KIỂM TRA VAI TRÒ & PHIÊN ĐĂNG NHẬP (SECURITY DEFINER)
 -- ---------------------------------------------------------------------
 create or replace function public.app_role()

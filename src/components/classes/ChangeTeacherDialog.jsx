@@ -4,6 +4,7 @@ import Notice from '../Notice'
 import SelectField from '../SelectField'
 import { compareVietnameseNames } from '../../lib/text'
 import { planTeacherChange } from '../../lib/className'
+import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại nhỏ chọn giáo viên khác khi KHÔI PHỤC lớp mà giáo viên cũ đang bị ẩn.
 // Không đụng tới môn, khối, lịch học, đơn giá.
@@ -35,7 +36,7 @@ export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, tak
     <Modal title="Chọn giáo viên để khôi phục lớp" onClose={onClose}>
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <p className="text-sm leading-relaxed text-slate-600">
-          Lớp <strong>{cls.name}</strong> đang được phụ trách bởi{' '}
+          Lớp <strong>{classTitle(cls)}</strong> đang được phụ trách bởi{' '}
           <strong>{oldTeacherName || 'một giáo viên chưa xác định'}</strong>, giáo viên này hiện đang bị ẩn.
           Hãy chọn giáo viên khác để khôi phục lớp. Môn học, khối, lịch học và đơn giá giữ nguyên.
         </p>

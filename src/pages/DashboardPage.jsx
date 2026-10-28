@@ -177,14 +177,14 @@ export default function DashboardPage({ onOpenAttendance }) {
 
         {!summary && summaryLoading ? (
           <div
-            className="grid grid-cols-2 gap-3 lg:grid-cols-3"
+            className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
             aria-label={`Trung tâm đang tải số liệu ${monthLabel(month).toLowerCase()}...`}
           >
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div
                 key={item}
-                className={`h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100/70 ${
-                  item === 6 ? 'col-span-2 lg:col-span-1' : ''
+                className={`h-20 animate-pulse rounded-xl border border-slate-200 bg-slate-100/70 ${
+                  item === 6 ? 'col-span-2 md:col-span-1' : ''
                 }`}
               />
             ))}
@@ -192,7 +192,7 @@ export default function DashboardPage({ onOpenAttendance }) {
         ) : (
           summary && (
             <div className={`space-y-3 transition-opacity ${summaryLoading ? 'opacity-60' : 'opacity-100'}`}>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 <StatCard icon={School} label="Số lớp" value={summary.classCount} tone="sky" />
                 <StatCard icon={UserSquare} label="Số giáo viên" value={summary.teacherCount} tone="sky" />
                 <StatCard

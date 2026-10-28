@@ -19,6 +19,8 @@ import {
   weekdayLabel,
 } from '../lib/schedule'
 import { planTeacherChange } from '../lib/className'
+import { classTitle, subjectColor } from '../lib/dashboard'
+import { CELL, CELL_CLICKABLE, CELL_MUTED, ROW, ROW_TABLE } from '../lib/rowTableStyle'
 import { compareVietnameseNames, normalizeText } from '../lib/text'
 import { NONE, buildOptions, classGrade } from '../lib/grade'
 import SelectField from '../components/SelectField'
@@ -229,9 +231,11 @@ export default function ClassesPage({
         type="button"
         onClick={() => openStudents(cls)}
         aria-label={`Xem chi tiết lớp ${cls.name}`}
-        className="min-h-10 break-all text-left font-semibold text-sky-700 underline-offset-2 hover:underline"
+        className={`break-all rounded-lg px-2.5 py-1 text-left font-semibold hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-sky-300 ${
+          cls.deleted_at ? 'bg-slate-200 text-slate-500' : subjectColor(cls.subject)
+        }`}
       >
-        {cls.name}
+        {classTitle({ ...cls, grade: classGrade(cls) })}
       </button>
     )
   }
@@ -531,8 +535,8 @@ export default function ClassesPage({
       <>
         {/* Máy tính: dạng bảng */}
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+          <table className={ROW_TABLE}>
+            <thead className="text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-3 py-3 font-semibold">Tên lớp</th>
                 <th className="px-3 py-3 font-semibold">Giáo viên</th>
@@ -544,18 +548,22 @@ export default function ClassesPage({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {visibleClasses.map((cls) => (
-                <tr key={cls.id} className={cls.deleted_at ? 'bg-slate-50 text-slate-400' : ''}>
-                  <td className="px-3 py-3 font-medium">
+            <tbody>
+              {visibleClasses.map((cls) => {
+                const cell = `${CELL} px-3 py-3 ${cls.deleted_at ? CELL_MUTED : CELL_CLICKABLE}`
+                return (
+                <tr key={cls.id} className={ROW}>
+                  <td className={`${cell} font-medium`}>
                     {nameButton(cls)}
                     {cls.deleted_at && hiddenBadge}
                   </td>
-                  <td className="px-3 py-3">{teacherName(cls) || 'Chưa gắn giáo viên'}</td>
-                  <td className="px-3 py-3">{formatSchedule(schedules[cls.id])}</td>
-                  <td className="px-3 py-3 text-right">{formatCurrency(cls.price_per_session)}</td>
-                  <td className="px-3 py-3 text-center">{activeCounts[cls.id] ?? 0}</td>
-                  <td className="px-3 py-3">
+                  <td className={`${cell} font-semibold ${cls.deleted_at ? '' : 'text-slate-800'}`}>
+                    {teacherName(cls) || 'Chưa gắn giáo viên'}
+                  </td>
+                  <td className={cell}>{formatSchedule(schedules[cls.id])}</td>
+                  <td className={`${cell} text-right`}>{formatCurrency(cls.price_per_session)}</td>
+                  <td className={`${cell} text-center`}>{activeCounts[cls.id] ?? 0}</td>
+                  <td className={cell}>
                     <div className="flex justify-end">
                       <ClassActions
                         cls={cls}
@@ -568,7 +576,8 @@ export default function ClassesPage({
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

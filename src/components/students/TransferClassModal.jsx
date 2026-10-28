@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '../../lib/format'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { STATUS_LABELS } from '../../lib/tuition'
 import { buildClassChoices, loadClassChoices, transferError } from '../../lib/transfer'
+import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại ĐỔI LỚP: học sinh rời lớp hiện tại và vào lớp mới CÙNG KHỐI trong một lần lưu.
 // Ngày chuyển dùng chung: ngày cuối học lớp cũ = ngày vào lớp mới.
@@ -118,7 +119,7 @@ export default function TransferClassModal({
       return
     }
     onDone(
-      `Trung tâm đã chuyển ${studentName} từ lớp ${enrollment.classes?.name ?? ''} sang lớp ${target?.name ?? ''}.`,
+      `Trung tâm đã chuyển ${studentName} từ lớp ${enrollment.classes ? classTitle(enrollment.classes) : ''} sang lớp ${target ? classTitle(target) : ''}.`,
     )
   }
 
@@ -129,7 +130,7 @@ export default function TransferClassModal({
     content = (
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <p className="text-sm leading-relaxed text-slate-600">
-          Trung tâm sẽ chuyển <strong>{studentName}</strong> khỏi lớp <strong>{enrollment.classes?.name}</strong> sang
+          Trung tâm sẽ chuyển <strong>{studentName}</strong> khỏi lớp <strong>{enrollment.classes ? classTitle(enrollment.classes) : ''}</strong> sang
           một lớp khác <strong>cùng khối</strong>. Lịch sử điểm danh và doanh thu của lớp cũ được giữ nguyên. Các buổi
           từ ngày chuyển trở đi tính theo đơn giá lớp mới.
         </p>

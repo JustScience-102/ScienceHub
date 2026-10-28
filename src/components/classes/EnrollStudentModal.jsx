@@ -8,6 +8,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { normalizeText, compareVietnameseNames } from '../../lib/text'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
+import { classTitle } from '../../lib/dashboard'
 import {
   normalizePhone,
   isValidPhone,
@@ -108,7 +109,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
         supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at'),
         supabase
           .from('class_enrollments')
-          .select('class_id, student_id, classes(name, grade)')
+          .select('class_id, student_id, classes(name, subject, grade, class_no)')
           .eq('status', 'active'),
       ])
       if (cancelled) return
@@ -154,7 +155,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
       if (otherGrade && otherGrade !== targetGrade && !map.has(row.student_id)) {
         map.set(
           row.student_id,
-          `Đang học lớp ${row.classes?.name} (khối ${otherGrade}), không cùng khối ${targetGrade} của lớp này`,
+          `Đang học lớp ${row.classes ? classTitle(row.classes) : ''} (khối ${otherGrade}), không cùng khối ${targetGrade} của lớp này`,
         )
       }
     }
@@ -282,7 +283,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
         setFormError(toVietnameseError(error))
         return
       }
-      onDone(`Trung tâm đã đăng ký học sinh ${studentName.trim()} và thêm vào lớp ${cls.name}.`)
+      onDone(`Trung tâm đã đăng ký học sinh ${studentName.trim()} và thêm vào lớp ${classTitle(cls)}.`)
       return
     }
 
@@ -315,8 +316,8 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
     }
     onDone(
       student?.deleted_at
-        ? `Trung tâm đã thêm ${student.full_name} vào lớp ${cls.name}. Học sinh và phụ huynh đã được hiện lại.`
-        : `Trung tâm đã thêm ${student?.full_name ?? 'học sinh'} vào lớp ${cls.name}.`,
+        ? `Trung tâm đã thêm ${student.full_name} vào lớp ${classTitle(cls)}. Học sinh và phụ huynh đã được hiện lại.`
+        : `Trung tâm đã thêm ${student?.full_name ?? 'học sinh'} vào lớp ${classTitle(cls)}.`,
     )
   }
 
@@ -527,7 +528,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
   }
 
   return (
-    <Modal title={`Thêm học sinh vào lớp ${cls.name}`} onClose={onClose}>
+    <Modal title={`Thêm học sinh vào lớp ${classTitle(cls)}`} onClose={onClose}>
       {content}
     </Modal>
   )

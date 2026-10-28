@@ -26,6 +26,7 @@ import {
 } from '../../lib/schedule'
 import { compareVietnameseNames } from '../../lib/text'
 import { getSpeechRecognition, matchSpokenNames } from '../../lib/voice'
+import { classTitle } from '../../lib/dashboard'
 
 // Ba trạng thái điểm danh. Có mặt và Vắng đều TÍNH TIỀN; Có phép thì không.
 const STATUSES = [
@@ -113,7 +114,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       const { data, error } = await supabase
         .from('attendance_records')
         .select(
-          'id, enrollment_id, student_id, status, price_snapshot, students(full_name, student_code), class_enrollments(class_id, classes(name))',
+          'id, enrollment_id, student_id, status, price_snapshot, students(full_name, student_code), class_enrollments(class_id, classes(name, subject, grade, class_no))',
         )
         .eq('class_id', cls.id)
         .eq('attendance_date', date)
@@ -183,7 +184,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
         name: record.students?.full_name ?? '',
         code: record.students?.student_code ?? '',
         record,
-        makeupFrom: fromOtherClass ? (record.class_enrollments?.classes?.name ?? 'lớp khác') : '',
+        makeupFrom: fromOtherClass ? (record.class_enrollments?.classes ? classTitle(record.class_enrollments.classes) : 'lớp khác') : '',
       })
     }
 
@@ -435,7 +436,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       <Notice type="info">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Lớp {cls.name} không có lịch học vào {weekdayLabel(date)}. Hãy chọn đúng ngày có lịch học của lớp
+            Lớp {classTitle(cls)} không có lịch học vào {weekdayLabel(date)}. Hãy chọn đúng ngày có lịch học của lớp
             {latestDate ? ' hoặc chuyển tới buổi gần nhất.' : '.'} Học sinh học bù ở lớp khác thì mở lớp mà học sinh đó
             đến học bù.
           </span>

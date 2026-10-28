@@ -1,7 +1,8 @@
-import { CalendarX, ChevronRight, ClipboardCheck } from 'lucide-react'
+import { CalendarX, ChevronRight } from 'lucide-react'
 import EmptyState from '../EmptyState'
 import { formatTime } from '../../lib/schedule'
-import { attendanceStatus } from '../../lib/dashboard'
+import { attendanceStatus, classTitle, subjectColor } from '../../lib/dashboard'
+import { CELL, CELL_CLICKABLE, ROW, ROW_TABLE } from '../../lib/rowTableStyle'
 
 const TONES = {
   warning: 'bg-amber-50 text-amber-700',
@@ -10,7 +11,7 @@ const TONES = {
   muted: 'bg-slate-100 text-slate-600',
 }
 
-// Danh sách "Lịch học trong ngày". Bấm một dòng để mở thẳng màn hình Điểm danh của lớp đó.
+// Bảng "Lịch học trong ngày" (đã sắp theo giờ học). Bấm một dòng để mở thẳng màn hình Điểm danh của lớp đó.
 export default function TodaySchedule({ rows, date, today, onOpen }) {
   if (rows.length === 0) {
     return (
@@ -23,42 +24,67 @@ export default function TodaySchedule({ rows, date, today, onOpen }) {
   }
 
   return (
-    <ul className="space-y-2">
-      {rows.map((row) => {
-        const status = attendanceStatus(row, date, today)
-        return (
-          <li key={`${row.class_id}|${row.start_time}`}>
-            <button
-              type="button"
-              onClick={() => onOpen(row.class_id, date)}
-              aria-label={`Mở điểm danh lớp ${row.name}`}
-              className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-sky-300 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-200 sm:gap-4 sm:p-4"
-            >
-              <div className="w-24 shrink-0 text-sm sm:w-28">
-                <p className="font-semibold text-slate-800">{formatTime(row.start_time)}</p>
-                <p className="text-slate-500">đến {formatTime(row.end_time)}</p>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-slate-800">{row.name}</p>
-                <p className="truncate text-sm text-slate-500">
+    <div className="overflow-x-auto">
+      <table className={ROW_TABLE}>
+        <thead className="text-xs uppercase text-slate-500">
+          <tr>
+            <th className="px-3 py-3 font-semibold">Giờ học</th>
+            <th className="px-3 py-3 font-semibold">Tên lớp</th>
+            <th className="px-3 py-3 font-semibold">Giáo viên</th>
+            <th className="px-3 py-3 text-center font-semibold">Sĩ số</th>
+            <th className="px-3 py-3 font-semibold">Tình trạng điểm danh</th>
+            <th className="px-3 py-3">
+              <span className="sr-only">Mở điểm danh</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const status = attendanceStatus(row, date, today)
+            const cell = `${CELL} ${CELL_CLICKABLE} px-3 py-3`
+            return (
+              <tr
+                key={`${row.class_id}|${row.start_time}`}
+                onClick={() => onOpen(row.class_id, date)}
+                className={`${ROW} cursor-pointer`}
+              >
+                <td className={`${cell} whitespace-nowrap font-semibold text-slate-800`}>
+                  {formatTime(row.start_time)}
+                  <span className="font-normal text-slate-400"> – </span>
+                  {formatTime(row.end_time)}
+                </td>
+                <td className={cell}>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onOpen(row.class_id, date)
+                    }}
+                    aria-label={`Mở điểm danh lớp ${row.name}`}
+                    className={`rounded-lg px-2.5 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-300 ${subjectColor(row.subject)}`}
+                  >
+                    {classTitle(row)}
+                  </button>
+                </td>
+                <td className={`${cell} font-semibold text-slate-800`}>
                   {row.teacher_name || 'Chưa gắn giáo viên'}
-                  {row.grade ? ` · Khối ${row.grade}` : ''}
-                  {` · ${Number(row.total_count) || 0} học sinh`}
-                </p>
-                <span
-                  className={`mt-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${TONES[status.tone]}`}
-                >
-                  {status.tone === 'done' && <ClipboardCheck size={12} aria-hidden="true" />}
-                  {status.label}
-                </span>
-              </div>
-
-              <ChevronRight size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
-            </button>
-          </li>
-        )
-      })}
-    </ul>
+                </td>
+                <td className={`${cell} text-center text-slate-700`}>{Number(row.total_count) || 0}</td>
+                <td className={cell}>
+                  <span
+                    className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${TONES[status.tone]}`}
+                  >
+                    {status.label}
+                  </span>
+                </td>
+                <td className={`${cell} text-right`}>
+                  <ChevronRight size={18} className="inline text-slate-400" aria-hidden="true" />
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }

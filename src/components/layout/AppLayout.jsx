@@ -39,7 +39,7 @@ export default function AppLayout({
 
       <div className="lg:pl-64">
         {/* pb-24: chừa chỗ cho thanh tab đáy để không che nội dung */}
-        <main className="mx-auto max-w-6xl p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
+        <main className="mx-auto max-w-[96rem] p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
           {children}
         </main>
       </div>

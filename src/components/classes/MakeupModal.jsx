@@ -7,6 +7,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { formatDate } from '../../lib/format'
 import { addDaysISO, dayOfWeekFromISO, monthStartISO, weekdayLabel } from '../../lib/schedule'
 import { compareVietnameseNames } from '../../lib/text'
+import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại "Học bù": học sinh của một lớp KHÁC (cùng giáo viên) đến học bù ở lớp đang mở.
 // Chọn lớp gốc -> chọn học sinh -> chọn buổi gốc được bù.
@@ -27,7 +28,7 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
     async function load() {
       const { data, error: loadError } = await supabase
         .from('classes')
-        .select('id, name')
+        .select('id, name, subject, grade, class_no')
         .eq('teacher_id', cls.teacher_id)
         .neq('id', cls.id)
         .is('deleted_at', null)
@@ -36,7 +37,7 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
         setError(toVietnameseError(loadError))
         setClasses([])
       } else {
-        setClasses([...data].sort((a, b) => compareVietnameseNames(a.name, b.name)))
+        setClasses([...data].sort((a, b) => compareVietnameseNames(classTitle(a), classTitle(b))))
       }
     }
     load()
@@ -133,7 +134,8 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
       setError(toVietnameseError(rpcError))
       return
     }
-    const originalName = classes.find((item) => item.id === classId)?.name ?? 'lớp gốc'
+    const originalClass = classes.find((item) => item.id === classId)
+    const originalName = originalClass ? classTitle(originalClass) : 'lớp gốc'
     onDone(
       `Trung tâm đã ghi nhận ${selectedEnrollment.students?.full_name} học bù ngày ${formatDate(date)}. ` +
         `Buổi ngày ${formatDate(effectiveOriginal)} của lớp ${originalName} đã chuyển thành Vắng có phép.`,
@@ -146,7 +148,7 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
   }
 
   return (
-    <Modal title={`Học bù vào lớp ${cls.name}`} onClose={onClose}>
+    <Modal title={`Học bù vào lớp ${classTitle(cls)}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-slate-600">
           Ngày học bù: <strong>{weekdayLabel(date)}, {formatDate(date)}</strong>. Học bù tính tiền theo
@@ -172,7 +174,7 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
         >
           {(classes ?? []).map((item) => (
             <option key={item.id} value={item.id}>
-              {item.name}
+              {classTitle(item)}
             </option>
           ))}
         </SelectField>

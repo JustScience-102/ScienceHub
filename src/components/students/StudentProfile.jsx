@@ -11,6 +11,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { formatSchedule, todayISO, weekdayLabel } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
+import { classTitle } from '../../lib/dashboard'
 import {
   STATUS_LABELS,
   monthOf,
@@ -438,7 +439,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
                 <header className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h3 className="font-semibold text-slate-800">
-                      {group.cls?.name ?? 'Lớp không xác định'}
+                      {group.cls ? classTitle(group.cls) : 'Lớp không xác định'}
                       {!group.active && (
                         <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs font-normal text-slate-600">
                           Đã nghỉ

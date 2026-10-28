@@ -8,6 +8,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency } from '../../lib/format'
 import { formatSchedule } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
+import { classTitle } from '../../lib/dashboard'
 import TeacherAccountPanel from './TeacherAccountPanel'
 
 // Hồ sơ giáo viên: thông tin liên hệ, tài khoản đăng nhập, các lớp đang phụ trách, số học sinh mỗi lớp
@@ -189,7 +190,7 @@ export default function TeacherProfile({ teacherId, onBack }) {
                 <tbody className="divide-y divide-slate-100">
                   {summary.rows.map(({ cls, count }) => (
                     <tr key={cls.id}>
-                      <td className="px-3 py-3 font-medium text-slate-800">{cls.name}</td>
+                      <td className="px-3 py-3 font-medium text-slate-800">{classTitle(cls)}</td>
                       <td className="px-3 py-3">{cls.subject || '—'}</td>
                       <td className="px-3 py-3">{classGrade(cls) ? `Khối ${classGrade(cls)}` : '—'}</td>
                       <td className="px-3 py-3">{formatSchedule(cls.class_schedules)}</td>
@@ -205,7 +206,7 @@ export default function TeacherProfile({ teacherId, onBack }) {
             <ul className="space-y-3 md:hidden">
               {summary.rows.map(({ cls, count }) => (
                 <li key={cls.id} className="rounded-xl border border-slate-200 p-4">
-                  <p className="font-semibold text-slate-800">{cls.name}</p>
+                  <p className="font-semibold text-slate-800">{classTitle(cls)}</p>
                   <p className="text-sm text-slate-500">
                     {cls.subject || 'Chưa có môn'} · {classGrade(cls) ? `Khối ${classGrade(cls)}` : 'Chưa có khối'}
                   </p>

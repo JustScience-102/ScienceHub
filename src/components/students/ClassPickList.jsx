@@ -4,6 +4,7 @@ import { normalizeText } from '../../lib/text'
 import { formatCurrency } from '../../lib/format'
 import { formatSchedule } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
+import { classTitle } from '../../lib/dashboard'
 
 // Danh sách lớp để chọn một lớp (radio) kèm ô tìm theo tên.
 // choices: [{ cls, counts, blockReason }]; lớp có blockReason bị khóa và hiện lý do.
@@ -72,7 +73,7 @@ export default function ClassPickList({ choices, counts, selectedId, onSelect, i
                       className="mt-1 h-4 w-4"
                     />
                     <span className="flex-1">
-                      <span className="font-medium">{cls.name}</span>
+                      <span className="font-medium">{classTitle(cls)}</span>
                       <span className="block text-xs text-slate-500">
                         {cls.subject || 'Chưa có môn'} · {grade ? `Khối ${grade}` : 'Chưa có khối'} ·{' '}
                         {cls.teachers?.full_name || 'Chưa gắn giáo viên'}

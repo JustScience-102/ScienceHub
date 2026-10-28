@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { buildClassChoices, loadClassChoices } from '../../lib/transfer'
+import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại ĐĂNG KÝ THÊM LỚP cho học sinh (giữ nguyên các lớp đang học, chỉ thêm lớp mới CÙNG KHỐI).
 //  activeEnrollments: mọi ghi danh 'active' của học sinh (để xác định khối và bỏ các lớp đang học)
@@ -79,7 +80,8 @@ export default function AddClassModal({
       setFormError(toVietnameseError(error))
       return
     }
-    const className = choices.find((item) => item.cls.id === selectedId)?.cls.name ?? ''
+    const chosen = choices.find((item) => item.cls.id === selectedId)?.cls
+    const className = chosen ? classTitle(chosen) : ''
     onDone(`Trung tâm đã đăng ký ${studentName} vào lớp ${className}.`)
   }
 

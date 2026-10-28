@@ -3,6 +3,7 @@
 // Doanh thu chỉ cộng attendance_records.price_snapshot, không đọc classes.price_per_session.
 
 import { toVietnameseError } from './errors'
+import { normalizeText } from './text'
 
 // Đưa kết quả jsonb của dashboard_summary về số, tránh phụ thuộc kiểu dữ liệu trả về.
 export function parseSummary(raw) {
@@ -30,6 +31,40 @@ export function attendanceStatus(row, date, today) {
   if (marked === 0) return { label: 'Chưa điểm danh', tone: 'warning' }
   if (marked < total) return { label: `Đã điểm danh ${marked}/${total}`, tone: 'info' }
   return { label: `Đã điểm danh đủ ${marked}/${total}`, tone: 'done' }
+}
+
+// Mỗi môn một màu pastel cố định. Môn chưa khai báo lấy màu theo tên (ổn định giữa các lần tải).
+const SUBJECT_COLORS = {
+  'vat li': 'bg-sky-100 text-sky-800',
+  'hoa hoc': 'bg-emerald-100 text-emerald-800',
+  toan: 'bg-rose-100 text-rose-800',
+  'sinh hoc': 'bg-lime-100 text-lime-800',
+  'ngu van': 'bg-amber-100 text-amber-800',
+  'tieng anh': 'bg-violet-100 text-violet-800',
+}
+const FALLBACK_COLORS = [
+  'bg-teal-100 text-teal-800',
+  'bg-fuchsia-100 text-fuchsia-800',
+  'bg-orange-100 text-orange-800',
+  'bg-indigo-100 text-indigo-800',
+  'bg-cyan-100 text-cyan-800',
+]
+
+export function subjectColor(subject) {
+  const key = normalizeText(subject).toLowerCase()
+  if (!key) return 'bg-slate-100 text-slate-700'
+  if (SUBJECT_COLORS[key]) return SUBJECT_COLORS[key]
+  let hash = 0
+  for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) % 997
+  return FALLBACK_COLORS[hash % FALLBACK_COLORS.length]
+}
+
+// Tên lớp thân thiện: "Vật Lí 11 Nhóm 2". Nhóm lấy từ class_no, hoặc từ STT cuối tên lớp (Môn_Khối_GV_STT).
+// Lớp cũ chưa có môn học thì giữ nguyên tên lớp.
+export function classTitle(cls) {
+  if (!cls.subject) return cls.name
+  const group = cls.class_no ?? /_(\d+)$/.exec(cls.name ?? '')?.[1]
+  return [cls.subject, cls.grade, group && `Nhóm ${group}`].filter(Boolean).join(' ')
 }
 
 // Báo lỗi Dashboard. Thiếu hàm thì chỉ rõ file cần chạy; lỗi khác dùng errors.js.
