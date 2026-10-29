@@ -9,7 +9,8 @@ import AddClassModal from './AddClassModal'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
-import { formatSchedule, todayISO, weekdayLabel } from '../../lib/schedule'
+import { addDaysISO, formatSchedule, todayISO, weekdayLabel } from '../../lib/schedule'
+import { fetchClassVersions, labelClassOn } from '../../lib/classVersions'
 import { classGrade } from '../../lib/grade'
 import { classTitle } from '../../lib/dashboard'
 import {
@@ -57,6 +58,8 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
   const [notice, setNotice] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [studentAuditOpen, setStudentAuditOpen] = useState(false)
+  // Lịch sử nhãn lớp (V2-6): tên lớp, khối, giáo viên đúng vào ngày điểm danh. Lỗi tải thì dùng nhãn hiện tại.
+  const [versions, setVersions] = useState([])
 
   const recordsKey = `${studentId}|${monthStart(month)}`
 
@@ -121,6 +124,27 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
   const records = useMemo(() => recordsState.rows, [recordsState.rows])
 
   const enrollments = useMemo(() => profile?.enrollments ?? [], [profile])
+
+  // Tải lịch sử nhãn của các lớp xuất hiện trong ghi danh và điểm danh (tải lại khi có lớp mới).
+  const versionKey = useMemo(() => {
+    const ids = new Set(enrollments.map((row) => row.class_id))
+    for (const record of records) ids.add(record.class_id)
+    return [...ids].filter(Boolean).sort().join(',')
+  }, [enrollments, records])
+  useEffect(() => {
+    if (!versionKey) return undefined
+    let cancelled = false
+    fetchClassVersions(versionKey.split(','))
+      .then((rows) => {
+        if (!cancelled) setVersions(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setVersions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [versionKey])
   const activeEnrollments = useMemo(
     () =>
       enrollments
@@ -128,15 +152,47 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
         .sort((a, b) => String(a.classes?.name ?? '').localeCompare(String(b.classes?.name ?? ''), 'vi')),
     [enrollments],
   )
+  // Lớp đã nghỉ: nhãn lớp tại ngày nghỉ.
   const droppedEnrollments = useMemo(
     () =>
       enrollments
         .filter((row) => row.status === 'dropped')
+        .map((row) => ({ ...row, classes: labelClassOn(row.classes, row.class_id, versions, row.left_at) }))
         .sort((a, b) => String(b.left_at ?? '').localeCompare(String(a.left_at ?? ''))),
-    [enrollments],
+    [enrollments, versions],
   )
 
-  const summary = useMemo(() => summarizeMonth(enrollments, records), [enrollments, records])
+  // Nhãn lớp trong phần học phí tháng: theo buổi điểm danh cuối của lớp trong tháng,
+  // không có buổi nào thì theo cuối tháng (tối đa là hôm nay). Chỉ đổi tên hiển thị, không đổi số tiền.
+  const labelledEnrollments = useMemo(() => {
+    if (versions.length === 0) return enrollments
+    const monthEnd = addDaysISO(nextMonthStart(month), -1)
+    const fallbackDate = monthEnd < today ? monthEnd : today
+    return enrollments.map((row) => {
+      const lastDate = records
+        .filter((record) => record.class_id === row.class_id)
+        .map((record) => record.attendance_date)
+        .sort()
+        .pop()
+      return { ...row, classes: labelClassOn(row.classes, row.class_id, versions, lastDate ?? fallbackDate) }
+    })
+  }, [enrollments, records, versions, month, today])
+  const labelledRecords = useMemo(() => {
+    if (versions.length === 0) return records
+    return records.map((record) => ({
+      ...record,
+      classes: labelClassOn(record.classes, record.class_id, versions, record.attendance_date),
+    }))
+  }, [records, versions])
+  const labelledActive = useMemo(
+    () => labelledEnrollments.filter((row) => row.status === 'active'),
+    [labelledEnrollments],
+  )
+
+  const summary = useMemo(
+    () => summarizeMonth(labelledEnrollments, labelledRecords),
+    [labelledEnrollments, labelledRecords],
+  )
   const remaining = useMemo(
     () => remainingSessions(activeEnrollments, records, today, month),
     [activeEnrollments, records, today, month],
@@ -149,7 +205,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
   // Các lớp hiển thị ở phần học phí: lớp có điểm danh trong tháng + lớp đang học (kể cả chưa có buổi nào).
   const sections = useMemo(() => {
     const list = [...summary.groups]
-    for (const enrollment of activeEnrollments) {
+    for (const enrollment of labelledActive) {
       if (!list.some((group) => group.classId === enrollment.class_id)) {
         list.push({
           classId: enrollment.class_id,
@@ -168,7 +224,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
       if (a.active !== b.active) return a.active ? -1 : 1
       return String(a.cls?.name ?? '').localeCompare(String(b.cls?.name ?? ''), 'vi')
     })
-  }, [summary, activeEnrollments])
+  }, [summary, labelledActive])
 
   const isCurrentMonth = sameMonth(month, currentMonth)
   const isCurrentOrFuture = month.year * 12 + month.month >= currentMonth.year * 12 + currentMonth.month

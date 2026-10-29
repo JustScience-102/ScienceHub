@@ -6,6 +6,20 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. CHỐT CHẶN: KHÔNG CHO CHẠY LẠI FILE NÀY SAU KHI ĐÃ CHẠY FILE 09
+-- File 09 (V2-6) thay check_class_grade_change bằng bản nới cho việc chuyển năm học.
+-- Chạy lại file 02 sẽ ghi đè về bản cũ và làm hỏng chức năng chuyển năm học.
+-- Bảng class_versions chỉ do file 09 tạo ra, nên có nó nghĩa là 09 đã được chạy.
+-- ---------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.class_versions') is not null then
+    raise exception 'DUNG LAI: Database da chay file 09 tro di. KHONG chay lai 02_triggers.sql (se ghi de ham check_class_grade_change da nang cap). Neu can cap nhat, hay chay file migration moi nhat (vi du 10).';
+  end if;
+end
+$guard$;
+
+-- ---------------------------------------------------------------------
 -- 1. Chặn đổi mã tự sinh (student_code / parent_code)
 --    Đọc qua to_jsonb(new) để tránh lỗi biên dịch chéo trường của PL/pgSQL.
 -- ---------------------------------------------------------------------

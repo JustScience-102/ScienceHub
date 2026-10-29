@@ -43,6 +43,8 @@ export const ACTION_META = {
   teacher_account_unlock: { label: 'Mở khóa TK GV', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   backup_export: { label: 'Xuất sao lưu', badge: 'bg-slate-100 text-slate-700 border-slate-300' },
   audit_log_clear: { label: 'Làm mới nhật ký', badge: 'bg-slate-100 text-slate-800 border-slate-300' },
+  school_year_rollover: { label: 'Chuyển năm học', badge: 'bg-sky-50 text-sky-700 border-sky-200' },
+  center_restore: { label: 'Khôi phục từ sao lưu', badge: 'bg-red-50 text-red-700 border-red-200' },
 }
 
 export const ACTOR_ROLE_LABELS = {
@@ -215,6 +217,15 @@ const FIELD_LABELS = {
   deleted_at: 'Trạng thái ẩn',
   deleted_count: 'Số dòng nhật ký đã xóa',
   before_date: 'Ngày chốt nhật ký',
+  rollover_date: 'Ngày chuyển năm học',
+  promoted_count: 'Số lớp lên khối',
+  closed_count: 'Số lớp cuối cấp đã đóng',
+  dropped_students: 'Số học sinh cho nghỉ',
+  file_exported_at: 'File sao lưu xuất lúc',
+  restored_students: 'Số học sinh khôi phục',
+  restored_classes: 'Số lớp khôi phục',
+  restored_enrollments: 'Số ghi danh khôi phục',
+  restored_attendance: 'Số buổi điểm danh khôi phục',
 }
 
 const STATUS_VALUE_LABELS = {

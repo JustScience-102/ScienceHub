@@ -8,6 +8,30 @@ export function toVietnameseError(error) {
   // Thông báo do chính Database của Trung tâm viết (RAISE EXCEPTION) đã là tiếng Việt.
   if (error.code === 'P0001') return message
 
+  // V2-7: thiếu hàm khôi phục từ file sao lưu của 10_v2_7_restore_backup.sql.
+  // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
+  if (
+    (error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(message)) &&
+    /restore_center_backup|restore_stage_chunk|restore_stage_abort/.test(text)
+  ) {
+    return 'Database chưa được cập nhật đầy đủ. Hãy chạy file 10_v2_7_restore_backup.sql trong Supabase SQL Editor.'
+  }
+  if (/statement timeout|canceling statement/i.test(message)) {
+    return 'Thao tác mất quá nhiều thời gian nên máy chủ đã dừng lại và không thay đổi gì. Hãy báo người quản trị hệ thống.'
+  }
+
+  // V2-6: thiếu hàm/bảng chuyển năm học của 09_v2_6_year_rollover.sql.
+  // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
+  if (
+    (error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(message)) &&
+    /rollover_school_year|class_label_on/.test(text)
+  ) {
+    return 'Database chưa được cập nhật đầy đủ. Hãy chạy file 09_v2_6_year_rollover.sql trong Supabase SQL Editor.'
+  }
+  if ((error.code === 'PGRST205' || error.code === '42P01') && /class_versions/.test(text)) {
+    return 'Database chưa được cập nhật đầy đủ. Hãy chạy file 09_v2_6_year_rollover.sql trong Supabase SQL Editor.'
+  }
+
   // V2-5: thiếu hàm nhập học sinh hàng loạt của 08_v2_5_bulk_import.sql.
   // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
   if (

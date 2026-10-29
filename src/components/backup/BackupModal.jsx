@@ -1,9 +1,13 @@
 // Sao lưu dữ liệu & Chu kỳ Năm học (15/06 -> 12/06) dành cho Quản lý.
 // 1) Sao lưu toàn hệ thống (.json)  2) Xuất bảng tính Excel (.csv)
 // 3) Kết thúc Năm học: tải nhật ký đến ngày chốt, rồi mới được xóa đúng phần đã tải.
+// 4) Chuyển năm học (RolloverSection): đóng lớp cuối cấp, các lớp còn lại lên khối.
+// 5) Khôi phục từ file sao lưu (RestoreSection): đưa dữ liệu về đúng trạng thái trong file .json.
 import { useState } from 'react'
 import { ArchiveRestore, Download, FileSpreadsheet } from 'lucide-react'
 import Modal from '../Modal'
+import RolloverSection from './RolloverSection'
+import RestoreSection from './RestoreSection'
 import Notice from '../Notice'
 import FormField from '../FormField'
 import SelectField from '../SelectField'
@@ -287,6 +291,10 @@ export default function BackupModal({ onClose }) {
             </button>
           </div>
         </section>
+
+        <RolloverSection />
+
+        <RestoreSection />
       </div>
     </Modal>
   )

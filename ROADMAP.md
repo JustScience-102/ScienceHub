@@ -1,7 +1,7 @@
 # Tiến độ Dự án & Kế hoạch Triển khai (Roadmap)
 
 > **Câu nhắc mở đầu cho phiên chat mới:**
-> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`: kiểm tra trạng thái hiện tại ở mục 2 của `ROADMAP.md` (V2-1, V2-2, V2-3, V2-4 và V2-5 đã nghiệm thu và khóa; Vercel đã triển khai xong, bước hiện tại là nhập dữ liệu thật). CHƯA viết code mới khi chưa được duyệt kế hoạch."
+> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`: kiểm tra trạng thái hiện tại ở mục 2 của `ROADMAP.md` (V2-1 đến V2-7 đã nghiệm thu và khóa; Vercel đã triển khai xong, bước hiện tại là nhập dữ liệu thật). CHƯA viết code mới khi chưa được duyệt kế hoạch."
 
 ---
 
@@ -136,3 +136,44 @@
   4. Sửa dòng sai, chọn lại: phải báo hợp lệ + số liệu; bấm Nhập: học sinh xuất hiện đúng lớp/khối, phụ huynh có tên "(Chưa cập nhật tên)" ở dòng để trống.
   5. Chọn lại đúng file đó: báo không có gì mới (các dòng bỏ qua). Mở Nhật ký thay đổi: thấy các dòng tạo học sinh/ghi danh. Đăng nhập Giáo viên: không thấy nút "Nhập từ file".
 - **Kết quả:** Người dùng đã nhập thử và xác nhận ổn (29/10/2026). **Danh sách file khóa của V2-5:** `supabase/08_v2_5_bulk_import.sql`, `src/lib/importStudents.js`, `src/components/students/ImportStudentsModal.jsx`; `StudentsPage.jsx` và `errors.js` vốn đã khóa.
+
+---
+
+## 5. Lát cắt V2-6: Chuyển năm học & Lịch sử nhãn lớp — ĐÃ NGHIỆM THU & ĐÃ KHÓA (29/10/2026)
+- **Kết quả nghiệm thu V2-6:** Người dùng đã chạy thử trên Supabase thật và xác nhận ổn (29/10/2026).
+- **Quy tắc đã chốt với người dùng:** (a) Phương án B: không chép điểm danh, chỉ lưu nhãn lớp theo thời kỳ (`class_versions`). (b) Trigger tự lưu nhãn cũ mỗi lần đổi tên/môn/khối/STT/giáo viên của lớp. (c) Giáo viên xem được nhãn cũ của lớp mình. (d) Lớp cuối cấp là khối **5, 9, 12**: cho nghỉ hết học sinh rồi ẩn lớp; các lớp còn lại lên 1 khối và đổi tên. (e) Học sinh lưu ban xử lý tay. (f) Ngày chuyển do Quản lý chọn. (g) Cột lý do nghỉ (tốt nghiệp / nghỉ hẳn) để sau: thẻ "học sinh xin nghỉ hẳn" trên Tổng quan sẽ tính cả học sinh lớp cuối cấp vào tháng chuyển.
+- **Đã làm:**
+  - SQL: `supabase/09_v2_6_year_rollover.sql` (bảng `class_versions`, trigger `trg_class_versions`, `class_label_on`, `rollover_school_year`, bản nới `check_class_grade_change`, nâng cấp `query_audit_logs` / `export_center_backup` / `export_monthly_attendance_report`). `02_triggers.sql` thêm chốt chặn từ chối chạy lại sau khi có `class_versions`.
+  - Frontend mới: `src/lib/rollover.js`, `src/lib/classVersions.js`, `src/components/backup/RolloverSection.jsx`.
+  - File khóa đã chạm (đã được duyệt): `02_triggers.sql` (chỉ thêm chốt chặn; hàm trigger được thay bằng `09`), `BackupModal.jsx` (nhúng phần 4), `StudentProfile.jsx` (nhãn lớp theo ngày), `errors.js` (nhánh mới đặt trước), `auditLog.js` (nhãn thao tác `school_year_rollover`). `tuition.js` và `ClassAttendance.jsx` không phải sửa.
+- **Đã tự kiểm tra:** `npm run lint`, `npm run build` sạch. Chạy chuỗi `01 -> 09` (và `09` hai lần) trên Postgres (PGlite): 52 tình huống đạt, gồm: sửa tay khối lớp của học sinh học 2 môn vẫn bị chặn; xem trước không ghi gì (lớp, phiên bản, nhật ký, ghi danh y nguyên); ngày chuyển sớm/tương lai/sai cụm xác nhận/không phải Quản lý bị từ chối; chạy thật đóng đúng lớp 5, 9, 12 (học sinh và phụ huynh tự ẩn, `left_at` = ngày chuyển - 1), lớp còn lại lên khối đúng tên, học sinh học 2 lớp lên khối cùng nhau; `class_label_on` trả nhãn cũ cho ngày cũ và nhãn mới từ ngày chuyển; báo cáo điểm danh tháng cũ hiện tên lớp cũ, học phí và `price_snapshot` nguyên vẹn; đổi giáo viên sinh phiên bản, sửa nhiều lần cùng ngày/đổi đơn giá không sinh dòng; Giáo viên chỉ đọc phiên bản lớp mình, `anon` bị chặn, không UPDATE/DELETE/TRUNCATE/INSERT được; nhật ký ghi "khối: 10 -> 11" và dòng chuyển năm học; sao lưu JSON có `class_versions`; chạy lại `02` sau `09` bị chặn; `check_before_launch` vẫn đạt (7 policy giáo viên, 11 trigger nhật ký, mọi bảng bật RLS). 10 tình huống hàm JS `classVersions.js` đạt. **Chưa thử trên giao diện thật** (cần bạn nghiệm thu).
+- **Danh sách file khóa của V2-6:** `supabase/09_v2_6_year_rollover.sql`, `src/lib/rollover.js`, `src/lib/classVersions.js`, `src/components/backup/RolloverSection.jsx`; cùng `02_triggers.sql`, `BackupModal.jsx`, `StudentProfile.jsx`, `errors.js`, `auditLog.js` vốn đã khóa.
+- **Kịch bản nghiệm thu (người dùng làm):**
+  1. Chạy `09_v2_6_year_rollover.sql` trong Supabase SQL Editor (không chạy lại `02` và `03`); `git push` để Vercel triển khai.
+  2. Tạo dữ liệu thử (hoặc dùng dữ liệu hiện có): vài lớp ở các khối khác nhau (có khối 5/9/12), có 1 học sinh học 2 lớp cùng khối và có điểm danh vài buổi trong tháng này.
+  3. Tổng quan -> **Sao lưu & Năm học** -> phần **4. Chuyển năm học**: bấm tải sao lưu (Bước 1), chọn ngày chuyển (ngày sau buổi điểm danh cuối; nếu báo "đã có điểm danh từ ngày..." thì chọn ngày muộn hơn), bấm **Xem trước**: kiểm tra danh sách lớp đóng/lớp lên khối và tên mới. Xem trước không làm đổi gì (vào Lớp học để xác nhận).
+  4. Gõ `CHUYEN NAM HOC` -> **Chuyển năm học**: các lớp đã lên khối và đổi tên, lớp cuối cấp đã ẩn, học sinh lớp cuối cấp biến mất khỏi danh sách (bật "Hiện cả học sinh đã ẩn" để thấy), học sinh 2 lớp lên khối mới bình thường.
+  5. Mở hồ sơ học sinh đó, chọn tháng có điểm danh trước ngày chuyển: tên lớp vẫn là tên lớp cũ (khối cũ), học phí không đổi; tháng sau ngày chuyển hiện tên lớp mới. Xuất CSV Điểm danh & Học phí của tháng cũ: tên lớp cũ.
+  6. **Nhật ký thay đổi** (nhóm Hệ thống): có dòng "Chuyển năm học"; nhóm Lớp học có các dòng "khối: 10 -> 11" cùng một lần chạy.
+  7. Đăng nhập Giáo viên: không thấy phần Sao lưu & Năm học; hồ sơ học sinh của lớp mình vẫn hiện tên lớp cũ ở tháng cũ.
+
+---
+
+## 6. Lát cắt V2-7: Khôi phục từ file sao lưu — ĐÃ NGHIỆM THU & ĐÃ KHÓA (29/10/2026)
+- **Quy tắc đã chốt với người dùng:** (a) Thay thế hoàn toàn bằng nội dung file, không trộn dữ liệu mới và cũ. (b) Giữ nguyên tài khoản Quản lý và toàn bộ nhật ký thay đổi (chỉ ghi thêm dòng "Khôi phục từ sao lưu"; nhật ký trong file không nạp lại). (c) Tài khoản Giáo viên lấy theo file nếu tài khoản còn trong Authentication. (d) `class_versions` thay theo file (file cũ không có thì làm trống). (e) Ngoại lệ có kiểm soát của quy tắc cấm xóa dữ liệu nghiệp vụ, đã ghi vào `RULES.md`. (f) Bộ đếm mã HS/PH không lùi.
+- **Đã làm:**
+  - SQL: `supabase/10_v2_7_restore_backup.sql` (bảng tạm `restore_staging`, `restore_stage_chunk`, `restore_stage_abort`, `restore_center_backup`, `_restore_apply`, nâng cấp `query_audit_logs`). `09_v2_6_year_rollover.sql` thêm chốt chặn từ chối chạy lại sau file 10.
+  - Frontend mới: `src/lib/restore.js`, `src/components/backup/RestoreSection.jsx` (phần "5. Khôi phục từ file sao lưu" trong hộp Sao lưu & Năm học).
+  - File khóa đã chạm (đã được duyệt): `BackupModal.jsx` (nhúng phần 5), `errors.js` (nhánh mới đặt trước, gồm báo hết thời gian chờ của máy chủ), `auditLog.js` (nhãn thao tác `center_restore`), `09_v2_6_year_rollover.sql` (chỉ thêm chốt chặn).
+- **Đã tự kiểm tra:** `npm run lint`, `npm run build` sạch. Chạy chuỗi `01 -> 10` (và `10` hai lần) trên Postgres (PGlite): 52 tình huống đạt, gồm: xuất sao lưu -> thay đổi lớn (học sinh mới, điểm danh, đổi tên, chuyển năm học) -> tải file lên theo từng phần -> xem trước hoàn tác hoàn toàn (mọi bảng, nhật ký, trigger y nguyên) -> khôi phục thật: MỌI bảng nghiệp vụ khớp từng byte với trạng thái lúc sao lưu (kể cả `class_versions`, `price_snapshot`, tài khoản giáo viên), tài khoản Quản lý và nhật ký được giữ (có thêm dòng `center_restore`, không lùi), bộ đếm mã không lùi, trigger bật lại và hoạt động (chặn khác khối trở lại), bảng tạm được dọn. Các ca lỗi: sai cụm xác nhận, Giáo viên/`anon` bị từ chối, không đọc được bảng tạm, không nạp được `audit_log`, mã tải lên không tồn tại, thiếu bảng bắt buộc, file bị cắt, sai tên Trung tâm, thiếu một phần tải lên, khóa ngoại sai (xem trước báo lỗi, áp dụng thật bị hủy, dữ liệu và trigger y nguyên), file cũ không có `class_versions`/`profiles`, tài khoản Authentication đã bị xóa (bỏ qua và cảnh báo), chạy lại `09` sau `10` bị chặn, `09` vẫn đạt 52 tình huống của V2-6. 11 tình huống hàm JS thuần của `restore.js` đạt. **Chưa thử trên giao diện và Supabase thật.**
+- **Rủi ro cần nghiệm thu trên Supabase thật:** máy chủ có giới hạn thời gian chờ cho mỗi lệnh (thường vài giây với người dùng đã đăng nhập). Khôi phục chạy trong một giao dịch nên nếu bị ngắt thì không thay đổi gì và hiện thông báo "mất quá nhiều thời gian". Hãy thử với dữ liệu thử có quy mô gần thực tế; nếu gặp lỗi này, báo lại để xử lý riêng.
+- **Danh sách file khóa của V2-7:** `supabase/10_v2_7_restore_backup.sql`, `src/lib/restore.js`, `src/components/backup/RestoreSection.jsx`; cùng `BackupModal.jsx`, `errors.js`, `auditLog.js`, `09_v2_6_year_rollover.sql` vốn đã khóa.
+- **Kịch bản nghiệm thu (người dùng làm, trên dữ liệu thử):**
+  1. Chạy `10_v2_7_restore_backup.sql` trong Supabase SQL Editor (không chạy lại `02`, `03`, `09`); `git push` để Vercel triển khai.
+  2. Tổng quan -> **Sao lưu & Năm học** -> Phần 1: tải bản sao lưu `.json` (đây là "điểm quay lại"). Ghi nhớ số học sinh, số lớp, tên các lớp lúc này.
+  3. Làm vài thay đổi: thêm học sinh mới, điểm danh thêm vài buổi, sửa tên một lớp (hoặc chạy chuyển năm học thử).
+  4. Phần **5. Khôi phục từ file sao lưu**: chọn file ở bước 2 (thấy ngày giờ xuất và số liệu); Bước 2 tải sao lưu hiện tại; Bước 3 bấm **Tải file lên và xem trước**: bảng so sánh hiện số "Sẽ mất" đúng với những gì vừa thêm. Vào Lớp học/Học sinh kiểm tra dữ liệu vẫn nguyên (xem trước không đổi gì).
+  5. Gõ `KHOI PHUC` -> **Khôi phục** -> **Tải lại trang**: dữ liệu về đúng như lúc sao lưu (học sinh mới biến mất, tên lớp cũ trở lại, điểm danh cũ nguyên giá tiền).
+  6. **Nhật ký thay đổi** (nhóm Hệ thống): có dòng "Khôi phục từ sao lưu" và các dòng nhật ký trước đó vẫn còn. Đăng nhập lại bằng tài khoản Quản lý bình thường; đăng nhập thử Giáo viên (tài khoản còn trong Authentication) thấy đúng lớp của mình.
+  7. Thử chọn một file không phải sao lưu (ví dụ file ảnh hoặc `.json` bất kỳ): phải báo lỗi tiếng Việt, không đổi gì.
+- **Kết quả nghiệm thu V2-7:** Người dùng xác nhận đã nghiệm thu xong (29/10/2026).
