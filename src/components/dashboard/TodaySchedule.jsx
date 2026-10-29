@@ -24,7 +24,50 @@ export default function TodaySchedule({ rows, date, today, onOpen }) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <>
+    {/* Điện thoại: dạng thẻ, bấm cả thẻ để mở điểm danh */}
+    <ul className="space-y-3 md:hidden">
+      {rows.map((row) => {
+        const status = attendanceStatus(row, date, today)
+        return (
+          <li key={`${row.class_id}|${row.start_time}`}>
+            <button
+              type="button"
+              onClick={() => onOpen(row.class_id, date)}
+              aria-label={`Mở điểm danh lớp ${row.name}`}
+              className="block w-full rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-sky-300 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-slate-800">
+                  {formatTime(row.start_time)}
+                  <span className="font-normal text-slate-400"> – </span>
+                  {formatTime(row.end_time)}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${TONES[status.tone]}`}
+                >
+                  {status.label}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span
+                  className={`break-all rounded-lg px-2.5 py-1 text-sm font-semibold ${subjectColor(row.subject)}`}
+                >
+                  {classTitle(row)}
+                </span>
+                <ChevronRight size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+              </div>
+              <p className="mt-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-700">{row.teacher_name || 'Chưa gắn giáo viên'}</span>
+                {' · '}Sĩ số {Number(row.total_count) || 0}
+              </p>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+
+    <div className="hidden overflow-x-auto md:block">
       <table className={ROW_TABLE}>
         <thead className="text-xs uppercase text-slate-500">
           <tr>
@@ -86,5 +129,6 @@ export default function TodaySchedule({ rows, date, today, onOpen }) {
         </tbody>
       </table>
     </div>
+    </>
   )
 }

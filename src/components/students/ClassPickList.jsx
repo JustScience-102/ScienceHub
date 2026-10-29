@@ -37,7 +37,7 @@ export default function ClassPickList({ choices, counts, selectedId, onSelect, i
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Ví dụ: Toan_9 hoặc tên giáo viên"
-            className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
         </div>
       </div>

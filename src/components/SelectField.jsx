@@ -26,7 +26,7 @@ export default function SelectField({
         disabled={disabled}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
-        className={`min-h-11 w-full rounded-lg border bg-white px-3 text-sm text-slate-800 outline-none transition-colors focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100 disabled:text-slate-500 ${
+        className={`min-h-11 w-full rounded-lg border bg-white px-3 text-base text-slate-800 sm:text-sm outline-none transition-colors focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100 disabled:text-slate-500 ${
           error ? 'border-red-400 focus:border-red-400' : 'border-slate-300 focus:border-sky-400'
         }`}
       >

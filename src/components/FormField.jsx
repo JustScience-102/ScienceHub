@@ -1,4 +1,7 @@
+import { canAutoFocus } from '../lib/pointer'
+
 // Một ô nhập liệu kèm nhãn, gợi ý và thông báo lỗi.
+// Cỡ chữ 16px trên điện thoại để iOS Safari không tự phóng to khi bấm vào ô.
 export default function FormField({
   id,
   label,
@@ -31,12 +34,12 @@ export default function FormField({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
         placeholder={placeholder}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus && canAutoFocus()}
         maxLength={maxLength}
         min={min}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
-        className={`min-h-11 w-full rounded-lg border px-3 text-sm text-slate-800 outline-none transition-colors focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100 disabled:text-slate-500 ${
+        className={`min-h-11 w-full rounded-lg border px-3 text-base text-slate-800 sm:text-sm outline-none transition-colors focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100 disabled:text-slate-500 ${
           error ? 'border-red-400 focus:border-red-400' : 'border-slate-300 focus:border-sky-400'
         }`}
       />

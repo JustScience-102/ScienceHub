@@ -14,6 +14,7 @@ import { fetchAll } from '../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../lib/text'
 import { NONE, buildOptions } from '../lib/grade'
 import SelectField from '../components/SelectField'
+import MobileFilters from '../components/MobileFilters'
 import {
   normalizePhone,
   isValidPhone,
@@ -319,9 +320,12 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     return ''
   }
 
+  // Số bộ lọc đang bật (hiện trên nút "Bộ lọc" ở điện thoại).
+  const activeFilterCount = (gradeFilter ? 1 : 0) + (subjectFilter ? 1 : 0) + (showHidden ? 1 : 0)
+
   const toolbar = (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative flex-1">
           <Search
             size={18}
@@ -334,13 +338,13 @@ export default function StudentsPage({ isTeacher = false } = {}) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm theo tên, mã học sinh, số điện thoại hoặc phụ huynh"
             aria-label="Tìm kiếm học sinh"
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
         </div>
         <button
           type="button"
           onClick={() => setEditing({})}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+          className="hidden min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 md:inline-flex"
         >
           <Plus size={18} aria-hidden="true" />
           Đăng ký học sinh
@@ -349,14 +353,42 @@ export default function StudentsPage({ isTeacher = false } = {}) {
           <button
             type="button"
             onClick={() => setImporting(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50"
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50 md:inline-flex"
           >
             <Upload size={18} aria-hidden="true" />
             Nhập từ file
           </button>
         )}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <MobileFilters
+        id="student-filters"
+        activeCount={activeFilterCount}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setEditing({})}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              <Plus size={18} aria-hidden="true" />
+              Đăng ký
+            </button>
+            {!isTeacher && (
+              <button
+                type="button"
+                onClick={() => setImporting(true)}
+                aria-label="Nhập từ file"
+                title="Nhập từ file"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50"
+              >
+                <Upload size={18} aria-hidden="true" />
+              </button>
+            )}
+          </>
+        }
+      >
+      <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         <SelectField
           id="student-grade-filter"
           label="Lọc theo khối"
@@ -373,7 +405,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
         </SelectField>
         <SelectField
           id="student-subject-filter"
-          label="Lọc theo môn đang học"
+          label="Lọc theo môn"
           value={subjectFilter}
           onChange={setSubjectFilter}
           placeholder="Tất cả môn"
@@ -395,6 +427,8 @@ export default function StudentsPage({ isTeacher = false } = {}) {
         />
         Hiện cả học sinh đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
       </label>
+      </div>
+      </MobileFilters>
     </div>
   )
 
@@ -510,34 +544,34 @@ export default function StudentsPage({ isTeacher = false } = {}) {
                   {nameButton(student)}
                   <p className="font-mono text-xs text-slate-500">{student.student_code}</p>
                 </div>
-                {student.deleted_at && (
+                {student.deleted_at ? (
                   <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">Đã ẩn</span>
+                ) : (
+                  <div className="-mr-1 -mt-1 shrink-0">
+                    <RowActions
+                      name={student.full_name}
+                      hidden={false}
+                      canDelete={false}
+                      compact
+                      onEdit={() => setEditing(student)}
+                    />
+                  </div>
                 )}
               </div>
-              <dl className="mt-2 space-y-1 text-sm text-slate-600">
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Khối</dt>
-                  <dd>{student.grade ? `Khối ${student.grade}` : '—'}</dd>
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div>
+                  <dt className="text-xs text-slate-500">Khối</dt>
+                  <dd className="font-medium text-slate-700">{student.grade ? `Khối ${student.grade}` : '—'}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Điện thoại</dt>
-                  <dd>{student.phone || '—'}</dd>
+                <div>
+                  <dt className="text-xs text-slate-500">Điện thoại</dt>
+                  <dd className="font-medium text-slate-700">{student.phone || '—'}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Phụ huynh</dt>
-                  <dd>{parentCell(student)}</dd>
+                <div className="col-span-2">
+                  <dt className="text-xs text-slate-500">Phụ huynh</dt>
+                  <dd className="text-slate-700">{parentCell(student)}</dd>
                 </div>
               </dl>
-              {!student.deleted_at && (
-                <div className="mt-3">
-                  <RowActions
-                    name={student.full_name}
-                    hidden={false}
-                    canDelete={false}
-                    onEdit={() => setEditing(student)}
-                  />
-                </div>
-              )}
             </li>
           ))}
         </ul>

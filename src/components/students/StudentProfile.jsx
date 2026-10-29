@@ -289,7 +289,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
         </Notice>
       )}
 
-      <dl className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm lg:grid-cols-4">
         <div>
           <dt className="text-slate-500">Mã học sinh</dt>
           <dd className="font-medium text-slate-800">
@@ -305,11 +305,11 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
           <dt className="text-slate-500">Khối</dt>
           <dd className="font-medium text-slate-800">{student.grade ? `Khối ${student.grade}` : '—'}</dd>
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <dt className="text-slate-500">Số điện thoại học sinh</dt>
           <dd className="font-medium text-slate-800">{student.phone || '—'}</dd>
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <dt className="text-slate-500">Phụ huynh</dt>
           <dd className="font-medium text-slate-800">
             {parent ? (
@@ -353,22 +353,24 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
                 <p className="text-sm text-slate-500">
                   {row.classes?.subject || 'Chưa có môn'} · {gradeText(row.classes)}
                 </p>
-                <dl className="mt-2 space-y-1 text-sm text-slate-600">
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-slate-500">Giáo viên</dt>
-                    <dd>{teacherOf(row.classes)}</dd>
+                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-500">Giáo viên</dt>
+                    <dd className="font-medium text-slate-700">{teacherOf(row.classes)}</dd>
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-slate-500">Lịch học</dt>
-                    <dd>{formatSchedule(row.classes?.class_schedules)}</dd>
+                  <div>
+                    <dt className="text-xs text-slate-500">Vào lớp</dt>
+                    <dd className="font-medium text-slate-700">{formatDate(row.joined_at)}</dd>
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-slate-500">Vào lớp</dt>
-                    <dd>{formatDate(row.joined_at)}</dd>
+                  <div className="col-span-2">
+                    <dt className="text-xs text-slate-500">Lịch học</dt>
+                    <dd className="font-medium text-slate-700">{formatSchedule(row.classes?.class_schedules)}</dd>
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-slate-500">Đơn giá</dt>
-                    <dd>{formatCurrency(row.classes?.price_per_session)}/buổi (giá hiện tại)</dd>
+                  <div className="col-span-2">
+                    <dt className="text-xs text-slate-500">Đơn giá</dt>
+                    <dd className="font-medium text-slate-700">
+                      {formatCurrency(row.classes?.price_per_session)}/buổi (giá hiện tại)
+                    </dd>
                   </div>
                 </dl>
                 <button

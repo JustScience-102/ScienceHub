@@ -7,6 +7,7 @@ import EmptyState from '../EmptyState'
 import FormField from '../FormField'
 import Notice from '../Notice'
 import SelectField from '../SelectField'
+import MobileFilters from '../MobileFilters'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { todayISO } from '../../lib/schedule'
@@ -226,7 +227,7 @@ export default function AuditLogModal({
         role="dialog"
         aria-modal="true"
         aria-label="Nhật ký thay đổi"
-        className="flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-5xl sm:rounded-2xl"
+        className="flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-5xl sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -249,7 +250,11 @@ export default function AuditLogModal({
         </div>
 
         <div className="space-y-3 border-b border-slate-200 px-5 py-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <MobileFilters
+            id="audit-filters"
+            activeCount={(actionGroup ? 1 : 0) + (actorRole ? 1 : 0) + (teacherId ? 1 : 0)}
+          >
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <FormField id="audit-from" label="Từ ngày" type="date" value={fromDate} onChange={setFromDate} />
             <FormField id="audit-to" label="Đến ngày" type="date" value={toDate} onChange={setToDate} />
             <SelectField
@@ -297,6 +302,7 @@ export default function AuditLogModal({
               ))}
             </SelectField>
           </div>
+          </MobileFilters>
           <FormField
             id="audit-search"
             label="Tìm kiếm"
@@ -306,7 +312,7 @@ export default function AuditLogModal({
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-50 px-5 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-slate-50 px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {results.error ? (
             <Notice type="error">{results.error}</Notice>
           ) : loading && entries.length === 0 ? (

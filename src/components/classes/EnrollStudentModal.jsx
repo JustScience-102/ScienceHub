@@ -9,6 +9,7 @@ import { fetchAll } from '../../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../../lib/text'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
+import { canAutoFocus } from '../../lib/pointer'
 import { classTitle } from '../../lib/dashboard'
 import {
   normalizePhone,
@@ -466,11 +467,11 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
                 <input
                   id="enroll-search"
                   type="search"
-                  autoFocus
+                  autoFocus={canAutoFocus()}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Ví dụ: Minh Anh, HS0001 hoặc 0901234567"
-                  className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+                  className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
                 />
               </div>
             </div>
@@ -503,7 +504,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
             min={minJoined}
             max={today}
             onChange={(event) => setJoinedAt(event.target.value)}
-            className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
           <p className="mt-1 text-xs text-slate-500">
             Mặc định là hôm nay, có thể chọn ngày trong quá khứ. Ngày này dùng để đếm học sinh mới trong tháng.

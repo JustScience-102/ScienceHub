@@ -236,19 +236,21 @@ export default function ClassRoster({
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-slate-600">Vào lớp {formatDate(row.joined_at)}</p>
-                {!dropped && (
-                  <button
-                    type="button"
-                    onClick={() => requestDrop(row)}
-                    disabled={checkingId === row.id}
-                    aria-label={`Cho ${row.students?.full_name} nghỉ khỏi lớp`}
-                    className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
-                  >
-                    <UserMinus size={16} aria-hidden="true" />
-                    {checkingId === row.id ? 'Đang kiểm tra...' : 'Cho nghỉ'}
-                  </button>
-                )}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-sm text-slate-600">Vào lớp {formatDate(row.joined_at)}</p>
+                  {!dropped && (
+                    <button
+                      type="button"
+                      onClick={() => requestDrop(row)}
+                      disabled={checkingId === row.id}
+                      aria-label={`Cho ${row.students?.full_name} nghỉ khỏi lớp`}
+                      className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <UserMinus size={16} aria-hidden="true" />
+                      {checkingId === row.id ? 'Đang kiểm tra...' : 'Cho nghỉ'}
+                    </button>
+                  )}
+                </div>
               </li>
             )
           })}
@@ -280,12 +282,12 @@ export default function ClassRoster({
         )}
       </div>
 
-      <dl className="grid gap-2 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-slate-500">Giáo viên</dt>
           <dd className="font-medium text-slate-800">{teacherName || 'Chưa gắn giáo viên'}</dd>
         </div>
-        <div>
+        <div className="order-last col-span-2 sm:order-none sm:col-span-1">
           <dt className="text-slate-500">Lịch học</dt>
           <dd className="font-medium text-slate-800">{schedule}</dd>
         </div>

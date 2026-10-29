@@ -127,7 +127,7 @@ export default function AddClassModal({
             min={minJoined}
             max={today}
             onChange={(event) => setJoinedAt(event.target.value)}
-            className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
           <p className="mt-1 text-xs text-slate-500">
             Mặc định là hôm nay, có thể chọn ngày trong quá khứ nhưng không ở tương lai.
