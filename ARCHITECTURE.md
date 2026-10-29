@@ -1,5 +1,10 @@
 # Kiến trúc & Nghiệp vụ Hệ thống ScienceHub (Nguồn chân lý hiện hành)
 
+> **Lưu ý V3:** file này mô tả hệ thống V2 đang chạy production. Trên nhánh `v3` (project Supabase mới), cấu trúc
+> Database là bộ `supabase/v3/` (chú thích đầu mỗi file ghi rõ quy tắc) và các thay đổi nghiệp vụ được tóm tắt ở mục 0
+> của `ROADMAP.md`: lịch học theo thời kỳ, khóa sổ tháng, học bù liên kết buổi gốc + hủy học bù, `left_reason`,
+> tên lớp do Database sinh (LamA/LamB), mọi thao tác ghi qua RPC. File này sẽ được viết lại theo V3 ở bước V3-5.
+
 ## 1. Cấu trúc Database (Supabase PostgreSQL)
 
 ### 1.1. Thứ tự chạy file SQL trong `supabase/`

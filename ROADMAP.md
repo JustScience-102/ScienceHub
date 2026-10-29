@@ -1,7 +1,27 @@
 # Tiến độ Dự án & Kế hoạch Triển khai (Roadmap)
 
 > **Câu nhắc mở đầu cho phiên chat mới:**
-> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`: kiểm tra trạng thái hiện tại ở mục 2 của `ROADMAP.md` (V2-1 đến V2-7 đã nghiệm thu và khóa; Vercel đã triển khai xong, bước hiện tại là nhập dữ liệu thật). CHƯA viết code mới khi chưa được duyệt kế hoạch."
+> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`. Production vẫn chạy V2 (nhánh `main`); V3 đang làm trên nhánh `v3` cho project Supabase MỚI — xem mục 0 của `ROADMAP.md` (V3-0 -> V3-3 đã viết xong, đang chờ người dùng diễn tập V3-4). CHƯA viết code mới khi chưa được duyệt kế hoạch."
+
+---
+
+## 0. V3: Xây lại trên project Supabase mới (nhánh `v3`) — ĐANG LÀM
+Kế hoạch đã duyệt ngày 29/10/2026. Production V2 (nhánh `main`, project Supabase cũ) KHÔNG bị đụng tới cho tới ngày chuyển và giữ làm phương án quay lui.
+
+**Quy tắc mới đã chốt với người dùng:** (a) dựng V3 sạch trên project Supabase MỚI, chuyển dữ liệu bằng file sao lưu `.json` của V2; (b) lịch học theo thời kỳ ("Áp dụng lịch mới từ ngày"); (c) khóa sổ theo tháng (chỉ tháng đã qua, mở lại bắt buộc ghi lý do); (d) nhật ký V2 không nạp sang, V3 chỉ ghi 1 dòng "Chuyển dữ liệu từ hệ thống cũ"; (e) tên lớp do Database sinh `Môn_Khối_TênGọiGV_STT`, đổi họ tên giáo viên thì tên lớp và nhãn lịch sử đổi theo; hai giáo viên trùng tên gọi (Lam/Lâm) cùng từng dạy một môn thì cả hai thêm chữ `LamA`/`LamB` theo thứ tự thêm vào Trung tâm, đã thêm thì giữ luôn; (f) bộ test DB lưu trong repo (`@electric-sql/pglite` 0.5.8, chỉ dùng lúc phát triển).
+
+**Đã làm (chưa commit, chờ người dùng đồng ý):**
+- **V3-0 Bộ test:** `npm test` (= `test:js` + `test:db`). `supabase/tests/` giả lập Supabase (`auth`, vai trò, quyền mặc định) trên PGlite; mỗi lời gọi của người dùng là một giao dịch như PostgREST. Bộ nền chạy chuỗi V2 (`supabase/legacy/`) và xác nhận các kẽ hở V2 (bù 2 lần tính tiền 2 lần, Quản lý sửa thẳng `price_snapshot`, tên lớp nhận nguyên văn từ trình duyệt).
+- **V3-1/V3-2 SQL** `supabase/v3/00..09` (+ `bootstrap_manager.sql`, `check_v3.sql`); 13 file V2 dời sang `supabase/legacy/` (không sửa nội dung). Điểm chính: chỉ có quyền SELECT cho `authenticated`, mọi ghi (kể cả Quản lý) qua RPC; RLS Giáo viên dạng tập hợp; quyền mặc định của Supabase bị thu (kể cả EXECUTE cho PUBLIC ở cấp toàn cục); học bù có liên kết buổi gốc, mỗi buổi bù 1 lần, `cancel_makeup` trả buổi gốc về đúng giá cũ; `left_reason` (nghỉ hẳn/đổi lớp/hoàn thành cuối cấp); kiểm tra cùng khối hoãn tới lúc commit + khóa dòng học sinh; khôi phục nhận file V2/V3, chèn theo cột có trong file, nối tài khoản Giáo viên theo email, không `ALTER TABLE` (không khóa bảng).
+- **V3-3 Frontend:** `fetchAll` (hết cắt ngầm 1000 dòng), bỏ mọi ghi thẳng bảng (RPC mới `save_teacher`, `set_teacher_hidden`, `set_class_hidden` cho cả Quản lý), xem trước tên lớp từ Database (`preview_class_name`), ô "Áp dụng lịch mới từ ngày" + lịch trước đây, điểm danh lưu theo hàng đợi (bấm liên tục) và dùng dòng máy chủ trả về, nút "Hủy học bù", báo tháng đã chốt sổ, phần "3. Khóa sổ tháng" trong Sao lưu & Năm học, nhãn lý do nghỉ ở danh sách lớp, tách tải riêng trang/hộp thoại của Quản lý. Bỏ `src/lib/className.js` và nút "Xóa học sinh".
+- **Đã tự kiểm tra:** `npm test` 9 + 95 tình huống đạt (gồm chuyển file V2 -> V3: dữ liệu khớp từng dòng, học phí từng học sinh từng tháng khớp; sao lưu-khôi phục V3 khứ hồi; chạy lại bộ V3 lần hai vẫn đúng); `npm run lint` 0 cảnh báo; `npm run build` sạch. **Chưa chạy trên Supabase thật và giao diện thật.**
+
+**Đổi cách chuyển (người dùng chốt 29/10/2026):** không giữ song song V2. Gộp diễn tập và chuyển chính thức làm một lần; biến Vercel `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (loại Config) đã trỏ sang project MỚI cho cả Production và Preview. Bản production đang chạy vẫn là bản build cũ (V2) cho tới lần build sau, nên **không push/Redeploy nhánh `main` cho tới khi merge `v3`** (nếu không sẽ thành mã V2 + Database V3).
+
+**Còn lại:**
+- **Người dùng đã làm:** tạo project Supabase mới, chạy `supabase/v3/00` -> `09`, tạo user Quản lý/Giáo viên (cùng email cũ), chạy `bootstrap_manager.sql`, đổi biến Vercel.
+- **V3-4 Thử trên Preview của nhánh `v3`:** Supabase mới -> Authentication -> URL Configuration: Site URL = `https://science-hub-iota.vercel.app`, Redirect URLs thêm `https://science-hub-iota.vercel.app/**` và địa chỉ Preview. Nếu cần dữ liệu cũ: tải `.json` trên web cũ (Sao lưu & Năm học -> 1) rồi trên Preview vào 6. Khôi phục -> xem trước -> `KHOI PHUC`. Nghiệm thu: Quản lý + Giáo viên, điểm danh, học bù/hủy bù, đổi lịch từ ngày, đổi tên GV, khóa sổ/mở lại. Rủi ro cần đo: thời gian khôi phục so với giới hạn của Supabase; email "Quên mật khẩu" (SMTP mặc định giới hạn số thư).
+- **V3-5 Chuyển chính thức:** merge `v3` vào `main` (Vercel build lại production với Database mới). Tạm dừng (Pause) project Supabase cũ vài tuần rồi mới xóa. Viết lại `ARCHITECTURE.md`, `RULES.md`, `README.md` theo V3; rút gọn lịch sử V1/V2 của file này.
 
 ---
 

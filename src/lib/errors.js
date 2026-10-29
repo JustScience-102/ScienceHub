@@ -8,6 +8,26 @@ export function toVietnameseError(error) {
   // Thông báo do chính Database của Trung tâm viết (RAISE EXCEPTION) đã là tiếng Việt.
   if (error.code === 'P0001') return message
 
+  // V3: Database là project Supabase mới cài bộ supabase/v3. Thiếu hàm/bảng/cột nghĩa là bộ V3 chưa
+  // chạy đủ (các hướng dẫn chạy file 01..10 của V2 bên dưới không còn đúng). Đặt TRƯỚC các nhánh cũ.
+  if (
+    error.code === 'PGRST202' ||
+    error.code === '42883' ||
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    error.code === 'PGRST204' ||
+    error.code === '42703' ||
+    /Could not find the (function|table)/i.test(message)
+  ) {
+    return 'Database chưa cài đủ bộ SQL V3. Hãy chạy lần lượt các file trong thư mục supabase/v3 (00 đến 09) trong Supabase SQL Editor.'
+  }
+  if (/uq_classes_slot_active/.test(text)) {
+    return 'Môn, khối, giáo viên và số thứ tự (STT) này đã có lớp đang hoạt động. Hãy chọn STT khác.'
+  }
+  if (/uq_attendance_makeup_once/.test(text)) {
+    return 'Buổi học này đã được học bù rồi. Mỗi buổi chỉ được bù một lần.'
+  }
+
   // V2-7: thiếu hàm khôi phục từ file sao lưu của 10_v2_7_restore_backup.sql.
   // Đặt TRƯỚC các nhánh cũ; lỗi không khớp tên ở đây vẫn chạy xuống các nhánh cũ như trước.
   if (

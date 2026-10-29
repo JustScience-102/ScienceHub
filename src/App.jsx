@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import AppLayout from './components/layout/AppLayout'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import Notice from './components/Notice'
-import DashboardPage from './pages/DashboardPage'
-import TeachersPage from './pages/TeachersPage'
 import ClassesPage from './pages/ClassesPage'
 import StudentsPage from './pages/StudentsPage'
 import LoginPage from './pages/LoginPage'
 import { supabase } from './lib/supabaseClient'
 import { toVietnameseError } from './lib/errors'
+
+// Hai trang chỉ Quản lý dùng: tải riêng khi mở (Giáo viên không phải tải).
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const TeachersPage = lazy(() => import('./pages/TeachersPage'))
 
 const PAGES = {
   dashboard: DashboardPage,
@@ -86,7 +88,16 @@ function Shell({ userProfile, onOpenChangePassword, onSignOut }) {
       onOpenChangePassword={onOpenChangePassword}
       onSignOut={onSignOut}
     >
-      {content}
+      <Suspense
+        fallback={
+          <p className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+            Trung tâm đang mở trang...
+          </p>
+        }
+      >
+        {content}
+      </Suspense>
     </AppLayout>
   )
 }
@@ -153,7 +164,7 @@ export default function App() {
         const missing = error.code === 'PGRST202' || error.code === '42883'
         forceSignOut(
           missing
-            ? 'Database chưa được cập nhật đầy đủ. Hãy chạy các file 01_schema.sql -> 03_rpc_and_auth.sql trong Supabase SQL Editor.'
+            ? 'Database chưa cài đủ bộ SQL V3. Hãy chạy lần lượt các file trong thư mục supabase/v3 (00 đến 09) trong Supabase SQL Editor.'
             : toVietnameseError(error),
         )
         return

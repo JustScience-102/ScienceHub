@@ -1,11 +1,13 @@
 // Sao lưu dữ liệu & Chu kỳ Năm học (15/06 -> 12/06) dành cho Quản lý.
 // 1) Sao lưu toàn hệ thống (.json)  2) Xuất bảng tính Excel (.csv)
-// 3) Kết thúc Năm học: tải nhật ký đến ngày chốt, rồi mới được xóa đúng phần đã tải.
-// 4) Chuyển năm học (RolloverSection): đóng lớp cuối cấp, các lớp còn lại lên khối.
-// 5) Khôi phục từ file sao lưu (RestoreSection): đưa dữ liệu về đúng trạng thái trong file .json.
+// 3) Khóa sổ tháng (MonthCloseSection): chốt tháng đã qua, mở lại phải ghi lý do.
+// 4) Kết thúc Năm học: tải nhật ký đến ngày chốt, rồi mới được xóa đúng phần đã tải.
+// 5) Chuyển năm học (RolloverSection): đóng lớp cuối cấp, các lớp còn lại lên khối.
+// 6) Khôi phục từ file sao lưu (RestoreSection): đưa dữ liệu về đúng trạng thái trong file .json.
 import { useState } from 'react'
 import { ArchiveRestore, Download, FileSpreadsheet } from 'lucide-react'
 import Modal from '../Modal'
+import MonthCloseSection from './MonthCloseSection'
 import RolloverSection from './RolloverSection'
 import RestoreSection from './RestoreSection'
 import Notice from '../Notice'
@@ -219,11 +221,13 @@ export default function BackupModal({ onClose }) {
           </div>
         </section>
 
+        <MonthCloseSection />
+
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
           <div className="flex items-start gap-2">
             <ArchiveRestore size={18} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">3. Kết thúc Năm học: làm mới nhật ký</h3>
+              <h3 className="text-sm font-semibold text-slate-800">4. Kết thúc Năm học: làm mới nhật ký</h3>
               <p className="mt-0.5 text-xs text-slate-600">
                 {schoolYear.label}. Để giải phóng dung lượng, tải nhật ký đến một ngày chốt về máy rồi mới xóa đúng
                 phần đã tải. Trung tâm không xóa được nếu chưa tải, và chỉ xóa nhật ký đến hết ngày chốt (ngày đã

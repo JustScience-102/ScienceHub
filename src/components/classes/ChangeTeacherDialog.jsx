@@ -3,21 +3,27 @@ import Modal from '../Modal'
 import Notice from '../Notice'
 import SelectField from '../SelectField'
 import { compareVietnameseNames } from '../../lib/text'
-import { planTeacherChange } from '../../lib/className'
+import { useClassNamePreview } from '../../lib/classNamePreview'
 import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại nhỏ chọn giáo viên khác khi KHÔI PHỤC lớp mà giáo viên cũ đang bị ẩn.
-// Không đụng tới môn, khối, lịch học, đơn giá.
-//   onConfirm(teacherId, plan) -> câu báo lỗi hoặc ''
-export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, takenNames, onConfirm, onClose }) {
+// Không đụng tới môn, khối, lịch học, đơn giá. Tên lớp mới do Database đặt (xem trước ở đây).
+//   onConfirm(teacherId) -> câu báo lỗi hoặc ''
+export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, onConfirm, onClose }) {
   const [teacherId, setTeacherId] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const sorted = [...teachers].sort((a, b) => compareVietnameseNames(a.full_name, b.full_name))
   const teacher = teachers.find((item) => item.id === teacherId)
-  const plan = teacher ? planTeacherChange({ cls, teacherName: teacher.full_name, takenNames }) : null
-  const legacyName = !cls.subject || !cls.grade
+  const preview = useClassNamePreview({
+    classId: cls.id,
+    subject: cls.subject,
+    grade: cls.grade,
+    teacherId: teacher?.id ?? '',
+    classNo: null,
+    keepClassNo: cls.class_no,
+  })
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -27,7 +33,7 @@ export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, tak
     }
     setSaving(true)
     setError('')
-    const message = await onConfirm(teacher.id, plan)
+    const message = await onConfirm(teacher.id)
     setSaving(false)
     if (message) setError(message)
   }
@@ -58,15 +64,12 @@ export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, tak
           ))}
         </SelectField>
 
-        {plan && (
+        {teacher && (
           <div className="rounded-lg bg-sky-50 px-4 py-3 text-sm">
             <span className="text-slate-500">Tên lớp sau khi khôi phục: </span>
-            <span className="break-all font-semibold text-sky-700">{plan.name}</span>
-            {legacyName && (
-              <p className="mt-1 text-xs text-slate-500">
-                Lớp này chưa có môn và khối nên giữ nguyên tên. Sau khi khôi phục, bấm Sửa để đặt tên theo quy tắc.
-              </p>
-            )}
+            <span className="break-all font-semibold text-sky-700">
+              {preview.loading ? 'Đang xem trước...' : preview.name || '—'}
+            </span>
           </div>
         )}
 

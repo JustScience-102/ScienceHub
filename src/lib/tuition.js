@@ -3,7 +3,7 @@
 // KHÔNG BAO GIỜ lấy từ classes.price_per_session. Vắng có phép không tính tiền.
 // Toàn bộ hàm ở đây là hàm thuần (không gọi Database) để Dashboard dùng lại được.
 
-import { addDaysISO, dayOfWeekFromISO } from './schedule'
+import { addDaysISO, hasSessionOn } from './schedule'
 
 export const STATUS_LABELS = {
   present: 'Có mặt',
@@ -136,7 +136,8 @@ export function summarizeMonth(enrollments, records) {
 // ---- Số buổi còn lại theo lịch (chỉ đếm buổi, KHÔNG quy ra tiền) ----
 
 // Đếm số buổi từ hôm nay đến hết tháng đang xem mà lớp có lịch và học sinh chưa có bản ghi điểm danh.
-// activeEnrollments: ghi danh 'active', có classes(class_schedules(day_of_week)).
+// activeEnrollments: ghi danh 'active', có classes(class_schedules(day_of_week, valid_from, valid_to)):
+// mỗi ngày được kiểm theo lịch hiệu lực của chính ngày đó (lịch theo thời kỳ).
 // records: bản ghi điểm danh trong tháng (để bỏ qua buổi đã có bản ghi, kể cả Vắng có phép xin trước).
 // Trả về { [class_id]: số buổi }. Tháng đã qua hoàn toàn thì mọi lớp là 0.
 export function remainingSessions(activeEnrollments, records, today, month) {
@@ -148,12 +149,12 @@ export function remainingSessions(activeEnrollments, records, today, month) {
 
   for (const enrollment of activeEnrollments) {
     const classId = enrollment.class_id
-    const days = (enrollment.classes?.class_schedules ?? []).map((row) => row.day_of_week)
+    const schedules = enrollment.classes?.class_schedules ?? []
     let count = 0
-    if (days.length > 0 && from <= monthEnd) {
+    if (schedules.length > 0 && from <= monthEnd) {
       for (let date = from; date <= monthEnd; date = addDaysISO(date, 1)) {
         if (date < enrollment.joined_at) continue
-        if (!days.includes(dayOfWeekFromISO(date))) continue
+        if (!hasSessionOn(schedules, date)) continue
         if (recorded.has(`${classId}|${date}`)) continue
         count += 1
       }

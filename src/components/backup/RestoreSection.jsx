@@ -116,12 +116,12 @@ export default function RestoreSection() {
       <div className="flex items-start gap-2">
         <RotateCcw size={18} className="mt-0.5 shrink-0 text-red-600" aria-hidden="true" />
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">5. Khôi phục từ file sao lưu</h3>
+          <h3 className="text-sm font-semibold text-slate-800">6. Khôi phục từ file sao lưu</h3>
           <p className="mt-0.5 text-xs text-slate-600">
             Đưa dữ liệu về <strong>đúng trạng thái trong file</strong>: học sinh, lớp, điểm danh... phát sinh sau thời
             điểm sao lưu sẽ mất, dữ liệu trong file được trả lại đầy đủ. Tài khoản Quản lý và Nhật ký thay đổi được
-            giữ nguyên (nhật ký chỉ ghi thêm một dòng). Tài khoản Giáo viên lấy theo file nếu tài khoản đăng nhập còn
-            tồn tại.
+            giữ nguyên (nhật ký chỉ ghi thêm một dòng). Tài khoản Giáo viên trong file được nối theo email với tài khoản
+            đăng nhập đang có. Nhận cả file sao lưu của hệ thống cũ để chuyển dữ liệu sang hệ thống mới.
           </p>
         </div>
       </div>
@@ -212,6 +212,20 @@ export default function RestoreSection() {
                     <ul className="list-disc space-y-1 pl-4">
                       {result.warnings.map((message) => (
                         <li key={message}>{message}</li>
+                      ))}
+                    </ul>
+                  </Notice>
+                )}
+                {(result.renamed ?? []).length > 0 && (
+                  <Notice type="info">
+                    <p className="font-medium">
+                      {result.renamed.length} lớp sẽ được đặt lại tên theo quy tắc Môn_Khối_TênGV_STT:
+                    </p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {result.renamed.map((row) => (
+                        <li key={`${row.old_name}->${row.new_name}`}>
+                          {row.old_name} → <strong>{row.new_name}</strong>
+                        </li>
                       ))}
                     </ul>
                   </Notice>

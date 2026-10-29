@@ -27,7 +27,7 @@ export default function TeacherProfile({ teacherId, onBack }) {
         supabase
           .from('classes')
           .select(
-            'id, name, subject, grade, price_per_session, class_schedules(day_of_week, start_time, end_time), class_enrollments(student_id, status)',
+            'id, name, subject, grade, price_per_session, class_schedules(day_of_week, start_time, end_time, valid_from, valid_to), class_enrollments(student_id, status)',
           )
           .eq('teacher_id', teacherId)
           .is('deleted_at', null),

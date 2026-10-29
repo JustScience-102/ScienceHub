@@ -76,7 +76,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
         supabase
           .from('class_enrollments')
           .select(
-            'id, class_id, status, joined_at, left_at, classes(id, name, subject, grade, price_per_session, teachers(full_name), class_schedules(day_of_week, start_time, end_time))',
+            'id, class_id, status, joined_at, left_at, classes(id, name, subject, grade, price_per_session, teachers(full_name), class_schedules(day_of_week, start_time, end_time, valid_from, valid_to))',
           )
           .eq('student_id', studentId),
       ])

@@ -1,5 +1,6 @@
-// Chuyển năm học: gọi RPC rollover_school_year của 09_v2_6_year_rollover.sql.
-// Lớp cuối cấp (5, 9, 12) được đóng, các lớp còn lại lên 1 khối. Xem trước (dry-run) chạy thật rồi hoàn tác.
+// Chuyển năm học: gọi RPC rollover_school_year (supabase/v3/08_ops.sql).
+// Lớp cuối cấp (5, 9, 12) được đóng (học sinh "hoàn thành lớp cuối cấp"), các lớp còn lại lên 1 khối và
+// Database tự đặt lại tên lớp. Xem trước (dry-run) chạy thật rồi hoàn tác.
 import { supabase } from './supabaseClient'
 
 export const ROLLOVER_CONFIRM_TEXT = 'CHUYEN NAM HOC'

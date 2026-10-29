@@ -5,6 +5,7 @@ import FormField from '../FormField'
 import Notice from '../Notice'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
+import { fetchAll } from '../../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../../lib/text'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
@@ -104,13 +105,16 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
   useEffect(() => {
     let cancelled = false
     async function load() {
+      // Tải theo trang: Supabase chỉ trả tối đa 1000 dòng mỗi truy vấn.
       const [studentResult, parentResult, enrollResult] = await Promise.all([
-        supabase.from('students').select('id, student_code, full_name, phone, parent_id, deleted_at'),
-        supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at'),
-        supabase
-          .from('class_enrollments')
-          .select('class_id, student_id, classes(name, subject, grade, class_no)')
-          .eq('status', 'active'),
+        fetchAll(() => supabase.from('students').select('id, student_code, full_name, phone, parent_id, deleted_at')),
+        fetchAll(() => supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at')),
+        fetchAll(() =>
+          supabase
+            .from('class_enrollments')
+            .select('id, class_id, student_id, classes(name, subject, grade, class_no)')
+            .eq('status', 'active'),
+        ),
       ])
       if (cancelled) return
       const error = studentResult.error || parentResult.error || enrollResult.error

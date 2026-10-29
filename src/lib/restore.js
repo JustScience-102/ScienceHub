@@ -1,4 +1,6 @@
-// Khôi phục dữ liệu từ file sao lưu .json (do export_center_backup xuất ra): 10_v2_7_restore_backup.sql.
+// Khôi phục dữ liệu từ file sao lưu .json (do export_center_backup xuất ra): supabase/v3/08_ops.sql.
+// Nhận cả file của hệ thống cũ (V2) để chuyển dữ liệu sang project mới: Database tự bổ sung lý do nghỉ,
+// tính lại tên lớp theo quy tắc V3 và nối tài khoản Giáo viên theo email.
 // Luồng: đọc file -> tải từng phần lên bảng tạm (restore_stage_chunk) -> xem trước (dry-run) -> khôi phục.
 // Nhật ký thay đổi và tài khoản Quản lý không bị thay; nhật ký trong file không được nạp lại.
 import { supabase } from './supabaseClient'
@@ -16,6 +18,7 @@ const STAGE_ORDER = [
   'class_enrollments',
   'attendance_records',
   'class_versions',
+  'month_closures',
   'profiles',
 ]
 const REQUIRED_TABLES = STAGE_ORDER.slice(0, 7)
@@ -30,6 +33,7 @@ export const TABLE_LABELS = {
   class_enrollments: 'Ghi danh',
   attendance_records: 'Điểm danh',
   class_versions: 'Lịch sử nhãn lớp',
+  month_closures: 'Tháng đã chốt sổ',
   profiles: 'Tài khoản giáo viên',
 }
 
