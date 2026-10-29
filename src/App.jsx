@@ -207,7 +207,7 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-100">
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 size={18} className="animate-spin" aria-hidden="true" />
           Trung tâm đang kiểm tra phiên đăng nhập...
@@ -223,7 +223,7 @@ export default function App() {
   // Có phiên nhưng chưa xác nhận xong vai trò (hoặc hồ sơ cũ của tài khoản trước đó).
   if (!profile || profile.user_id !== userId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-100">
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 size={18} className="animate-spin" aria-hidden="true" />
           Trung tâm đang kiểm tra quyền truy cập...

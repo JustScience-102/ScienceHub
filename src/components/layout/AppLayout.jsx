@@ -14,7 +14,7 @@ export default function AppLayout({
   const roleLabel = userProfile?.role === 'manager' ? 'Quản lý' : 'Giáo viên'
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-dvh bg-slate-50">
       <Sidebar
         currentPage={currentPage}
         onNavigate={onNavigate}
@@ -38,8 +38,8 @@ export default function AppLayout({
       </header>
 
       <div className="lg:pl-64">
-        {/* pb-24: chừa chỗ cho thanh tab đáy để không che nội dung */}
-        <main className="mx-auto max-w-[96rem] p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
+        {/* pb-[calc(5rem+...)]: chừa chỗ cho thanh tab đáy (kể cả vùng an toàn) để không che nội dung */}
+        <main className="mx-auto max-w-[96rem] p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-8 lg:pb-8">
           {children}
         </main>
       </div>

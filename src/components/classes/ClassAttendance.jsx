@@ -444,7 +444,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
           max={today}
           onChange={(event) => changeDate(event.target.value)}
           aria-label="Ngày điểm danh"
-          className="min-h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:flex-none"
+          className="min-h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:flex-none sm:text-sm"
         />
         <button
           type="button"
@@ -518,6 +518,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
         {rows.map((row) => {
           const unmarked = !row.record
+          const isMakeupRow = Boolean(row.record?.makeup_of_date || row.madeUp)
           return (
             <li
               key={row.key}
@@ -525,6 +526,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                 unmarked ? 'border-l-4 border-l-amber-400 bg-amber-50/20' : 'bg-white'
               }`}
             >
+              <div className="flex min-w-0 items-start justify-between gap-2 md:block">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-800">
                   <span>{row.name}</span>
@@ -554,7 +556,20 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                   {row.record?.status === 'absent_excused' && ' · Không tính tiền'}
                 </p>
               </div>
-              {row.record?.makeup_of_date || row.madeUp ? (
+              {row.record && !isMakeupRow && (
+                // Điện thoại: nút xóa chỉ còn biểu tượng ở góc tên để 3 nút trạng thái nằm đủ một hàng.
+                <button
+                  type="button"
+                  onClick={() => clearStatus(row)}
+                  disabled={monthLocked}
+                  aria-label={`Xóa điểm danh của ${row.name}`}
+                  className={`${BTN} -mr-1 -mt-1 !px-0 h-11 w-11 shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 md:hidden`}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              )}
+              </div>
+              {isMakeupRow ? (
                 // Buổi học bù và buổi gốc đã được bù chỉ thay đổi bằng "Hủy học bù" (trả buổi gốc về như cũ).
                 <div className="flex flex-wrap items-center gap-2">
                   {row.record && (
@@ -579,7 +594,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                   )}
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap md:items-center">
                   {STATUSES.map((status) => {
                     const active = row.record?.status === status.value
                     return (
@@ -603,7 +618,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                       onClick={() => clearStatus(row)}
                       disabled={monthLocked}
                       aria-label={`Xóa điểm danh của ${row.name}`}
-                      className={`${BTN} bg-slate-100 text-slate-600 hover:bg-slate-200`}
+                      className={`${BTN} bg-slate-100 text-slate-600 hover:bg-slate-200 max-md:hidden`}
                     >
                       <Trash2 size={16} aria-hidden="true" />
                       <span className="md:sr-only">Xóa</span>
@@ -621,7 +636,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
   // Tháng đã khóa (khóa sổ, hoặc tháng trước với Giáo viên): ẩn công cụ hàng loạt, giọng nói và nút Học bù.
   const tools =
     editable && ready && !monthLocked ? (
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
         <button
           type="button"
           onClick={() =>

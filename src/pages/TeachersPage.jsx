@@ -257,7 +257,7 @@ export default function TeachersPage() {
 
   const toolbar = (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative flex-1">
           <Search
             size={18}
@@ -270,27 +270,37 @@ export default function TeachersPage() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm theo tên, số điện thoại hoặc email giáo viên"
             aria-label="Tìm kiếm giáo viên"
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
         </div>
         <button
           type="button"
           onClick={() => setEditing({})}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+          className="hidden min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 md:inline-flex"
         >
           <Plus size={18} aria-hidden="true" />
           Thêm giáo viên
         </button>
       </div>
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
-        <input
-          type="checkbox"
-          checked={showHidden}
-          onChange={(event) => setShowHidden(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
-        />
-        Hiện cả giáo viên đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
-      </label>
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showHidden}
+            onChange={(event) => setShowHidden(event.target.checked)}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          Hiện cả giáo viên đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
+        </label>
+        <button
+          type="button"
+          onClick={() => setEditing({})}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 md:hidden"
+        >
+          <Plus size={18} aria-hidden="true" />
+          Thêm
+        </button>
+      </div>
     </div>
   )
 
@@ -380,39 +390,40 @@ export default function TeachersPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 {nameButton(teacher)}
-                {teacher.deleted_at && (
-                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">Đã ẩn</span>
-                )}
+                <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-2">
+                  {teacher.deleted_at && (
+                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">Đã ẩn</span>
+                  )}
+                  <RowActions
+                    name={teacher.full_name}
+                    hidden={Boolean(teacher.deleted_at)}
+                    compact={!teacher.deleted_at}
+                    onEdit={() => setEditing(teacher)}
+                    onDelete={() => requestDelete(teacher)}
+                    onRestore={() => handleRestore(teacher)}
+                  />
+                </div>
               </div>
-              <dl className="mt-2 space-y-1 text-sm text-slate-600">
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Điện thoại</dt>
-                  <dd>{teacher.phone || '—'}</dd>
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div>
+                  <dt className="text-xs text-slate-500">Điện thoại</dt>
+                  <dd className="font-medium text-slate-700">{teacher.phone || '—'}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Email</dt>
-                  <dd className="break-all">{teacher.email || '—'}</dd>
+                <div>
+                  <dt className="text-xs text-slate-500">Số lớp</dt>
+                  <dd className="font-medium text-slate-700">{classCounts[teacher.id] ?? 0}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Tài khoản</dt>
+                <div className="min-w-0">
+                  <dt className="text-xs text-slate-500">Email</dt>
+                  <dd className="break-all text-slate-700">{teacher.email || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-500">Tài khoản</dt>
                   <dd>
                     <AccountBadge profile={profilesByTeacher[teacher.id] ?? null} />
                   </dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Số lớp</dt>
-                  <dd>{classCounts[teacher.id] ?? 0}</dd>
-                </div>
               </dl>
-              <div className="mt-3">
-                <RowActions
-                  name={teacher.full_name}
-                  hidden={Boolean(teacher.deleted_at)}
-                  onEdit={() => setEditing(teacher)}
-                  onDelete={() => requestDelete(teacher)}
-                  onRestore={() => handleRestore(teacher)}
-                />
-              </div>
             </li>
           ))}
         </ul>

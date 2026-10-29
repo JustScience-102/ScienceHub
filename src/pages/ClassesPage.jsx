@@ -18,6 +18,7 @@ import { CELL, CELL_CLICKABLE, CELL_MUTED, ROW, ROW_TABLE } from '../lib/rowTabl
 import { compareVietnameseNames, normalizeText } from '../lib/text'
 import { NONE, buildOptions, classGrade } from '../lib/grade'
 import SelectField from '../components/SelectField'
+import MobileFilters from '../components/MobileFilters'
 
 const BTN =
   'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors'
@@ -351,9 +352,17 @@ export default function ClassesPage({
     )
   }
 
+  // Số bộ lọc đang khác mặc định (hiện trên nút "Bộ lọc" ở điện thoại).
+  const activeFilterCount =
+    (filterDate !== todayISO() ? 1 : 0) +
+    (filterByDate ? 0 : 1) +
+    (gradeFilter ? 1 : 0) +
+    (subjectFilter ? 1 : 0) +
+    (showHidden ? 1 : 0)
+
   const toolbar = (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative flex-1">
           <Search
             size={18}
@@ -366,97 +375,114 @@ export default function ClassesPage({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm theo tên lớp, môn học hoặc giáo viên"
             aria-label="Tìm kiếm lớp học"
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
           />
         </div>
         <button
           type="button"
           onClick={() => setEditing({ mode: 'create' })}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+          className="hidden min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 md:inline-flex"
         >
           <Plus size={18} aria-hidden="true" />
           Thêm lớp
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            Ngày
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(event) => setFilterDate(event.target.value)}
-              aria-label="Lọc lớp học theo ngày"
-              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
-            />
-          </label>
-          {filterDate !== todayISO() && (
-            <button
-              type="button"
-              onClick={() => setFilterDate(todayISO())}
-              className={`${BTN} bg-white text-sky-700 ring-1 ring-slate-200 hover:bg-sky-50`}
+      <MobileFilters
+        id="class-filters"
+        activeCount={activeFilterCount}
+        actions={
+          <button
+            type="button"
+            onClick={() => setEditing({ mode: 'create' })}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Thêm lớp
+          </button>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3 sm:p-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex w-full items-center gap-2 text-sm font-medium text-slate-700 sm:w-auto">
+                Ngày
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(event) => setFilterDate(event.target.value)}
+                  aria-label="Lọc lớp học theo ngày"
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:flex-none sm:text-sm"
+                />
+              </label>
+              {filterDate !== todayISO() && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate(todayISO())}
+                  className={`${BTN} bg-white text-sky-700 ring-1 ring-slate-200 hover:bg-sky-50`}
+                >
+                  Hôm nay
+                </button>
+              )}
+              {filterDate && (
+                <span className="text-sm text-slate-500">{weekdayLabel(filterDate)}</span>
+              )}
+            </div>
+            <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={!filterByDate}
+                onChange={(event) => setFilterByDate(!event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Hiện tất cả lớp
+            </label>
+          </div>
+    
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
+              id="class-grade-filter"
+              label="Lọc theo khối"
+              value={gradeFilter}
+              onChange={setGradeFilter}
+              placeholder="Tất cả khối"
             >
-              Hôm nay
-            </button>
-          )}
-          {filterDate && (
-            <span className="text-sm text-slate-500">{weekdayLabel(filterDate)}</span>
-          )}
+              {gradeOptions.list.map((grade) => (
+                <option key={grade} value={String(grade)}>
+                  Khối {grade}
+                </option>
+              ))}
+              {gradeOptions.hasNone && <option value={NONE}>Chưa phân loại</option>}
+            </SelectField>
+            <SelectField
+              id="class-subject-filter"
+              label="Lọc theo môn"
+              value={subjectFilter}
+              onChange={setSubjectFilter}
+              placeholder="Tất cả môn"
+            >
+              {subjectOptions.list.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+              {subjectOptions.hasNone && <option value={NONE}>Chưa phân loại</option>}
+            </SelectField>
+          </div>
+    
+          <div className="flex items-center justify-between">
+            <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={showHidden}
+                onChange={(event) => setShowHidden(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Hiện cả lớp đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
+            </label>
+          </div>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={!filterByDate}
-            onChange={(event) => setFilterByDate(!event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          Hiện tất cả lớp
-        </label>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField
-          id="class-grade-filter"
-          label="Lọc theo khối"
-          value={gradeFilter}
-          onChange={setGradeFilter}
-          placeholder="Tất cả khối"
-        >
-          {gradeOptions.list.map((grade) => (
-            <option key={grade} value={String(grade)}>
-              Khối {grade}
-            </option>
-          ))}
-          {gradeOptions.hasNone && <option value={NONE}>Chưa phân loại</option>}
-        </SelectField>
-        <SelectField
-          id="class-subject-filter"
-          label="Lọc theo môn"
-          value={subjectFilter}
-          onChange={setSubjectFilter}
-          placeholder="Tất cả môn"
-        >
-          {subjectOptions.list.map((subject) => (
-            <option key={subject} value={subject}>
-              {subject}
-            </option>
-          ))}
-          {subjectOptions.hasNone && <option value={NONE}>Chưa phân loại</option>}
-        </SelectField>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={showHidden}
-            onChange={(event) => setShowHidden(event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          Hiện cả lớp đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
-        </label>
-      </div>
+      </MobileFilters>
     </div>
   )
 
@@ -551,40 +577,79 @@ export default function ClassesPage({
             >
               <div className="flex items-start justify-between gap-2">
                 {nameButton(cls)}
-                {cls.deleted_at && (
+                {cls.deleted_at ? (
                   <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">
                     Đã ẩn
                   </span>
+                ) : (
+                  // Nút phụ (Sửa/Xóa) chỉ còn biểu tượng ở góc thẻ để nút chính không bị rớt hàng.
+                  <div className="-mr-1 -mt-1 flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ mode: 'edit', cls })}
+                      aria-label={`Sửa lớp ${cls.name}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    >
+                      <Pencil size={16} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(cls)}
+                      aria-label={`Xóa lớp ${cls.name}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </button>
+                  </div>
                 )}
               </div>
-              <dl className="mt-2 space-y-1 text-sm text-slate-600">
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Giáo viên</dt>
-                  <dd>{teacherName(cls) || 'Chưa gắn giáo viên'}</dd>
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div className="min-w-0">
+                  <dt className="text-xs text-slate-500">Giáo viên</dt>
+                  <dd className="font-medium text-slate-700">{teacherName(cls) || 'Chưa gắn giáo viên'}</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Lịch học</dt>
-                  <dd>{formatSchedule(schedules[cls.id])}</dd>
+                <div className="min-w-0">
+                  <dt className="text-xs text-slate-500">Đơn giá</dt>
+                  <dd className="font-medium text-slate-700">{formatCurrency(cls.price_per_session)}/buổi</dd>
                 </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Đơn giá</dt>
-                  <dd>{formatCurrency(cls.price_per_session)}/buổi</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-slate-500">Sĩ số</dt>
-                  <dd>{activeCounts[cls.id] ?? 0}</dd>
+                <div className="col-span-2">
+                  <dt className="text-xs text-slate-500">Lịch học</dt>
+                  <dd className="font-medium text-slate-700">{formatSchedule(schedules[cls.id])}</dd>
                 </div>
               </dl>
-              <div className="mt-3">
-                <ClassActions
-                  cls={cls}
-                  onOpen={() => openStudents(cls)}
-                  onAttendance={() => openAttendance(cls)}
-                  onEdit={() => setEditing({ mode: 'edit', cls })}
-                  onDelete={() => requestDelete(cls)}
-                  onRestore={() => handleRestore(cls)}
-                />
-              </div>
+              {cls.deleted_at ? (
+                <div className="mt-3">
+                  <ClassActions
+                    cls={cls}
+                    onOpen={() => openStudents(cls)}
+                    onAttendance={() => openAttendance(cls)}
+                    onEdit={() => setEditing({ mode: 'edit', cls })}
+                    onDelete={() => requestDelete(cls)}
+                    onRestore={() => handleRestore(cls)}
+                  />
+                </div>
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openAttendance(cls)}
+                    aria-label={`Điểm danh lớp ${cls.name}`}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-white hover:bg-emerald-600"
+                  >
+                    <ClipboardCheck size={16} aria-hidden="true" />
+                    Điểm danh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openStudents(cls)}
+                    aria-label={`Xem học sinh lớp ${cls.name}`}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100"
+                  >
+                    <Users size={16} aria-hidden="true" />
+                    Học sinh · {activeCounts[cls.id] ?? 0}
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

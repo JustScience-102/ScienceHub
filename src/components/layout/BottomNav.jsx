@@ -1,8 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyRound, LogOut, UserCircle } from 'lucide-react'
 import { navItemsFor } from './navItems'
 
 const ROLE_LABELS = { manager: 'Quản lý', teacher: 'Giáo viên' }
+
+// Ô nhập chữ làm bật bàn phím ảo (checkbox, radio, file... thì không).
+const KEYBOARD_INPUT_TYPES = new Set([
+  'text', 'search', 'email', 'password', 'tel', 'url', 'number', 'date', 'time', 'month', '',
+])
+function opensKeyboard(element) {
+  if (!element) return false
+  if (element.tagName === 'TEXTAREA') return true
+  return element.tagName === 'INPUT' && KEYBOARD_INPUT_TYPES.has(element.type)
+}
 
 // Thanh tab cố định ở đáy màn hình, chỉ hiện trên điện thoại/máy tính bảng (dưới 1024px).
 // Tab cuối "Tài khoản" mở menu nhỏ: thông tin người dùng, Đổi mật khẩu, Đăng xuất.
@@ -14,11 +24,28 @@ export default function BottomNav({
   onSignOut,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // Đang gõ vào ô nhập: ẩn thanh tab để nó không nổi ngay trên bàn phím ảo và ăn mất chỗ.
+  const [typing, setTyping] = useState(false)
   const displayName = userProfile?.teacher_name || userProfile?.email || ''
   const roleLabel = ROLE_LABELS[userProfile?.role] ?? ''
   const items = navItemsFor(userProfile?.role)
   // Quản lý: 4 mục + Tài khoản = 5 cột; Giáo viên: 2 mục + Tài khoản = 3 cột.
   const gridCols = items.length >= 4 ? 'grid-cols-5' : 'grid-cols-3'
+
+  useEffect(() => {
+    function handleFocusIn(event) {
+      setTyping(opensKeyboard(event.target))
+    }
+    function handleFocusOut() {
+      setTyping(false)
+    }
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('focusout', handleFocusOut)
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('focusout', handleFocusOut)
+    }
+  }, [])
 
   return (
     <>
@@ -33,7 +60,7 @@ export default function BottomNav({
           <div
             role="menu"
             aria-label="Tài khoản"
-            className="lg:hidden fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] right-2 z-30 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+            className="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-2 z-30 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
           >
             <div className="mb-2 border-b border-slate-100 px-2 pb-2">
               <p className="truncate text-sm font-semibold text-slate-800">{displayName}</p>
@@ -71,7 +98,9 @@ export default function BottomNav({
 
       <nav
         aria-label="Điều hướng chính"
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)] ${
+          typing ? 'hidden' : ''
+        }`}
       >
         <ul className={`grid ${gridCols}`}>
           {items.map((item) => {

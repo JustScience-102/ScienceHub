@@ -108,8 +108,8 @@ export default function TeacherProfile({ teacherId, onBack }) {
     <PageShell title={`Hồ sơ: ${teacher.full_name}`} description="Thông tin liên hệ và các lớp đang phụ trách.">
       {back}
 
-      <dl className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
-        <div>
+      <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+        <div className="col-span-2 sm:col-span-1">
           <dt className="text-slate-500">Họ tên</dt>
           <dd className="font-medium text-slate-800">
             {teacher.full_name}
@@ -210,18 +210,18 @@ export default function TeacherProfile({ teacherId, onBack }) {
                   <p className="text-sm text-slate-500">
                     {cls.subject || 'Chưa có môn'} · {classGrade(cls) ? `Khối ${classGrade(cls)}` : 'Chưa có khối'}
                   </p>
-                  <dl className="mt-2 space-y-1 text-sm text-slate-600">
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-slate-500">Lịch học</dt>
-                      <dd>{formatSchedule(cls.class_schedules)}</dd>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-slate-500">Đơn giá</dt>
+                      <dd className="font-medium text-slate-700">{formatCurrency(cls.price_per_session)}/buổi</dd>
                     </div>
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-slate-500">Đơn giá</dt>
-                      <dd>{formatCurrency(cls.price_per_session)}/buổi</dd>
+                    <div>
+                      <dt className="text-xs text-slate-500">Số học sinh</dt>
+                      <dd className="font-medium text-slate-700">{count}</dd>
                     </div>
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-slate-500">Số học sinh</dt>
-                      <dd className="font-medium">{count}</dd>
+                    <div className="col-span-2">
+                      <dt className="text-xs text-slate-500">Lịch học</dt>
+                      <dd className="font-medium text-slate-700">{formatSchedule(cls.class_schedules)}</dd>
                     </div>
                   </dl>
                 </li>

@@ -165,7 +165,7 @@ export default function TransferClassModal({
             max={today}
             onChange={(event) => setDate(event.target.value)}
             aria-invalid={dateError ? 'true' : undefined}
-            className={`min-h-11 w-full rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-sky-200 ${
+            className={`min-h-11 w-full rounded-lg border px-3 text-base outline-none focus:ring-2 focus:ring-sky-200 sm:text-sm ${
               dateError ? 'border-red-400' : 'border-slate-300 focus:border-sky-400'
             }`}
           />
