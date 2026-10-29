@@ -4,9 +4,16 @@ import FormField from '../FormField'
 import SelectField from '../SelectField'
 import Notice from '../Notice'
 import { SUBJECTS, GRADES } from '../../lib/subjects'
-import { WEEK_DAYS, formatTime } from '../../lib/schedule'
-import { classNamePrefix, buildClassName, suggestClassNo } from '../../lib/className'
-import { formatCurrency } from '../../lib/format'
+import {
+  WEEK_DAYS,
+  currentSchedules,
+  formatScheduleRows,
+  formatTime,
+  monthStartISO,
+  todayISO,
+} from '../../lib/schedule'
+import { useClassNamePreview } from '../../lib/classNamePreview'
+import { formatCurrency, formatDate } from '../../lib/format'
 import { compareVietnameseNames } from '../../lib/text'
 import { validateRequired } from '../../lib/validators'
 
@@ -15,39 +22,52 @@ function parsePrice(raw) {
   return /^\d+$/.test(digits) ? Number(digits) : null
 }
 
-// Form Thêm / Sửa lớp. Tên lớp được ghép tự động: Môn_Khối_TênGV_STT.
-// Mỗi ngày học có một khung giờ riêng (mỗi ngày tối đa một ca).
+// { [thứ]: { start, end } } -> chuỗi so sánh ổn định
+function scheduleKey(map) {
+  return WEEK_DAYS.filter((day) => map[day.value])
+    .map((day) => `${day.value}|${map[day.value].start}|${map[day.value].end}`)
+    .join(';')
+}
+
+// Các thời kỳ lịch đã đóng, mới nhất trước: [{ from, to, rows }]
+function pastPeriods(rows) {
+  const groups = new Map()
+  for (const row of rows ?? []) {
+    if (!row.valid_to) continue
+    const key = `${row.valid_from ?? ''}|${row.valid_to}`
+    if (!groups.has(key)) groups.set(key, { from: row.valid_from, to: row.valid_to, rows: [] })
+    groups.get(key).rows.push(row)
+  }
+  return [...groups.values()].sort((a, b) => b.to.localeCompare(a.to))
+}
+
+// Form Thêm / Sửa lớp. Tên lớp do Database đặt theo Môn_Khối_TênGọiGV_STT (form chỉ xem trước).
+// Mỗi ngày học có một khung giờ riêng (mỗi ngày tối đa một ca). Khi sửa mà đổi lịch, chọn ngày áp dụng
+// lịch mới; lịch cũ vẫn dùng cho các ngày trước đó.
 //   mode: 'create' | 'edit'
-//   scheduleRows: các dòng class_schedules hiện có của lớp (khi sửa)
-//   teachers: giáo viên đang hiển thị; takenNames: tên các lớp đang hiển thị khác
+//   scheduleRows: mọi dòng class_schedules của lớp (mọi thời kỳ, khi sửa)
+//   teachers: giáo viên đang hiển thị
 //   onSave(values): trả về câu báo lỗi hoặc ''
 //   lockedTeacherId: Giáo viên đang đăng nhập (tự gán và khóa ô chọn giáo viên); Quản lý truyền null
-export default function ClassForm({
-  mode,
-  cls,
-  scheduleRows,
-  teachers,
-  lockedTeacherId = null,
-  takenNames,
-  onSave,
-  onClose,
-}) {
+export default function ClassForm({ mode, cls, scheduleRows, teachers, lockedTeacherId = null, onSave, onClose }) {
   const [subject, setSubject] = useState(cls?.subject ?? '')
   const [grade, setGrade] = useState(cls?.grade ? String(cls.grade) : '')
   const [teacherId, setTeacherId] = useState(() => {
     if (lockedTeacherId) return lockedTeacherId
     return cls?.teacher_id && teachers.some((teacher) => teacher.id === cls.teacher_id) ? cls.teacher_id : ''
   })
-  // '' = tự gợi ý STT; có giá trị = người dùng tự nhập
+  // '' = để Database tự chọn STT; có giá trị = người dùng tự nhập
   const [classNoInput, setClassNoInput] = useState('')
-  // { [thứ]: { start: 'HH:MM', end: 'HH:MM' } }
-  const [schedule, setSchedule] = useState(() => {
+  const initialSchedule = useMemo(() => {
     const initial = {}
-    for (const row of scheduleRows ?? []) {
+    for (const row of currentSchedules(scheduleRows)) {
       initial[row.day_of_week] = { start: formatTime(row.start_time), end: formatTime(row.end_time) }
     }
     return initial
-  })
+  }, [scheduleRows])
+  // { [thứ]: { start: 'HH:MM', end: 'HH:MM' } }
+  const [schedule, setSchedule] = useState(initialSchedule)
+  const [scheduleFrom, setScheduleFrom] = useState(todayISO())
   const [price, setPrice] = useState(cls ? String(cls.price_per_session ?? 0) : '')
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -57,32 +77,29 @@ export default function ClassForm({
     () => [...teachers].sort((a, b) => compareVietnameseNames(a.full_name, b.full_name)),
     [teachers],
   )
-  const teacher = teachers.find((item) => item.id === teacherId)
-  const prefix = classNamePrefix({ subject, grade, teacherName: teacher?.full_name })
 
-  // Phần đầu tên lớp ban đầu (để giữ nguyên STT khi chỉ sửa giá, lịch...)
-  const originalPrefix = useMemo(() => {
-    if (!cls?.subject || !cls?.grade || !cls?.teacher_id) return ''
-    const originalTeacher = teachers.find((item) => item.id === cls.teacher_id)
-    return classNamePrefix({
-      subject: cls.subject,
-      grade: cls.grade,
-      teacherName: originalTeacher?.full_name,
-    })
-  }, [cls, teachers])
-
-  const autoNo =
-    mode === 'edit' && cls?.class_no && prefix && prefix === originalPrefix
-      ? cls.class_no
-      : suggestClassNo(prefix, takenNames)
-
-  const classNo = classNoInput !== '' ? Number(classNoInput) : autoNo
-  const classNoValid = Number.isInteger(classNo) && classNo >= 1
-  const previewName = classNoValid
-    ? buildClassName({ subject, grade, teacherName: teacher?.full_name }, classNo)
-    : ''
+  // Giữ STT cũ khi chỉ sửa giá, lịch...; đổi môn/khối/giáo viên thì Database chọn STT còn trống.
+  const sameSlot =
+    mode === 'edit' && cls && cls.subject === subject && String(cls.grade) === grade && cls.teacher_id === teacherId
+  const typedNo = classNoInput !== '' ? Number(classNoInput) : null
+  const preview = useClassNamePreview({
+    classId: cls?.id ?? null,
+    subject,
+    grade,
+    teacherId,
+    classNo: typedNo,
+    keepClassNo: sameSlot ? cls.class_no : null,
+  })
 
   const selectedDays = WEEK_DAYS.filter((day) => schedule[day.value])
+  const scheduleChanged = mode === 'edit' && scheduleKey(schedule) !== scheduleKey(initialSchedule)
+  const currentFrom = currentSchedules(scheduleRows)
+    .map((row) => row.valid_from)
+    .filter(Boolean)
+    .sort()
+    .pop()
+  const minFrom = [currentFrom, lockedTeacherId ? monthStartISO() : ''].filter(Boolean).sort().pop() ?? ''
+  const history = mode === 'edit' ? pastPeriods(scheduleRows) : []
 
   function toggleDay(day) {
     setSchedule((current) => {
@@ -119,9 +136,13 @@ export default function ClassForm({
     }
 
     let classNoError = ''
-    if (!classNoValid) classNoError = 'STT phải là số nguyên từ 1 trở lên.'
-    else if (previewName && takenNames.some((name) => name.toLowerCase() === previewName.toLowerCase())) {
-      classNoError = `Tên lớp ${previewName} đã có. Hãy đổi STT.`
+    if (typedNo !== null && (!Number.isInteger(typedNo) || typedNo < 1)) classNoError = 'STT phải là số nguyên từ 1 trở lên.'
+    else if (typedNo !== null && preview.taken) classNoError = `STT ${typedNo} đã có lớp khác dùng. Hãy đổi STT hoặc để trống.`
+
+    let fromError = ''
+    if (scheduleChanged) {
+      if (!scheduleFrom) fromError = 'Vui lòng chọn ngày áp dụng lịch mới.'
+      else if (minFrom && scheduleFrom < minFrom) fromError = `Ngày áp dụng phải từ ${formatDate(minFrom)} trở đi.`
     }
 
     const nextErrors = {
@@ -130,6 +151,7 @@ export default function ClassForm({
       teacher: validateRequired(teacherId, 'Vui lòng chọn giáo viên phụ trách.'),
       classNo: classNoError,
       schedule: scheduleError,
+      scheduleFrom: fromError,
       price: priceValue === null ? 'Đơn giá phải là số nguyên từ 0 trở lên.' : '',
     }
     setErrors(nextErrors)
@@ -138,10 +160,9 @@ export default function ClassForm({
 
     setSaving(true)
     const message = await onSave({
-      name: previewName,
       subject,
       grade: Number(grade),
-      classNo,
+      classNo: typedNo,
       teacherId,
       price: priceValue,
       schedule: selectedDays.map((day) => ({
@@ -149,6 +170,7 @@ export default function ClassForm({
         start: schedule[day.value].start,
         end: schedule[day.value].end,
       })),
+      scheduleFrom: scheduleChanged ? scheduleFrom : null,
     })
     setSaving(false)
     if (message) setFormError(message)
@@ -224,21 +246,24 @@ export default function ClassForm({
         <FormField
           id="class-no"
           label="STT lớp"
-          required
           type="number"
           inputMode="numeric"
-          value={classNoInput !== '' ? classNoInput : String(autoNo)}
+          value={classNoInput !== '' ? classNoInput : preview.classNo ? String(preview.classNo) : ''}
           onChange={setClassNoInput}
           error={errors.classNo}
-          hint="Tự gợi ý số kế tiếp còn trống. Đổi nếu cùng giáo viên dạy nhiều nhóm."
+          hint="Để nguyên số gợi ý (số nhỏ nhất còn trống). Đổi nếu cùng giáo viên dạy nhiều nhóm."
         />
 
         <div className="rounded-lg bg-sky-50 px-4 py-3 text-sm">
-          <span className="text-slate-500">Tên lớp (tự tạo): </span>
-          {previewName ? (
-            <span className="break-all font-semibold text-sky-700">{previewName}</span>
+          <span className="text-slate-500">Tên lớp (Trung tâm tự đặt): </span>
+          {!subject || !grade || !teacherId ? (
+            <span className="text-slate-400">Chọn môn, khối và giáo viên để xem tên lớp.</span>
+          ) : preview.loading ? (
+            <span className="text-slate-400">Đang xem trước...</span>
+          ) : preview.error ? (
+            <span className="text-slate-400">Chưa xem trước được tên lớp (tên sẽ được đặt khi lưu).</span>
           ) : (
-            <span className="text-slate-400">Chọn môn, khối và giáo viên để tạo tên.</span>
+            <span className="break-all font-semibold text-sky-700">{preview.name}</span>
           )}
         </div>
 
@@ -296,6 +321,34 @@ export default function ClassForm({
           )}
           {errors.schedule && <p className="mt-1 text-xs text-red-600">{errors.schedule}</p>}
         </fieldset>
+
+        {scheduleChanged && (
+          <FormField
+            id="class-schedule-from"
+            label="Áp dụng lịch mới từ ngày"
+            required
+            type="date"
+            value={scheduleFrom}
+            min={minFrom || undefined}
+            onChange={setScheduleFrom}
+            error={errors.scheduleFrom}
+            hint="Các ngày trước ngày này vẫn điểm danh theo lịch cũ."
+          />
+        )}
+
+        {history.length > 0 && (
+          <div className="rounded-lg border border-slate-200 px-4 py-3 text-xs text-slate-600">
+            <p className="mb-1 font-medium text-slate-700">Lịch trước đây</p>
+            <ul className="space-y-0.5">
+              {history.map((period) => (
+                <li key={`${period.from}|${period.to}`}>
+                  {period.from ? `${formatDate(period.from)} – ` : 'Đến '}
+                  {formatDate(period.to)}: {formatScheduleRows(period.rows)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <FormField
           id="class-price"

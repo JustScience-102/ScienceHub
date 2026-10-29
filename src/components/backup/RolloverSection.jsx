@@ -83,7 +83,7 @@ export default function RolloverSection() {
       <div className="flex items-start gap-2">
         <GraduationCap size={18} className="mt-0.5 shrink-0 text-sky-700" aria-hidden="true" />
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">4. Chuyển năm học</h3>
+          <h3 className="text-sm font-semibold text-slate-800">5. Chuyển năm học</h3>
           <p className="mt-0.5 text-xs text-slate-600">
             Lớp cuối cấp (khối {CLOSING_GRADES.join(', ')}): cho nghỉ hết học sinh rồi ẩn lớp. Các lớp còn lại lên 1
             khối và đổi tên theo khối mới. Điểm danh, học phí và tên lớp cũ ở các tháng đã qua vẫn giữ nguyên. Học

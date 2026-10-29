@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { Plus, Search, GraduationCap, Upload } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import Modal from '../components/Modal'
-import ConfirmDialog from '../components/ConfirmDialog'
 import FormField from '../components/FormField'
 import EmptyState from '../components/EmptyState'
 import Notice from '../components/Notice'
 import RowActions from '../components/RowActions'
 import RegisterStudentFlow from '../components/classes/RegisterStudentFlow'
 import StudentProfile from '../components/students/StudentProfile'
-import ImportStudentsModal from '../components/students/ImportStudentsModal'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
+import { fetchAll } from '../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../lib/text'
 import { NONE, buildOptions } from '../lib/grade'
 import SelectField from '../components/SelectField'
@@ -21,6 +20,9 @@ import {
   validatePhone,
   validateRequired,
 } from '../lib/validators'
+
+// Hộp thoại nhập CSV chỉ Quản lý dùng: tải riêng khi mở để trang nhẹ hơn.
+const ImportStudentsModal = lazy(() => import('../components/students/ImportStudentsModal'))
 
 // Form Đăng ký / Sửa học sinh kèm thông tin phụ huynh (bắt buộc).
 // Giáo viên (isTeacher): KHÔNG được đổi tên phụ huynh. Nhập SĐT trùng phụ huynh có sẵn thì tên bị khóa theo
@@ -196,11 +198,11 @@ function StudentForm({ student, parents, isTeacher = false, onSave, onClose }) {
   )
 }
 
-// isTeacher: Giáo viên chỉ thấy học sinh thuộc lớp mình (RLS); không được ẩn học sinh trực tiếp.
+// isTeacher: Giáo viên chỉ thấy học sinh thuộc lớp mình (RLS).
+// Học sinh tự ẩn khi nghỉ hết lớp và tự hiện lại khi được ghi danh, nên không có nút Xóa học sinh.
 export default function StudentsPage({ isTeacher = false } = {}) {
   const [students, setStudents] = useState([])
   const [parents, setParents] = useState([])
-  const [activeCounts, setActiveCounts] = useState({})
   const [subjectsByStudent, setSubjectsByStudent] = useState({})
   const [gradeFilter, setGradeFilter] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
@@ -210,8 +212,6 @@ export default function StudentsPage({ isTeacher = false } = {}) {
   const [showHidden, setShowHidden] = useState(false)
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // null: đóng, {}: đăng ký mới, object: sửa
-  const [deleting, setDeleting] = useState(null)
-  const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [openedId, setOpenedId] = useState(null) // học sinh đang mở hồ sơ
   const [importing, setImporting] = useState(false) // hộp thoại nhập từ file (chỉ Quản lý)
@@ -221,15 +221,11 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     let cancelled = false
 
     async function load() {
+      // Tải theo trang: Supabase chỉ trả tối đa 1000 dòng mỗi truy vấn.
       const [studentResult, parentResult, enrollmentResult] = await Promise.all([
-        supabase
-          .from('students')
-          .select('*, parents(id, parent_code, full_name, phone, deleted_at)'),
-        supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at'),
-        supabase
-          .from('class_enrollments')
-          .select('student_id, classes(subject)')
-          .eq('status', 'active'),
+        fetchAll(() => supabase.from('students').select('*, parents(id, parent_code, full_name, phone, deleted_at)')),
+        fetchAll(() => supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at')),
+        fetchAll(() => supabase.from('class_enrollments').select('id, student_id, classes(subject)').eq('status', 'active')),
       ])
       if (cancelled) return
 
@@ -237,16 +233,13 @@ export default function StudentsPage({ isTeacher = false } = {}) {
       if (error) {
         setLoadError(toVietnameseError(error))
       } else {
-        const counts = {}
         const subjects = {}
         for (const row of enrollmentResult.data) {
-          counts[row.student_id] = (counts[row.student_id] ?? 0) + 1
           if (!subjects[row.student_id]) subjects[row.student_id] = new Set()
           subjects[row.student_id].add(row.classes?.subject || NONE)
         }
         setStudents(studentResult.data)
         setParents(parentResult.data)
-        setActiveCounts(counts)
         setSubjectsByStudent(subjects)
         setLoadError('')
       }
@@ -324,39 +317,6 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     setEditing(null)
     reload()
     return ''
-  }
-
-  function requestDelete(student) {
-    const count = activeCounts[student.id] ?? 0
-    if (count > 0) {
-      setNotice({
-        type: 'error',
-        text: `Không thể xóa học sinh ${student.full_name}: học sinh đang học ${count} lớp. Hãy cho học sinh nghỉ khỏi lớp trước.`,
-      })
-      return
-    }
-    setNotice(null)
-    setDeleting(student)
-  }
-
-  async function confirmDelete() {
-    setBusy(true)
-    const { error } = await supabase
-      .from('students')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', deleting.id)
-    setBusy(false)
-
-    if (error) {
-      setNotice({ type: 'error', text: toVietnameseError(error) })
-    } else {
-      setNotice({
-        type: 'success',
-        text: `Trung tâm đã xóa học sinh ${deleting.full_name} khỏi danh sách. Lịch sử vẫn được giữ, học sinh sẽ tự hiện lại khi được thêm vào một lớp.`,
-      })
-      reload()
-    }
-    setDeleting(null)
   }
 
   const toolbar = (
@@ -527,9 +487,8 @@ export default function StudentsPage({ isTeacher = false } = {}) {
                       <RowActions
                         name={student.full_name}
                         hidden={Boolean(student.deleted_at)}
-                        canDelete={!isTeacher}
+                        canDelete={false}
                         onEdit={() => setEditing(student)}
-                        onDelete={() => requestDelete(student)}
                       />
                     </div>
                   </td>
@@ -574,9 +533,8 @@ export default function StudentsPage({ isTeacher = false } = {}) {
                   <RowActions
                     name={student.full_name}
                     hidden={false}
-                    canDelete={!isTeacher}
+                    canDelete={false}
                     onEdit={() => setEditing(student)}
-                    onDelete={() => requestDelete(student)}
                   />
                 </div>
               )}
@@ -635,24 +593,16 @@ export default function StudentsPage({ isTeacher = false } = {}) {
         />
       )}
       {importing && !isTeacher && (
-        <ImportStudentsModal
-          onDone={(message) => {
-            setNotice({ type: 'success', text: message })
-            setImporting(false)
-            reload()
-          }}
-          onClose={() => setImporting(false)}
-        />
-      )}
-      {deleting && (
-        <ConfirmDialog
-          title="Xóa học sinh"
-          message={`Trung tâm sẽ xóa học sinh ${deleting.full_name} khỏi danh sách. Lịch sử học và điểm danh vẫn được giữ, học sinh sẽ tự hiện lại khi được thêm vào một lớp (bật "Hiện cả học sinh đã ẩn" để xem lại). Nếu đây là con cuối cùng của phụ huynh, phụ huynh cũng sẽ được ẩn theo.`}
-          confirmLabel="Xóa học sinh"
-          busy={busy}
-          onConfirm={confirmDelete}
-          onCancel={() => setDeleting(null)}
-        />
+        <Suspense fallback={null}>
+          <ImportStudentsModal
+            onDone={(message) => {
+              setNotice({ type: 'success', text: message })
+              setImporting(false)
+              reload()
+            }}
+            onClose={() => setImporting(false)}
+          />
+        </Suspense>
       )}
     </PageShell>
   )

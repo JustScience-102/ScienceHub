@@ -2,6 +2,12 @@
 
 > ĐỌC FILE NÀY CÙNG `ARCHITECTURE.md` VÀ `ROADMAP.md` Ở ĐẦU MỖI PHIÊN CHAT.
 
+> **Đang chuyển sang V3 (nhánh `v3`, project Supabase mới — xem mục 0 của `ROADMAP.md`).** Trên nhánh `v3`, SQL nằm ở
+> `supabase/v3/` (00 -> 09, mỗi hàm định nghĩa một lần, chạy lại an toàn); bộ V2 ở `supabase/legacy/` chỉ để tra cứu.
+> Quy tắc V3 thay cho mục 3b bên dưới: `authenticated` chỉ có SELECT, mọi thao tác ghi (kể cả Quản lý) qua RPC;
+> quyền chỉ cấp ở `09_grants.sql` (hàm tên không bắt đầu bằng `_` mới mở cho `authenticated`); tên lớp do Database
+> sinh; sửa SQL phải chạy `npm test` trước khi bàn giao. Bản viết lại đầy đủ của file này làm ở bước V3-5.
+
 ## 1. Công nghệ & Kiến trúc
 - **Nền tảng:** Web App Responsive (hiển thị dạng Bảng trên máy tính `hidden md:block`, dạng Thẻ trên điện thoại `md:hidden`; nút cao tối thiểu 40-44px; Modal trượt từ đáy trên mobile).
 - **Stack kỹ thuật:** React (Vite) + Tailwind CSS (`@tailwindcss/vite`) + `@supabase/supabase-js` + `lucide-react`.

@@ -13,6 +13,7 @@ export default function FormField({
   placeholder,
   autoFocus = false,
   maxLength,
+  min,
 }) {
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined
 
@@ -32,6 +33,7 @@ export default function FormField({
         placeholder={placeholder}
         autoFocus={autoFocus}
         maxLength={maxLength}
+        min={min}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         className={`min-h-11 w-full rounded-lg border px-3 text-sm text-slate-800 outline-none transition-colors focus:ring-2 focus:ring-sky-200 disabled:bg-slate-100 disabled:text-slate-500 ${

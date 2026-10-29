@@ -11,14 +11,8 @@ import TeacherStatsBar from '../components/classes/TeacherStatsBar'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
 import { formatCurrency } from '../lib/format'
-import {
-  dayOfWeekFromISO,
-  formatSchedule,
-  groupSchedulesByClass,
-  todayISO,
-  weekdayLabel,
-} from '../lib/schedule'
-import { planTeacherChange } from '../lib/className'
+import { fetchAll } from '../lib/fetchAll'
+import { formatSchedule, groupSchedulesByClass, hasSessionOn, todayISO, weekdayLabel } from '../lib/schedule'
 import { classTitle, subjectColor } from '../lib/dashboard'
 import { CELL, CELL_CLICKABLE, CELL_MUTED, ROW, ROW_TABLE } from '../lib/rowTableStyle'
 import { compareVietnameseNames, normalizeText } from '../lib/text'
@@ -122,10 +116,10 @@ export default function ClassesPage({
 
     async function load() {
       const [classResult, teacherResult, enrollResult, scheduleResult] = await Promise.all([
-        supabase.from('classes').select('*'),
-        supabase.from('teachers').select('id, full_name, deleted_at'),
-        supabase.from('class_enrollments').select('class_id').eq('status', 'active'),
-        supabase.from('class_schedules').select('*'),
+        fetchAll(() => supabase.from('classes').select('*')),
+        fetchAll(() => supabase.from('teachers').select('id, full_name, deleted_at')),
+        fetchAll(() => supabase.from('class_enrollments').select('id, class_id').eq('status', 'active')),
+        fetchAll(() => supabase.from('class_schedules').select('*')),
       ])
       if (cancelled) return
 
@@ -159,17 +153,15 @@ export default function ClassesPage({
   const visibleTeachers = useMemo(() => teachers.filter((teacher) => !teacher.deleted_at), [teachers])
   const teacherName = (cls) => teacherById.get(cls.teacher_id)?.full_name ?? ''
 
-  // Bộ lọc theo ngày: chỉ giữ lớp có lịch học vào thứ của ngày được chọn (đọc class_schedules).
-  const filterDay = filterDate ? dayOfWeekFromISO(filterDate) : null
-  const hasClassOnFilterDay = (cls) =>
-    (schedules[cls.id] ?? []).some((row) => row.day_of_week === filterDay)
+  // Bộ lọc theo ngày: chỉ giữ lớp có buổi học vào ngày được chọn (lịch hiệu lực của chính ngày đó).
+  const hasClassOnFilterDay = (cls) => Boolean(filterDate) && hasSessionOn(schedules[cls.id] ?? [], filterDate)
   const dateFilterActive = filterByDate && Boolean(filterDate)
 
   const visibleClasses = useMemo(() => {
     const keyword = normalizeText(query)
     return classes
       .filter((cls) => showHidden || !cls.deleted_at)
-      .filter((cls) => !dateFilterActive || (schedules[cls.id] ?? []).some((row) => row.day_of_week === filterDay))
+      .filter((cls) => !dateFilterActive || hasSessionOn(schedules[cls.id] ?? [], filterDate))
       .filter((cls) => {
         if (!gradeFilter) return true
         const grade = classGrade(cls)
@@ -190,7 +182,7 @@ export default function ClassesPage({
     classes,
     showHidden,
     dateFilterActive,
-    filterDay,
+    filterDate,
     schedules,
     gradeFilter,
     subjectFilter,
@@ -240,28 +232,28 @@ export default function ClassesPage({
     )
   }
 
-  // Tên các lớp đang hiển thị khác lớp đang xét (để gợi ý STT và báo trùng tên)
-  const takenNamesFor = (cls) =>
-    classes.filter((item) => !item.deleted_at && item.id !== cls?.id).map((item) => item.name)
-
-  // Lưu lớp + lịch học trong một lần gọi. Trả về câu báo lỗi (nếu có) để form hiển thị.
+  // Lưu lớp + lịch học trong một lần gọi; tên lớp do Database đặt. Trả về câu báo lỗi (nếu có) để form hiển thị.
   async function handleSave(values) {
-    const { error } = await supabase.rpc('save_class', {
+    const { data, error } = await supabase.rpc('save_class', {
       p_class_id: editing.cls?.id ?? null,
-      p_name: values.name,
       p_subject: values.subject,
       p_grade: values.grade,
       p_class_no: values.classNo,
       p_teacher_id: values.teacherId,
       p_price: values.price,
       p_schedule: values.schedule,
-      p_restore: false,
+      p_schedule_from: values.scheduleFrom || null,
     })
     if (error) return toVietnameseError(error)
 
+    const mismatch = Number(data?.mismatched_sessions) || 0
     setNotice({
-      type: 'success',
-      text: `Trung tâm đã ${editing.mode === 'create' ? 'thêm' : 'cập nhật'} lớp ${values.name}.`,
+      type: mismatch > 0 ? 'info' : 'success',
+      text:
+        `Trung tâm đã ${editing.mode === 'create' ? 'thêm' : 'cập nhật'} lớp ${data?.name ?? ''}.` +
+        (mismatch > 0
+          ? ` Lưu ý: có ${mismatch} buổi đã điểm danh từ ngày áp dụng lịch mới không khớp lịch mới (dữ liệu cũ vẫn được giữ).`
+          : ''),
     })
     setEditing(null)
     reload()
@@ -283,13 +275,8 @@ export default function ClassesPage({
 
   async function confirmDelete() {
     setBusy(true)
-    // Giáo viên không có quyền UPDATE trực tiếp trên bảng classes: ẩn lớp qua RPC.
-    const { error } = isTeacher
-      ? await supabase.rpc('set_class_hidden', { p_class_id: deleting.id, p_hidden: true })
-      : await supabase
-          .from('classes')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', deleting.id)
+    // Mọi thao tác ghi đều qua RPC (Quản lý cũng không ghi thẳng bảng).
+    const { error } = await supabase.rpc('set_class_hidden', { p_class_id: deleting.id, p_hidden: true })
     setBusy(false)
 
     if (error) {
@@ -305,61 +292,34 @@ export default function ClassesPage({
   }
 
   // Khôi phục lớp:
-  //  - giáo viên cũ đang ẩn (hoặc chưa có): chỉ mở hộp thoại chọn giáo viên khác
-  //  - giáo viên còn hiển thị nhưng tên lớp bị lớp khác dùng: tự lấy STT kế tiếp còn trống
-  //  - còn lại: khôi phục ngay
+  //  - Quản lý, giáo viên cũ đang ẩn (hoặc không còn): mở hộp thoại chọn giáo viên khác
+  //  - còn lại: khôi phục ngay. Database giữ STT nếu còn trống, không thì lấy STT kế tiếp và đặt lại tên.
   async function handleRestore(cls) {
     setNotice(null)
     const teacher = teacherById.get(cls.teacher_id)
-    // Giáo viên không dùng hộp thoại đổi giáo viên: lớp của mình luôn giữ đúng giáo viên là mình.
     if (!isTeacher && (!teacher || teacher.deleted_at)) {
       setRestoring(cls)
       return
     }
-    if (!teacher) {
-      setNotice({ type: 'error', text: 'Trung tâm không tìm thấy hồ sơ giáo viên của bạn. Hãy liên hệ Quản lý.' })
-      return
-    }
-
-    const plan = planTeacherChange({
-      cls,
-      teacherName: teacher.full_name,
-      takenNames: takenNamesFor(cls),
-    })
-    const stillTaken = takenNamesFor(cls).some((name) => name.toLowerCase() === plan.name.toLowerCase())
-    if (stillTaken) {
-      setNotice({
-        type: 'error',
-        text: `Không thể khôi phục lớp ${cls.name}: tên lớp đã được lớp khác sử dụng. Hãy bấm Sửa lớp đang dùng tên này để đổi tên trước.`,
-      })
-      return
-    }
-
-    const message = await restoreClass(cls, cls.teacher_id, plan)
+    const message = await restoreClass(cls, null)
     if (message) setNotice({ type: 'error', text: message })
   }
 
-  // Khôi phục lớp với giáo viên và tên đã chốt. Trả về câu báo lỗi hoặc ''.
-  async function restoreClass(cls, restoreTeacherId, plan) {
-    const { error } = isTeacher
-      ? await supabase.rpc('set_class_hidden', {
-          p_class_id: cls.id,
-          p_hidden: false,
-          p_new_name: plan.name,
-          p_new_class_no: plan.classNo,
-        })
-      : await supabase
-          .from('classes')
-          .update({ deleted_at: null, teacher_id: restoreTeacherId, name: plan.name, class_no: plan.classNo })
-          .eq('id', cls.id)
+  // Khôi phục lớp (đổi giáo viên nếu có chọn). Trả về câu báo lỗi hoặc ''.
+  async function restoreClass(cls, newTeacherId) {
+    const { data, error } = await supabase.rpc('set_class_hidden', {
+      p_class_id: cls.id,
+      p_hidden: false,
+      p_teacher_id: newTeacherId,
+    })
     if (error) return toVietnameseError(error)
 
     setNotice({
       type: 'success',
       text:
-        plan.name !== cls.name
-          ? `Trung tâm đã khôi phục lớp, tên lớp mới là ${plan.name}.`
-          : `Trung tâm đã khôi phục lớp ${plan.name}.`,
+        data?.name && data.name !== cls.name
+          ? `Trung tâm đã khôi phục lớp, tên lớp mới là ${data.name}.`
+          : `Trung tâm đã khôi phục lớp ${cls.name}.`,
     })
     setRestoring(null)
     reload()
@@ -650,7 +610,6 @@ export default function ClassesPage({
           scheduleRows={editing.cls ? schedules[editing.cls.id] : []}
           teachers={visibleTeachers}
           lockedTeacherId={isTeacher ? teacherId : null}
-          takenNames={takenNamesFor(editing.cls)}
           onSave={handleSave}
           onClose={() => setEditing(null)}
         />
@@ -660,8 +619,7 @@ export default function ClassesPage({
           cls={restoring}
           oldTeacherName={teacherName(restoring)}
           teachers={visibleTeachers}
-          takenNames={takenNamesFor(restoring)}
-          onConfirm={(chosenTeacherId, plan) => restoreClass(restoring, chosenTeacherId, plan)}
+          onConfirm={(chosenTeacherId) => restoreClass(restoring, chosenTeacherId)}
           onClose={() => setRestoring(null)}
         />
       )}

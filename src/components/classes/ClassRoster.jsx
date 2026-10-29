@@ -13,6 +13,13 @@ import { formatCurrency, formatDate } from '../../lib/format'
 import { compareVietnameseNames } from '../../lib/text'
 import { classTitle } from '../../lib/dashboard'
 
+// Nhãn ghi danh đã kết thúc theo lý do nghỉ (left_reason).
+function leftLabel(row) {
+  if (row.left_reason === 'transferred') return `Đã đổi lớp từ ${formatDate(row.left_at)}`
+  if (row.left_reason === 'graduated') return `Hoàn thành lớp cuối cấp ${formatDate(row.left_at)}`
+  return `Đã nghỉ ${formatDate(row.left_at)}`
+}
+
 // Màn hình chi tiết lớp: danh sách học sinh, thêm học sinh, cho nghỉ.
 // Có tab "Điểm danh". initialTab / initialDate cho phép mở thẳng tab điểm danh
 // (dùng cho lối tắt từ Dashboard).
@@ -42,7 +49,7 @@ export default function ClassRoster({
     async function load() {
       const { data, error } = await supabase
         .from('class_enrollments')
-        .select('id, student_id, status, joined_at, left_at, students(id, student_code, full_name)')
+        .select('id, student_id, status, joined_at, left_at, left_reason, students(id, student_code, full_name)')
         .eq('class_id', cls.id)
       if (cancelled) return
       if (error) {
@@ -174,7 +181,7 @@ export default function ClassRoster({
                     <td className="px-3 py-3">
                       {dropped ? (
                         <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          Đã nghỉ {formatDate(row.left_at)}
+                          {leftLabel(row)}
                         </span>
                       ) : (
                         <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -221,7 +228,7 @@ export default function ClassRoster({
                   </div>
                   {dropped ? (
                     <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
-                      Đã nghỉ {formatDate(row.left_at)}
+                      {leftLabel(row)}
                     </span>
                   ) : (
                     <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">

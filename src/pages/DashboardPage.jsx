@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import {
   Banknote,
   CalendarDays,
@@ -7,6 +7,7 @@ import {
   DatabaseBackup,
   GraduationCap,
   History,
+  Lock,
   School,
   UserMinus,
   UserPlus,
@@ -17,13 +18,15 @@ import Notice from '../components/Notice'
 import FormField from '../components/FormField'
 import StatCard from '../components/dashboard/StatCard'
 import TodaySchedule from '../components/dashboard/TodaySchedule'
-import AuditLogModal from '../components/audit/AuditLogModal'
-import BackupModal from '../components/backup/BackupModal'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { formatCurrency, formatDate } from '../lib/format'
 import { addDaysISO, todayISO, weekdayLabel } from '../lib/schedule'
 import { monthLabel, monthOf, sameMonth, shiftMonth } from '../lib/tuition'
 import { dashboardError, parseSummary } from '../lib/dashboard'
+
+// Hai hộp thoại lớn chỉ tải khi mở (giảm dung lượng tải trang lần đầu).
+const AuditLogModal = lazy(() => import('../components/audit/AuditLogModal'))
+const BackupModal = lazy(() => import('../components/backup/BackupModal'))
 
 const NAV_BTN =
   'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
@@ -213,7 +216,11 @@ export default function DashboardPage({ onOpenAttendance }) {
                   icon={UserMinus}
                   label="Học sinh xin nghỉ"
                   value={summary.droppedStudents}
-                  hint="Nghỉ hẳn trong tháng"
+                  hint={
+                    summary.graduatedStudents > 0
+                      ? `Nghỉ hẳn trong tháng · không tính ${summary.graduatedStudents} em hoàn thành lớp cuối cấp`
+                      : 'Nghỉ hẳn trong tháng'
+                  }
                   tone="amber"
                 />
                 <StatCard
@@ -229,6 +236,12 @@ export default function DashboardPage({ onOpenAttendance }) {
                   wide
                 />
               </div>
+              {summary.monthClosed && (
+                <p className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                  <Lock size={14} aria-hidden="true" />
+                  {monthLabel(month)} đã chốt sổ: số liệu điểm danh và doanh thu của tháng này không còn thay đổi.
+                </p>
+              )}
               <p className="text-xs text-slate-500">
                 Doanh thu cộng giá đã lưu của các buổi Có mặt và Vắng đã điểm danh. Vắng có phép không tính tiền. Đổi
                 đơn giá lớp sau này không làm đổi doanh thu các buổi đã điểm danh.
@@ -298,8 +311,19 @@ export default function DashboardPage({ onOpenAttendance }) {
         )}
       </section>
 
-      {auditOpen && <AuditLogModal onClose={() => setAuditOpen(false)} />}
-      {backupOpen && <BackupModal onClose={() => setBackupOpen(false)} />}
+      <Suspense fallback={null}>
+        {auditOpen && <AuditLogModal onClose={() => setAuditOpen(false)} />}
+        {backupOpen && (
+          <BackupModal
+            onClose={() => {
+              setBackupOpen(false)
+              // Khóa/mở sổ hay khôi phục có thể làm đổi số liệu: tải lại thống kê tháng đang xem.
+              setSummaryState((prev) => ({ ...prev, key: '' }))
+              setMonth((value) => ({ ...value }))
+            }}
+          />
+        )}
+      </Suspense>
     </PageShell>
   )
 }

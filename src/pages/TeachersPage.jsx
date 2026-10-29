@@ -11,6 +11,7 @@ import TeacherProfile from '../components/teachers/TeacherProfile'
 import AccountBadge from '../components/teachers/AccountBadge'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
+import { fetchAll } from '../lib/fetchAll'
 import { compareVietnameseNames, normalizeText } from '../lib/text'
 import {
   normalizePhone,
@@ -126,9 +127,11 @@ export default function TeachersPage() {
 
     async function load() {
       const [teacherResult, classResult, profileResult] = await Promise.all([
-        supabase.from('teachers').select('*'),
-        supabase.from('classes').select('teacher_id').is('deleted_at', null),
-        supabase.from('profiles').select('teacher_id, active').eq('role', 'teacher'),
+        fetchAll(() => supabase.from('teachers').select('*')),
+        fetchAll(() => supabase.from('classes').select('id, teacher_id').is('deleted_at', null)),
+        fetchAll(() => supabase.from('profiles').select('user_id, teacher_id, active').eq('role', 'teacher'), {
+          orderBy: 'user_id',
+        }),
       ])
       if (cancelled) return
 
@@ -172,12 +175,15 @@ export default function TeachersPage() {
 
   const hiddenCount = teachers.filter((teacher) => teacher.deleted_at).length
 
-  // Lưu giáo viên. Trả về câu báo lỗi (nếu có) để form hiển thị.
+  // Lưu giáo viên qua RPC save_teacher (không ghi thẳng bảng). Trả về câu báo lỗi (nếu có) để form hiển thị.
+  // Đổi họ tên giáo viên thì Database tự đặt lại tên các lớp của giáo viên đó.
   async function handleSave(values) {
-    const queryBuilder = editing?.id
-      ? supabase.from('teachers').update(values).eq('id', editing.id)
-      : supabase.from('teachers').insert(values)
-    const { error } = await queryBuilder
+    const { error } = await supabase.rpc('save_teacher', {
+      p_teacher_id: editing?.id ?? null,
+      p_full_name: values.full_name,
+      p_phone: values.phone,
+      p_email: values.email,
+    })
     if (error) return toVietnameseError(error)
 
     setNotice({
@@ -206,10 +212,7 @@ export default function TeachersPage() {
 
   async function confirmDelete() {
     setBusy(true)
-    const { error } = await supabase
-      .from('teachers')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', deleting.id)
+    const { error } = await supabase.rpc('set_teacher_hidden', { p_teacher_id: deleting.id, p_hidden: true })
     setBusy(false)
 
     if (error) {
@@ -227,10 +230,7 @@ export default function TeachersPage() {
   async function handleRestore(teacher) {
     if (busy) return
     setBusy(true)
-    const { error } = await supabase
-      .from('teachers')
-      .update({ deleted_at: null })
-      .eq('id', teacher.id)
+    const { error } = await supabase.rpc('set_teacher_hidden', { p_teacher_id: teacher.id, p_hidden: false })
     setBusy(false)
 
     if (error) {

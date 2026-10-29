@@ -1,6 +1,7 @@
-// Lịch sử nhãn lớp (tên, môn, khối, STT, giáo viên) theo thời kỳ: bảng class_versions của 09_v2_6_year_rollover.sql.
-// Mỗi dòng là một thời kỳ ĐÃ ĐÓNG [valid_from, valid_to] (ngày YYYY-MM-DD). Ngày không nằm trong dòng nào
-// thì lớp dùng nhãn hiện tại. Điểm danh, giá đóng băng và học phí không phụ thuộc bảng này.
+// Lịch sử nhãn lớp (tên, môn, khối, STT, giáo viên) theo thời kỳ: view class_versions_labeled (supabase/v3/03_naming.sql).
+// Mỗi dòng là một thời kỳ ĐÃ ĐÓNG [valid_from, valid_to] (ngày YYYY-MM-DD). Tên lớp và tên giáo viên được
+// Database tính lại theo dữ liệu hiện tại (sửa họ tên giáo viên thì lịch sử đổi theo).
+// Ngày không nằm trong dòng nào thì lớp dùng nhãn hiện tại. Điểm danh, giá đóng băng và học phí không phụ thuộc bảng này.
 import { supabase } from './supabaseClient'
 
 // Tải các thời kỳ của những lớp được liệt kê (RLS: Quản lý thấy tất cả, Giáo viên chỉ lớp của mình).
@@ -8,7 +9,7 @@ export async function fetchClassVersions(classIds) {
   const ids = [...new Set((classIds ?? []).filter(Boolean))]
   if (ids.length === 0) return []
   const { data, error } = await supabase
-    .from('class_versions')
+    .from('class_versions_labeled')
     .select('class_id, name, subject, grade, class_no, teacher_name, valid_from, valid_to')
     .in('class_id', ids)
   if (error) throw error

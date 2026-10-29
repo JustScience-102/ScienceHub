@@ -8,11 +8,11 @@ export const ACTION_GROUP_OPTIONS = [
   { value: '', label: 'Tất cả thao tác' },
   { value: 'attendance', label: 'Điểm danh (Có mặt / Vắng / Xóa)' },
   { value: 'makeup', label: 'Học bù' },
-  { value: 'enrollment', label: 'Ghi danh · Cho nghỉ · Đổi lớp' },
+  { value: 'enrollment', label: 'Ghi danh · Cho nghỉ · Đổi lớp · Hoàn thành cuối cấp' },
   { value: 'class', label: 'Lớp học (Tạo / Sửa / Ẩn / Lịch học)' },
   { value: 'student', label: 'Học sinh & Phụ huynh' },
   { value: 'teacher', label: 'Giáo viên & Tài khoản đăng nhập' },
-  { value: 'system', label: 'Sao lưu & Làm mới nhật ký' },
+  { value: 'system', label: 'Hệ thống (Sao lưu · Khóa sổ · Năm học · Khôi phục)' },
 ]
 
 export const ACTION_META = {
@@ -20,9 +20,11 @@ export const ACTION_META = {
   attendance_update: { label: 'Sửa điểm danh', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   attendance_delete: { label: 'Xóa điểm danh', badge: 'bg-red-50 text-red-700 border-red-200' },
   makeup_record: { label: 'Học bù', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  makeup_cancel: { label: 'Hủy học bù', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
   enrollment_create: { label: 'Ghi danh', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   enrollment_drop: { label: 'Cho nghỉ học', badge: 'bg-red-50 text-red-700 border-red-200' },
   enrollment_transfer: { label: 'Đổi lớp', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+  enrollment_graduate: { label: 'Hoàn thành cuối cấp', badge: 'bg-sky-50 text-sky-700 border-sky-200' },
   class_create: { label: 'Tạo lớp học', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   class_update: { label: 'Sửa lớp học', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   class_hide: { label: 'Ẩn lớp học', badge: 'bg-slate-100 text-slate-700 border-slate-300' },
@@ -45,6 +47,8 @@ export const ACTION_META = {
   audit_log_clear: { label: 'Làm mới nhật ký', badge: 'bg-slate-100 text-slate-800 border-slate-300' },
   school_year_rollover: { label: 'Chuyển năm học', badge: 'bg-sky-50 text-sky-700 border-sky-200' },
   center_restore: { label: 'Khôi phục từ sao lưu', badge: 'bg-red-50 text-red-700 border-red-200' },
+  month_close: { label: 'Chốt sổ tháng', badge: 'bg-slate-100 text-slate-800 border-slate-300' },
+  month_reopen: { label: 'Mở lại sổ tháng', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
 }
 
 export const ACTOR_ROLE_LABELS = {

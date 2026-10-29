@@ -1,5 +1,5 @@
 // Hàm thuần phục vụ Dashboard. Mọi con số được Database tính sẵn
-// (dashboard_summary, dashboard_schedule trong supabase/03_rpc_and_auth.sql).
+// (dashboard_summary, dashboard_schedule trong supabase/v3/05_rpc_core.sql).
 // Doanh thu chỉ cộng attendance_records.price_snapshot, không đọc classes.price_per_session.
 
 import { toVietnameseError } from './errors'
@@ -16,8 +16,10 @@ export function parseSummary(raw) {
     studentCount: Number(data.student_count) || 0,
     newStudents: Number(data.new_students) || 0,
     droppedStudents: Number(data.dropped_students) || 0,
+    graduatedStudents: Number(data.graduated_students) || 0,
     revenue: Number(data.revenue) || 0,
     chargedSessions: Number(data.charged_sessions) || 0,
+    monthClosed: Boolean(data.month_closed),
   }
 }
 
@@ -67,14 +69,7 @@ export function classTitle(cls) {
   return [cls.subject, cls.grade, group && `Nhóm ${group}`].filter(Boolean).join(' ')
 }
 
-// Báo lỗi Dashboard. Thiếu hàm thì chỉ rõ file cần chạy; lỗi khác dùng errors.js.
+// Báo lỗi Dashboard (dùng errors.js).
 export function dashboardError(error) {
-  if (!error) return ''
-  const text = `${error.message ?? ''} ${error.details ?? ''}`
-  const missingFunction =
-    error.code === 'PGRST202' || error.code === '42883' || /Could not find the function/i.test(text)
-  if (missingFunction && /dashboard_summary|dashboard_schedule|student_presence_spans/.test(text)) {
-    return 'Database chưa được cập nhật đầy đủ. Hãy chạy lần lượt 01_schema.sql, 02_triggers.sql và 03_rpc_and_auth.sql trong Supabase SQL Editor.'
-  }
   return toVietnameseError(error)
 }

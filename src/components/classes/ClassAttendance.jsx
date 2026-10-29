@@ -4,26 +4,24 @@ import {
   CheckCheck,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Lock,
   Mic,
   Moon,
   Repeat,
   Square,
   Trash2,
+  Undo2,
   Users,
 } from 'lucide-react'
+import ConfirmDialog from '../ConfirmDialog'
 import EmptyState from '../EmptyState'
 import Notice from '../Notice'
 import MakeupModal from './MakeupModal'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
-import {
-  dayOfWeekFromISO,
-  findScheduledDate,
-  latestScheduledDate,
-  todayISO,
-  weekdayLabel,
-} from '../../lib/schedule'
+import { findSessionDate, hasSessionOn, latestSessionDate, todayISO, weekdayLabel } from '../../lib/schedule'
 import { compareVietnameseNames } from '../../lib/text'
 import { getSpeechRecognition, matchSpokenNames } from '../../lib/voice'
 import { classTitle } from '../../lib/dashboard'
@@ -61,32 +59,84 @@ const VOICE_ERRORS = {
   'network': 'Không kết nối được dịch vụ nhận dạng giọng nói. Hãy kiểm tra mạng rồi thử lại.',
 }
 
+// Cập nhật danh sách bản ghi ngay trên giao diện theo đúng quy tắc đóng băng giá của save_attendance:
+// - status === null: xóa bản ghi
+// - status === 'absent_excused': price_snapshot = null
+// - đổi present <-> absent khi đã có price_snapshot: giữ nguyên giá cũ
+// - chấm mới hoặc từ absent_excused sang tính tiền: lấy giá hiện tại của lớp
+// Máy chủ vẫn là nguồn đúng: khi hàng đợi lưu xong, danh sách được thay bằng dòng máy chủ trả về.
+function applyOptimistic(records, items, rowByEnrollment, cls) {
+  const itemByEnrollment = new Map(items.map((item) => [item.enrollment_id, item.status]))
+  const next = []
+  const handled = new Set()
+  for (const rec of records) {
+    if (!itemByEnrollment.has(rec.enrollment_id)) {
+      next.push(rec)
+      continue
+    }
+    handled.add(rec.enrollment_id)
+    const status = itemByEnrollment.get(rec.enrollment_id)
+    if (status === null) continue
+    const price = status === 'absent_excused' ? null : (rec.price_snapshot ?? Number(cls.price_per_session ?? 0))
+    next.push({ ...rec, status, price_snapshot: price })
+  }
+  for (const [enrollmentId, status] of itemByEnrollment.entries()) {
+    if (handled.has(enrollmentId) || status === null) continue
+    const row = rowByEnrollment.get(enrollmentId)
+    if (!row) continue
+    next.push({
+      id: `temp-${enrollmentId}`,
+      enrollment_id: enrollmentId,
+      student_id: row.studentId,
+      status,
+      price_snapshot: status === 'absent_excused' ? null : Number(cls.price_per_session ?? 0),
+      makeup_of_date: null,
+      students: { full_name: row.name, student_code: row.code },
+      class_enrollments: { class_id: cls.id, classes: { name: cls.name } },
+    })
+  }
+  return next
+}
+
+// Dòng máy chủ trả về (không kèm tên) + phần tên/lớp đã có trên giao diện.
+function mergeServerRows(serverRows, previous) {
+  const byStudent = new Map(previous.map((rec) => [rec.student_id, rec]))
+  return (serverRows ?? []).map((row) => ({ ...byStudent.get(row.student_id), ...row }))
+}
+
 // Điểm danh theo buổi của một lớp: chọn ngày có lịch học, đánh dấu từng học sinh,
 // điểm danh hàng loạt, điểm danh bằng giọng nói và học bù.
+// Mỗi lần bấm hiện ngay trên giao diện và được gửi lên máy chủ theo hàng đợi tuần tự (bấm liên tục được,
+// thứ tự lưu đúng thứ tự bấm). Lịch học kiểm theo thời kỳ hiệu lực của ngày đang chọn.
 export default function ClassAttendance({ cls, initialDate, isTeacher = false }) {
   const today = todayISO()
   const currentMonthPrefix = today.slice(0, 7)
   const [date, setDate] = useState(initialDate || today)
-  const [metaState, setMetaState] = useState({ classId: '', days: [], enrollments: [], error: '' })
-  const [recordState, setRecordState] = useState({ key: '', records: [], error: '' })
+  const [metaState, setMetaState] = useState({ classId: '', schedules: [], enrollments: [], error: '' })
+  const [recordState, setRecordState] = useState({ key: '', records: [], makeups: [], closed: false, error: '' })
   const [reloadKey, setReloadKey] = useState(0)
   const [notice, setNotice] = useState(null)
-  const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState(0)
   const [makeup, setMakeup] = useState(false)
+  const [cancelling, setCancelling] = useState(null) // { id, label } buổi học bù chờ xác nhận hủy
+  const [cancelBusy, setCancelBusy] = useState(false)
   const [listening, setListening] = useState(false)
   const [heard, setHeard] = useState('')
   const [voiceError, setVoiceError] = useState('')
   const recognitionRef = useRef(null)
+  const queueRef = useRef(Promise.resolve())
+  const pendingRef = useRef(0)
+  const failedRef = useRef(false)
   const voiceSupported = Boolean(getSpeechRecognition())
 
   const recordKey = `${cls.id}|${date}`
 
-  // Lịch học và danh sách ghi danh của lớp: chỉ tải theo cls.id (không tải lại khi chỉ đổi ngày).
+  // Lịch học (mọi thời kỳ) và danh sách ghi danh của lớp: chỉ tải theo cls.id.
   useEffect(() => {
     let cancelled = false
     async function loadMeta() {
       const [scheduleResult, enrollResult] = await Promise.all([
-        supabase.from('class_schedules').select('day_of_week').eq('class_id', cls.id),
+        supabase.from('class_schedules').select('day_of_week, valid_from, valid_to').eq('class_id', cls.id),
         supabase
           .from('class_enrollments')
           .select('id, student_id, status, joined_at, left_at, students(id, student_code, full_name)')
@@ -96,7 +146,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       const error = scheduleResult.error || enrollResult.error
       setMetaState({
         classId: cls.id,
-        days: error ? [] : scheduleResult.data.map((row) => row.day_of_week),
+        schedules: error ? [] : scheduleResult.data,
         enrollments: error ? [] : enrollResult.data,
         error: error ? toVietnameseError(error) : '',
       })
@@ -107,21 +157,32 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
     }
   }, [cls.id])
 
-  // Bản ghi điểm danh của buổi đang chọn.
+  // Bản ghi điểm danh của buổi đang chọn, các buổi học bù cho buổi này (ở lớp khác) và tình trạng khóa sổ.
   useEffect(() => {
     let cancelled = false
     async function loadRecords() {
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select(
-          'id, enrollment_id, student_id, status, price_snapshot, students(full_name, student_code), class_enrollments(class_id, classes(name, subject, grade, class_no))',
-        )
-        .eq('class_id', cls.id)
-        .eq('attendance_date', date)
+      const [recordResult, makeupResult, closedResult] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select(
+            'id, enrollment_id, student_id, status, price_snapshot, makeup_of_date, students(full_name, student_code), class_enrollments(class_id, classes(name, subject, grade, class_no))',
+          )
+          .eq('class_id', cls.id)
+          .eq('attendance_date', date),
+        supabase
+          .from('attendance_records')
+          .select('id, enrollment_id, attendance_date, classes(name, subject, grade, class_no), class_enrollments!inner(class_id)')
+          .eq('makeup_of_date', date)
+          .eq('class_enrollments.class_id', cls.id),
+        supabase.from('month_closures').select('month_start').eq('month_start', `${date.slice(0, 7)}-01`),
+      ])
       if (cancelled) return
+      const error = recordResult.error || makeupResult.error || closedResult.error
       setRecordState({
         key: recordKey,
-        records: error ? [] : data,
+        records: error ? [] : recordResult.data,
+        makeups: error ? [] : makeupResult.data,
+        closed: !error && closedResult.data.length > 0,
         error: error ? toVietnameseError(error) : '',
       })
     }
@@ -144,16 +205,20 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
   const ready = !loading && !errorText
 
   const isFuture = date > today
-  const isScheduled = ready && metaState.days.includes(dayOfWeekFromISO(date))
+  const isScheduled = ready && hasSessionOn(metaState.schedules, date)
   const editable = isScheduled && !isFuture
-  // Giáo viên: tháng đã chốt chỉ được xem, mọi nút ghi bị khóa (Database cũng chặn).
-  const monthLocked = isTeacher && date.slice(0, 7) < currentMonthPrefix
+  // Tháng đã khóa sổ: không ai sửa (Database cũng chặn). Giáo viên: tháng trước chỉ được xem.
+  const monthClosed = ready && recordState.closed
+  const teacherLocked = isTeacher && date.slice(0, 7) < currentMonthPrefix
+  const monthLocked = monthClosed || teacherLocked
 
   // Danh sách dòng điểm danh: học sinh của lớp có mặt trong khoảng thời gian học của ngày được chọn,
   // cộng thêm các học sinh học bù (bản ghi thuộc lớp này nhưng ghi danh ở lớp khác).
+  // madeUp: buổi học bù (ở lớp khác) đã bù cho buổi này của học sinh.
   const rows = useMemo(() => {
     if (!ready) return []
     const recordByStudent = new Map(recordState.records.map((record) => [record.student_id, record]))
+    const makeupByEnrollment = new Map(recordState.makeups.map((item) => [item.enrollment_id, item]))
     const list = []
     const seen = new Set()
 
@@ -170,6 +235,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
         code: enrollment.students?.student_code ?? '',
         record: recordByStudent.get(enrollment.student_id) ?? null,
         makeupFrom: '',
+        madeUp: makeupByEnrollment.get(enrollment.id) ?? null,
       })
     }
 
@@ -184,12 +250,17 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
         name: record.students?.full_name ?? '',
         code: record.students?.student_code ?? '',
         record,
-        makeupFrom: fromOtherClass ? (record.class_enrollments?.classes ? classTitle(record.class_enrollments.classes) : 'lớp khác') : '',
+        makeupFrom: fromOtherClass
+          ? record.class_enrollments?.classes
+            ? classTitle(record.class_enrollments.classes)
+            : 'lớp khác'
+          : '',
+        madeUp: null,
       })
     }
 
     return list.sort((a, b) => compareVietnameseNames(a.name, b.name))
-  }, [ready, metaState.enrollments, recordState.records, date, cls.id])
+  }, [ready, metaState.enrollments, recordState.records, recordState.makeups, date, cls.id])
 
   const summary = useMemo(() => {
     const result = { present: 0, absent: 0, absent_excused: 0, unmarked: 0, money: 0 }
@@ -212,84 +283,49 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
     setDate(next)
   }
 
-  const days = metaState.classId === cls.id ? metaState.days : []
-  const previousDate = days.length > 0 ? findScheduledDate(days, date, -1) : null
-  const nextDate = days.length > 0 ? findScheduledDate(days, date, 1, today) : null
-  const latestDate = days.length > 0 ? latestScheduledDate(days, today) : null
+  const schedules = metaState.classId === cls.id ? metaState.schedules : []
+  const previousDate = findSessionDate(schedules, date, -1)
+  const nextDate = findSessionDate(schedules, date, 1, today)
+  const latestDate = schedules.length > 0 ? latestSessionDate(schedules, today) : null
 
-  // ---- Lưu điểm danh (Optimistic UI) ----
-  async function saveItems(items, successText) {
-    const previousRecords = recordState.records
-    const itemByEnrollment = new Map(items.map((item) => [item.enrollment_id, item.status]))
+  // ---- Lưu điểm danh: hiển thị ngay, gửi lên máy chủ theo hàng đợi tuần tự ----
+  function saveItems(items, successText) {
     const rowByEnrollment = new Map(rows.map((row) => [row.enrollmentId, row]))
-
-    // Cập nhật ngay trên giao diện theo đúng quy tắc đóng băng giá của save_attendance:
-    // - status === null: xóa bản ghi
-    // - status === 'absent_excused': price_snapshot = null
-    // - đổi present <-> absent khi đã có price_snapshot: giữ nguyên price_snapshot cũ
-    // - chấm mới hoặc từ absent_excused sang tính tiền: lấy cls.price_per_session
-    const nextRecords = []
-    const handledEnrollments = new Set()
-
-    for (const rec of previousRecords) {
-      if (!itemByEnrollment.has(rec.enrollment_id)) {
-        nextRecords.push(rec)
-        continue
-      }
-      handledEnrollments.add(rec.enrollment_id)
-      const nextStatus = itemByEnrollment.get(rec.enrollment_id)
-      if (nextStatus === null) continue
-      const nextPrice =
-        nextStatus === 'absent_excused'
-          ? null
-          : rec.price_snapshot ?? Number(cls.price_per_session ?? 0)
-      nextRecords.push({
-        ...rec,
-        status: nextStatus,
-        price_snapshot: nextPrice,
-      })
-    }
-
-    for (const [enrollmentId, nextStatus] of itemByEnrollment.entries()) {
-      if (handledEnrollments.has(enrollmentId) || nextStatus === null) continue
-      const row = rowByEnrollment.get(enrollmentId)
-      if (!row) continue
-      nextRecords.push({
-        id: `temp-${enrollmentId}`,
-        enrollment_id: enrollmentId,
-        student_id: row.studentId,
-        status: nextStatus,
-        price_snapshot: nextStatus === 'absent_excused' ? null : Number(cls.price_per_session ?? 0),
-        students: { full_name: row.name, student_code: row.code },
-        class_enrollments: { class_id: cls.id, classes: { name: cls.name } },
-      })
-    }
-
-    setRecordState((prev) => ({ ...prev, records: nextRecords }))
-    setBusy(true)
+    const key = recordKey
+    const saveDate = date
+    setRecordState((prev) =>
+      prev.key === key ? { ...prev, records: applyOptimistic(prev.records, items, rowByEnrollment, cls) } : prev,
+    )
     setNotice(null)
+    pendingRef.current += 1
+    setPending(pendingRef.current)
 
-    const { error } = await supabase.rpc('save_attendance', {
-      p_class_id: cls.id,
-      p_date: date,
-      p_items: items,
+    queueRef.current = queueRef.current.then(async () => {
+      const { data, error } = await supabase.rpc('save_attendance', {
+        p_class_id: cls.id,
+        p_date: saveDate,
+        p_items: items,
+      })
+      pendingRef.current -= 1
+      setPending(pendingRef.current)
+      if (error) {
+        failedRef.current = true
+        setNotice({ type: 'error', text: toVietnameseError(error) })
+      } else if (successText) {
+        setNotice({ type: 'success', text: successText })
+      }
+      if (pendingRef.current > 0) return
+      if (failedRef.current) {
+        failedRef.current = false
+        reloadRecords()
+      } else {
+        setRecordState((prev) => (prev.key === key ? { ...prev, records: mergeServerRows(data, prev.records) } : prev))
+      }
     })
-    setBusy(false)
-
-    if (error) {
-      setRecordState((prev) => ({ ...prev, records: previousRecords }))
-      setNotice({ type: 'error', text: toVietnameseError(error) })
-      reloadRecords()
-      return
-    }
-
-    if (successText) {
-      setNotice({ type: 'success', text: successText })
-    }
+    return queueRef.current
   }
 
-  const setStatus = (row, status) =>
-    saveItems([{ enrollment_id: row.enrollmentId, status }])
+  const setStatus = (row, status) => saveItems([{ enrollment_id: row.enrollmentId, status }])
 
   const clearStatus = (row) => saveItems([{ enrollment_id: row.enrollmentId, status: null }])
 
@@ -302,6 +338,23 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       return
     }
     saveItems(items, successText(items.length))
+  }
+
+  // ---- Hủy học bù ----
+  async function confirmCancelMakeup() {
+    setCancelBusy(true)
+    const { error } = await supabase.rpc('cancel_makeup', { p_record_id: cancelling.id })
+    setCancelBusy(false)
+    if (error) {
+      setNotice({ type: 'error', text: toVietnameseError(error) })
+    } else {
+      setNotice({
+        type: 'success',
+        text: `Trung tâm đã hủy học bù ${cancelling.label}. Buổi gốc đã trở lại như trước khi bù.`,
+      })
+      reloadRecords()
+    }
+    setCancelling(null)
   }
 
   // ---- Giọng nói ----
@@ -483,6 +536,13 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                   {row.makeupFrom && (
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
                       Học bù từ lớp {row.makeupFrom}
+                      {row.record?.makeup_of_date && ` (bù buổi ${formatDate(row.record.makeup_of_date)})`}
+                    </span>
+                  )}
+                  {row.madeUp && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                      Đã học bù ngày {formatDate(row.madeUp.attendance_date)}
+                      {row.madeUp.classes ? ` tại lớp ${classTitle(row.madeUp.classes)}` : ''}
                     </span>
                   )}
                 </p>
@@ -494,37 +554,63 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
                   {row.record?.status === 'absent_excused' && ' · Không tính tiền'}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {STATUSES.map((status) => {
-                  const active = row.record?.status === status.value
-                  return (
+              {row.record?.makeup_of_date || row.madeUp ? (
+                // Buổi học bù và buổi gốc đã được bù chỉ thay đổi bằng "Hủy học bù" (trả buổi gốc về như cũ).
+                <div className="flex flex-wrap items-center gap-2">
+                  {row.record && (
+                    <span className="text-sm text-slate-500">
+                      {STATUSES.find((status) => status.value === row.record.status)?.label}
+                    </span>
+                  )}
+                  {!monthLocked && (
                     <button
-                      key={status.value}
                       type="button"
-                      onClick={() => setStatus(row, status.value)}
-                      disabled={busy || active || monthLocked}
-                      aria-pressed={active}
-                      aria-label={`${status.label}: ${row.name}`}
-                      className={`${BTN} ${active ? status.on : status.off}`}
+                      onClick={() =>
+                        setCancelling({
+                          id: row.madeUp ? row.madeUp.id : row.record.id,
+                          label: `của ${row.name}`,
+                        })
+                      }
+                      className={`${BTN} bg-amber-50 text-amber-700 hover:bg-amber-100`}
                     >
-                      {active && <Check size={16} aria-hidden="true" />}
-                      {status.label}
+                      <Undo2 size={16} aria-hidden="true" />
+                      Hủy học bù
                     </button>
-                  )
-                })}
-                {row.record && (
-                  <button
-                    type="button"
-                    onClick={() => clearStatus(row)}
-                    disabled={busy || monthLocked}
-                    aria-label={`Xóa điểm danh của ${row.name}`}
-                    className={`${BTN} bg-slate-100 text-slate-600 hover:bg-slate-200`}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                    <span className="md:sr-only">Xóa</span>
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  {STATUSES.map((status) => {
+                    const active = row.record?.status === status.value
+                    return (
+                      <button
+                        key={status.value}
+                        type="button"
+                        onClick={() => setStatus(row, status.value)}
+                        disabled={active || monthLocked}
+                        aria-pressed={active}
+                        aria-label={`${status.label}: ${row.name}`}
+                        className={`${BTN} ${active ? status.on : status.off}`}
+                      >
+                        {active && <Check size={16} aria-hidden="true" />}
+                        {status.label}
+                      </button>
+                    )
+                  })}
+                  {row.record && (
+                    <button
+                      type="button"
+                      onClick={() => clearStatus(row)}
+                      disabled={monthLocked}
+                      aria-label={`Xóa điểm danh của ${row.name}`}
+                      className={`${BTN} bg-slate-100 text-slate-600 hover:bg-slate-200`}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      <span className="md:sr-only">Xóa</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           )
         })}
@@ -532,7 +618,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
     )
   }
 
-  // Tháng đã chốt (Giáo viên): ẩn toàn bộ công cụ hàng loạt, điểm danh giọng nói và nút Học bù.
+  // Tháng đã khóa (khóa sổ, hoặc tháng trước với Giáo viên): ẩn công cụ hàng loạt, giọng nói và nút Học bù.
   const tools =
     editable && ready && !monthLocked ? (
       <div className="flex flex-wrap gap-2">
@@ -544,7 +630,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
               (count) => `Trung tâm đã đánh dấu Có mặt cho ${count} học sinh chưa điểm danh.`,
             )
           }
-          disabled={busy || listening}
+          disabled={listening}
           className={`${BTN} bg-emerald-500 text-white hover:bg-emerald-600`}
         >
           <CheckCheck size={18} aria-hidden="true" />
@@ -558,7 +644,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
               (count) => `Trung tâm đã đánh dấu Vắng có phép cho ${count} học sinh chưa điểm danh.`,
             )
           }
-          disabled={busy || listening}
+          disabled={listening}
           className={`${BTN} bg-sky-50 text-sky-700 hover:bg-sky-100`}
         >
           <Moon size={18} aria-hidden="true" />
@@ -578,7 +664,6 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
             <button
               type="button"
               onClick={startVoice}
-              disabled={busy}
               className={`${BTN} bg-slate-100 text-slate-700 hover:bg-slate-200`}
             >
               <Mic size={18} aria-hidden="true" />
@@ -592,7 +677,6 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
             setNotice(null)
             setMakeup(true)
           }}
-          disabled={busy}
           className={`${BTN} bg-amber-50 text-amber-700 hover:bg-amber-100`}
         >
           <Repeat size={18} aria-hidden="true" />
@@ -605,10 +689,25 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
     <div className="space-y-4">
       {dateBar}
 
-      {monthLocked && (
+      {monthClosed && (
         <Notice type="info">
-          Tháng này đã chốt sổ. Giáo viên chỉ có thể xem lại lịch sử điểm danh và không thể chỉnh sửa.
+          <span className="inline-flex items-center gap-1.5">
+            <Lock size={16} aria-hidden="true" />
+            Tháng {date.slice(5, 7)}/{date.slice(0, 4)} đã chốt sổ nên không thể sửa điểm danh.
+            {isTeacher ? ' Hãy liên hệ Quản lý nếu cần sửa.' : ' Muốn sửa, hãy mở lại sổ ở Tổng quan → Sao lưu & Năm học.'}
+          </span>
         </Notice>
+      )}
+      {!monthClosed && teacherLocked && (
+        <Notice type="info">
+          Tháng trước chỉ Quản lý sửa được. Giáo viên chỉ có thể xem lại lịch sử điểm danh của tháng này.
+        </Notice>
+      )}
+      {pending > 0 && (
+        <p className="flex items-center gap-1.5 text-xs text-slate-500" role="status">
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          Trung tâm đang lưu {pending} thay đổi...
+        </p>
       )}
 
       {notice && (
@@ -678,7 +777,7 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
             <button
               type="button"
               onClick={confirmVoice}
-              disabled={busy || matchedRows.length === 0}
+              disabled={matchedRows.length === 0}
               className={`${BTN} bg-emerald-500 text-white hover:bg-emerald-600`}
             >
               <Check size={16} aria-hidden="true" />
@@ -696,6 +795,17 @@ export default function ClassAttendance({ cls, initialDate, isTeacher = false })
       )}
 
       {body}
+
+      {cancelling && (
+        <ConfirmDialog
+          title="Hủy học bù"
+          message={`Trung tâm sẽ xóa buổi học bù ${cancelling.label} và trả buổi gốc về đúng trạng thái trước khi bù (kể cả tiền học). Bạn có chắc không?`}
+          confirmLabel="Hủy học bù"
+          busy={cancelBusy}
+          onConfirm={confirmCancelMakeup}
+          onCancel={() => setCancelling(null)}
+        />
+      )}
 
       {makeup && (
         <MakeupModal
