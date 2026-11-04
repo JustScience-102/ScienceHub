@@ -30,3 +30,6 @@ export function validateEmail(raw) {
 export function validateRequired(raw, message) {
   return String(raw ?? '').trim() ? '' : message
 }
+
+// Tên tạm của phụ huynh khi chưa biết tên (trùng với tên tạm của chức năng nhập từ file ở Database).
+export const TEMP_PARENT_NAME = '(Chưa cập nhật tên)'

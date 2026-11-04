@@ -16,6 +16,7 @@ import {
   isValidPhone,
   validatePhone,
   validateRequired,
+  TEMP_PARENT_NAME,
 } from '../../lib/validators'
 
 // Danh sách học sinh để chọn một em (radio). Học sinh đã học lớp này bị khóa.
@@ -269,7 +270,6 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
       const nextErrors = {
         studentName: validateRequired(studentName, 'Vui lòng nhập họ tên học sinh.'),
         studentPhone: validatePhone(studentPhone),
-        parentName: lockParentName ? '' : validateRequired(parentName, 'Vui lòng nhập họ tên phụ huynh.'),
       }
       setErrors(nextErrors)
       if (Object.values(nextErrors).some(Boolean)) return
@@ -280,7 +280,8 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
         p_joined_at: joinedAt,
         p_full_name: studentName.trim(),
         p_phone: normalizePhone(studentPhone) || null,
-        p_parent_name: (lockParentName ? matchedParent.full_name : parentName).trim(),
+        // Họ tên phụ huynh không bắt buộc: để trống thì dùng tên tạm, bổ sung sau ở hồ sơ học sinh.
+        p_parent_name: (lockParentName ? matchedParent.full_name : parentName).trim() || TEMP_PARENT_NAME,
         p_parent_phone: normalizedParentPhone,
       })
       setSaving(false)
@@ -440,10 +441,10 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
                 <FormField
                   id="new-parent-name"
                   label="Họ tên phụ huynh"
-                  required
                   value={lockParentName ? matchedParent.full_name : parentName}
                   onChange={setParentName}
                   error={errors.parentName}
+                  hint={lockParentName ? undefined : 'Không bắt buộc. Để trống thì bổ sung sau ở hồ sơ học sinh.'}
                   disabled={lockParentName}
                   placeholder="Ví dụ: Nguyễn Văn Minh"
                 />

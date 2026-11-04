@@ -12,7 +12,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
 import { fetchAll } from '../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../lib/text'
-import { NONE, buildOptions } from '../lib/grade'
+import { NONE, buildOptions, classGrade } from '../lib/grade'
+import { classTitle } from '../lib/dashboard'
 import SelectField from '../components/SelectField'
 import MobileFilters from '../components/MobileFilters'
 import {
@@ -201,12 +202,15 @@ function StudentForm({ student, parents, isTeacher = false, onSave, onClose }) {
 
 // isTeacher: Giáo viên chỉ thấy học sinh thuộc lớp mình (RLS).
 // Học sinh tự ẩn khi nghỉ hết lớp và tự hiện lại khi được ghi danh, nên không có nút Xóa học sinh.
-export default function StudentsPage({ isTeacher = false } = {}) {
+export default function StudentsPage({ isTeacher = false, teacherId = null } = {}) {
   const [students, setStudents] = useState([])
   const [parents, setParents] = useState([])
   const [subjectsByStudent, setSubjectsByStudent] = useState({})
   const [gradeFilter, setGradeFilter] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
+  const [classFilter, setClassFilter] = useState('') // Giáo viên: lớp mình phụ trách; Quản lý: mọi lớp
+  const [classList, setClassList] = useState([])
+  const [classesByStudent, setClassesByStudent] = useState({})
   const [loading, setLoading] = useState(isSupabaseConfigured)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState(null)
@@ -223,22 +227,37 @@ export default function StudentsPage({ isTeacher = false } = {}) {
 
     async function load() {
       // Tải theo trang: Supabase chỉ trả tối đa 1000 dòng mỗi truy vấn.
-      const [studentResult, parentResult, enrollmentResult] = await Promise.all([
+      const [studentResult, parentResult, enrollmentResult, classResult] = await Promise.all([
         fetchAll(() => supabase.from('students').select('*, parents(id, parent_code, full_name, phone, deleted_at)')),
         fetchAll(() => supabase.from('parents').select('id, parent_code, full_name, phone, deleted_at')),
-        fetchAll(() => supabase.from('class_enrollments').select('id, student_id, classes(subject)').eq('status', 'active')),
+        fetchAll(() =>
+          supabase.from('class_enrollments').select('id, student_id, class_id, classes(subject, teacher_id)').eq('status', 'active'),
+        ),
+        // Danh sách lớp để lọc: Giáo viên chỉ lớp mình phụ trách, Quản lý mọi lớp đang hiển thị.
+        fetchAll(() => {
+          const query = supabase
+            .from('classes')
+            .select('id, name, subject, grade, class_no, teachers(full_name)')
+            .is('deleted_at', null)
+          return isTeacher ? query.eq('teacher_id', teacherId) : query
+        }),
       ])
       if (cancelled) return
 
-      const error = studentResult.error || parentResult.error || enrollmentResult.error
+      const error = studentResult.error || parentResult.error || enrollmentResult.error || classResult.error
       if (error) {
         setLoadError(toVietnameseError(error))
       } else {
         const subjects = {}
+        const byStudent = {}
         for (const row of enrollmentResult.data) {
           if (!subjects[row.student_id]) subjects[row.student_id] = new Set()
           subjects[row.student_id].add(row.classes?.subject || NONE)
+          if (!byStudent[row.student_id]) byStudent[row.student_id] = new Set()
+          byStudent[row.student_id].add(row.class_id)
         }
+        setClassList(classResult.data)
+        setClassesByStudent(byStudent)
         setStudents(studentResult.data)
         setParents(parentResult.data)
         setSubjectsByStudent(subjects)
@@ -251,7 +270,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [reloadKey, isTeacher, teacherId])
 
   const reload = () => setReloadKey((key) => key + 1)
 
@@ -271,15 +290,42 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     return buildOptions(values)
   }, [students, subjectsByStudent, showHidden])
 
-  const filteredStudents = useMemo(() => {
+  // Ô lọc lớp thu hẹp theo ô lọc khối và môn đang chọn. Lớp đã chọn mà không còn khớp thì coi như bỏ chọn.
+  const classOptions = useMemo(
+    () =>
+      classList
+        .filter((item) => {
+          if (subjectFilter && (subjectFilter === NONE ? item.subject : item.subject !== subjectFilter)) return false
+          if (gradeFilter) {
+            const grade = classGrade(item)
+            if (gradeFilter === NONE ? grade : String(grade) !== gradeFilter) return false
+          }
+          return true
+        })
+        .sort((a, b) => compareVietnameseNames(a.name, b.name)),
+    [classList, subjectFilter, gradeFilter],
+  )
+  const activeClassFilter = classOptions.some((item) => item.id === classFilter) ? classFilter : ''
+  // Số học sinh đang học của từng lớp (không tính học sinh đã ẩn).
+  const classCounts = useMemo(() => {
+    const counts = {}
+    for (const student of students) {
+      if (student.deleted_at) continue
+      for (const classId of classesByStudent[student.id] ?? []) counts[classId] = (counts[classId] ?? 0) + 1
+    }
+    return counts
+  }, [students, classesByStudent])
+
+  // Học sinh khớp bộ lọc và ô tìm kiếm, tách thành hai danh sách: đang học và đã ẩn.
+  const { activeStudents, hiddenStudents } = useMemo(() => {
     const keyword = normalizeText(query)
-    return students
-      .filter((student) => showHidden || !student.deleted_at)
+    const matching = students
       .filter((student) => {
         if (!gradeFilter) return true
         if (gradeFilter === NONE) return !student.grade
         return String(student.grade) === gradeFilter
       })
+      .filter((student) => !activeClassFilter || Boolean(classesByStudent[student.id]?.has(activeClassFilter)))
       .filter((student) => {
         if (!subjectFilter) return true
         const set = subjectsByStudent[student.id]
@@ -300,13 +346,19 @@ export default function StudentsPage({ isTeacher = false } = {}) {
         )
         return haystack.includes(keyword)
       })
-      .sort(
-        (a, b) =>
-          compareVietnameseNames(a.full_name, b.full_name) || a.student_code.localeCompare(b.student_code),
-      )
-  }, [students, showHidden, query, gradeFilter, subjectFilter, subjectsByStudent])
+    const byName = (a, b) =>
+      compareVietnameseNames(a.full_name, b.full_name) || a.student_code.localeCompare(b.student_code)
+    return {
+      activeStudents: matching.filter((student) => !student.deleted_at).sort(byName),
+      // Học sinh đã ẩn: người nghỉ gần đây nhất xếp trước (deleted_at = lúc nghỉ hết lớp).
+      hiddenStudents: matching
+        .filter((student) => student.deleted_at)
+        .sort((a, b) => String(b.deleted_at).localeCompare(String(a.deleted_at)) || byName(a, b)),
+    }
+  }, [students, query, gradeFilter, subjectFilter, activeClassFilter, subjectsByStudent, classesByStudent])
 
-  const hiddenCount = students.filter((student) => student.deleted_at).length
+  const totalActive = students.filter((student) => !student.deleted_at).length
+  const totalHidden = students.filter((student) => student.deleted_at).length
 
   // Lưu học sinh kèm phụ huynh. Trả về câu báo lỗi (nếu có) để form hiển thị.
   // Chỉ dùng để SỬA học sinh. Đăng ký học sinh mới đi qua RegisterStudentFlow (bắt buộc chọn lớp).
@@ -321,7 +373,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
   }
 
   // Số bộ lọc đang bật (hiện trên nút "Bộ lọc" ở điện thoại).
-  const activeFilterCount = (gradeFilter ? 1 : 0) + (subjectFilter ? 1 : 0) + (showHidden ? 1 : 0)
+  const activeFilterCount = (gradeFilter ? 1 : 0) + (subjectFilter ? 1 : 0) + (activeClassFilter ? 1 : 0)
 
   const toolbar = (
     <div className="space-y-3">
@@ -388,7 +440,20 @@ export default function StudentsPage({ isTeacher = false } = {}) {
         }
       >
       <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <SelectField
+          id="student-class-filter"
+          label="Lọc theo lớp"
+          value={activeClassFilter}
+          onChange={setClassFilter}
+          placeholder={isTeacher ? 'Tất cả lớp của tôi' : 'Tất cả lớp'}
+        >
+          {classOptions.map((item) => (
+            <option key={item.id} value={item.id}>
+              {`${classTitle(item)}${!isTeacher && item.teachers?.full_name ? ` - ${item.teachers.full_name}` : ''} (${classCounts[item.id] ?? 0} học sinh)`}
+            </option>
+          ))}
+        </SelectField>
         <SelectField
           id="student-grade-filter"
           label="Lọc theo khối"
@@ -418,17 +483,17 @@ export default function StudentsPage({ isTeacher = false } = {}) {
           {subjectOptions.hasNone && <option value={NONE}>Chưa phân loại</option>}
         </SelectField>
       </div>
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
-        <input
-          type="checkbox"
-          checked={showHidden}
-          onChange={(event) => setShowHidden(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-300"
-        />
-        Hiện cả học sinh đã ẩn{hiddenCount > 0 ? ` (${hiddenCount})` : ''}
-      </label>
       </div>
       </MobileFilters>
+      {isSupabaseConfigured && !loading && !loadError && (
+        <p className="text-sm text-slate-600" aria-live="polite">
+          Đang hiển thị <span className="font-semibold text-slate-800">{activeStudents.length}</span> /{' '}
+          {totalActive} học sinh đang học
+          {activeClassFilter &&
+            ` của lớp ${classTitle(classOptions.find((item) => item.id === activeClassFilter) ?? { name: '' })}`}
+          {showHidden && totalHidden > 0 && ` · ${hiddenStudents.length} học sinh đã ẩn`}.
+        </p>
+      )}
     </div>
   )
 
@@ -458,34 +523,17 @@ export default function StudentsPage({ isTeacher = false } = {}) {
     )
   }
 
-  let body
-  if (!isSupabaseConfigured) {
-    body = (
-      <Notice type="error">
-        Trung tâm chưa kết nối Supabase. Hãy điền khóa vào file .env rồi chạy lại ứng dụng.
-      </Notice>
-    )
-  } else if (loading && students.length === 0) {
-    body = <p className="text-sm text-slate-500">Trung tâm đang tải danh sách học sinh...</p>
-  } else if (loadError) {
-    body = <Notice type="error">{loadError}</Notice>
-  } else if (filteredStudents.length === 0) {
-    body = query || gradeFilter || subjectFilter ? (
-      <EmptyState
-        icon={Search}
-        title="Không tìm thấy học sinh phù hợp"
-        text="Hãy thử gõ tên khác, mã học sinh, số điện thoại hoặc đổi bộ lọc khối và môn."
-      />
-    ) : (
-      <EmptyState
-        icon={GraduationCap}
-        title="Trung tâm chưa có học sinh nào"
-        text='Bấm "Đăng ký học sinh" để bắt đầu.'
-      />
-    )
-  } else {
-    body = (
-      <>
+  // Ngày học sinh nghỉ hết lớp (lúc hệ thống tự ẩn học sinh), dạng dd/mm/yyyy.
+  function hiddenSince(student) {
+    const date = new Date(student.deleted_at)
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('vi-VN')
+  }
+
+  // Bảng (máy tính) và thẻ (điện thoại) của một danh sách học sinh.
+  // dimmed: danh sách học sinh đã ẩn, hiển thị mờ hơn kèm ngày nghỉ.
+  function studentList(list, { dimmed = false } = {}) {
+    return (
+      <div className={dimmed ? 'opacity-60' : ''}>
         {/* Máy tính: dạng bảng */}
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm">
@@ -502,14 +550,14 @@ export default function StudentsPage({ isTeacher = false } = {}) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className={student.deleted_at ? 'bg-slate-50 text-slate-400' : ''}>
+              {list.map((student) => (
+                <tr key={student.id} className={dimmed ? 'bg-slate-50 text-slate-500' : ''}>
                   <td className="px-3 py-3 font-mono text-xs">{student.student_code}</td>
                   <td className="px-3 py-3 font-medium">
                     {nameButton(student)}
-                    {student.deleted_at && (
+                    {dimmed && (
                       <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs font-normal text-slate-600">
-                        Đã ẩn
+                        Đã ẩn · nghỉ từ {hiddenSince(student)}
                       </span>
                     )}
                   </td>
@@ -520,7 +568,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
                     <div className="flex justify-end">
                       <RowActions
                         name={student.full_name}
-                        hidden={Boolean(student.deleted_at)}
+                        hidden={dimmed}
                         canDelete={false}
                         onEdit={() => setEditing(student)}
                       />
@@ -534,18 +582,20 @@ export default function StudentsPage({ isTeacher = false } = {}) {
 
         {/* Điện thoại: dạng thẻ */}
         <ul className="space-y-3 md:hidden">
-          {filteredStudents.map((student) => (
+          {list.map((student) => (
             <li
               key={student.id}
-              className={`rounded-xl border border-slate-200 p-4 ${student.deleted_at ? 'bg-slate-50 text-slate-400' : ''}`}
+              className={`rounded-xl border border-slate-200 p-4 ${dimmed ? 'bg-slate-50 text-slate-500' : ''}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   {nameButton(student)}
                   <p className="font-mono text-xs text-slate-500">{student.student_code}</p>
                 </div>
-                {student.deleted_at ? (
-                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">Đã ẩn</span>
+                {dimmed ? (
+                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">
+                    Nghỉ từ {hiddenSince(student)}
+                  </span>
                 ) : (
                   <div className="-mr-1 -mt-1 shrink-0">
                     <RowActions
@@ -575,7 +625,79 @@ export default function StudentsPage({ isTeacher = false } = {}) {
             </li>
           ))}
         </ul>
-      </>
+      </div>
+    )
+  }
+
+  const hasSearchOrFilter = Boolean(query || gradeFilter || subjectFilter || activeClassFilter)
+
+  let body
+  if (!isSupabaseConfigured) {
+    body = (
+      <Notice type="error">
+        Trung tâm chưa kết nối Supabase. Hãy điền khóa vào file .env rồi chạy lại ứng dụng.
+      </Notice>
+    )
+  } else if (loading && students.length === 0) {
+    body = <p className="text-sm text-slate-500">Trung tâm đang tải danh sách học sinh...</p>
+  } else if (loadError) {
+    body = <Notice type="error">{loadError}</Notice>
+  } else if (students.length === 0) {
+    body = (
+      <EmptyState
+        icon={GraduationCap}
+        title="Trung tâm chưa có học sinh nào"
+        text='Bấm "Đăng ký học sinh" để bắt đầu.'
+      />
+    )
+  } else {
+    body = (
+      <div className="space-y-4">
+        {activeStudents.length > 0 ? (
+          studentList(activeStudents)
+        ) : hasSearchOrFilter ? (
+          <EmptyState
+            icon={Search}
+            title={
+              showHidden && hiddenStudents.length > 0
+                ? 'Không có học sinh đang học phù hợp'
+                : 'Không tìm thấy học sinh phù hợp'
+            }
+            text="Hãy thử gõ tên khác, mã học sinh, số điện thoại hoặc đổi bộ lọc lớp, khối và môn."
+          />
+        ) : (
+          <EmptyState
+            icon={GraduationCap}
+            title="Chưa có học sinh nào đang học"
+            text='Bấm "Đăng ký học sinh" hoặc tick "Hiện cả học sinh đã ẩn" bên dưới để xem học sinh đã nghỉ.'
+          />
+        )}
+
+        {totalHidden > 0 && (
+          <label className="flex min-h-11 items-center gap-2 border-t border-slate-200 pt-3 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={showHidden}
+              onChange={(event) => setShowHidden(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Hiện cả học sinh đã ẩn ({totalHidden})
+          </label>
+        )}
+
+        {showHidden &&
+          (hiddenStudents.length > 0 ? (
+            <section aria-label="Học sinh đã ẩn" className="space-y-2">
+              <h2 className="text-sm font-semibold text-slate-600">
+                Học sinh đã ẩn ({hiddenStudents.length})
+                <span className="ml-2 text-xs font-normal text-slate-500">Xếp theo thời gian nghỉ, mới nhất trước</span>
+              </h2>
+              {studentList(hiddenStudents, { dimmed: true })}
+            </section>
+          ) : (
+            <p className="text-sm text-slate-500">Không có học sinh đã ẩn nào phù hợp bộ lọc hiện tại.</p>
+          ))}
+      </div>
     )
   }
 
@@ -618,6 +740,7 @@ export default function StudentsPage({ isTeacher = false } = {}) {
       {editing && !editing.id && (
         <RegisterStudentFlow
           isTeacher={isTeacher}
+          teacherId={teacherId}
           onDone={(message) => {
             setNotice({ type: 'success', text: message })
             setEditing(null)
