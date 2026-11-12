@@ -119,21 +119,32 @@ export default {
     },
 
     'Sao lưu V3 rồi khôi phục lại: dữ liệu về đúng như lúc sao lưu': async (ctx) => {
+      // Nhóm lớp đi cùng sao lưu/khôi phục (Toan_9_Lan_1 và Toan_9_Lan_2 cùng nội dung, không học sinh trùng).
+      await ctx.manager.rpc('save_class_group', {
+        p_group_id: null, p_name: 'Toán 9 cô Lan',
+        p_parts: [[s.v2data.classes.toan9, s.v2data.classes.toan9b]],
+      })
       const snap = await ctx.manager.rpc('export_center_backup', { p_include_audit_log: false, p_tables: null })
+      assert.equal(snap.tables.class_group_members.length, 2)
       assert.equal(snap.metadata.version, 'V3')
       await ctx.manager.rpc('register_student_in_class', {
         p_class_id: s.v2data.classes.toan9, p_joined_at: await ctx.today(), p_full_name: 'Sẽ Biến Mất',
         p_phone: null, p_parent_name: 'PH', p_parent_phone: '0901000066',
       })
+      await ctx.manager.rpc('delete_class_group', {
+        p_group_id: await ctx.value(`select id from public.class_groups`),
+      })
       const runId = await stageBackup(ctx, snap)
       const preview = await previewRestore(ctx, runId)
       assert.equal(preview.tables.find((t) => t.name === 'students').removed, 1)
+      assert.equal(preview.tables.find((t) => t.name === 'class_group_members').added, 2)
       await applyRestore(ctx, runId)
       const now = await ctx.manager.rpc('export_center_backup', { p_include_audit_log: false, p_tables: null })
       for (const name of ['parents', 'teachers', 'students', 'classes', 'class_schedules', 'class_enrollments',
-        'attendance_records', 'class_versions', 'month_closures']) {
+        'attendance_records', 'class_versions', 'month_closures', 'class_groups']) {
         assert.deepEqual(sortById(now.tables[name]), sortById(snap.tables[name]), name)
       }
+      assert.deepEqual(now.tables.class_group_members, snap.tables.class_group_members)
     },
 
     'File không phải của Trung tâm hoặc thiếu bảng bị từ chối, không đổi gì': async (ctx) => {

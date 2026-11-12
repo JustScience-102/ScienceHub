@@ -20,6 +20,7 @@ registerHooks({
 const schedule = await import('../src/lib/schedule.js')
 const { remainingSessions } = await import('../src/lib/tuition.js')
 const { fetchAll } = await import('../src/lib/fetchAll.js')
+const classGroups = await import('../src/lib/classGroups.js')
 
 let passed = 0
 let failed = 0
@@ -126,6 +127,31 @@ await test('Sắp theo cột khác khi bảng không có id', async () => {
   const table = fakeTable(10)
   await fetchAll(table.build, { orderBy: 'user_id' })
   assert.deepEqual(table.calls[0].order, ['user_id', true])
+})
+
+console.log('\n▶ Nhóm lớp (src/lib/classGroups.js)')
+await test('Xếp lớp theo phần; phần trống hoặc dưới 2 lớp thì báo lỗi', () => {
+  const { parts } = classGroups.partsFromAssignment({ a: 1, b: 1, c: 2, d: 2 }, 2)
+  assert.deepEqual(parts, [['a', 'b'], ['c', 'd']])
+  assert.match(classGroups.partsFromAssignment({ a: 1, b: 1 }, 2).error, /Phần 2 chưa có lớp/)
+  assert.match(classGroups.partsFromAssignment({ a: 1 }, 1).error, /ít nhất hai lớp/)
+  // Lớp gán vào phần đã bớt bị bỏ qua
+  assert.deepEqual(classGroups.partsFromAssignment({ a: 1, b: 1, c: 3 }, 1).parts, [['a', 'b']])
+})
+await test('Mở form sửa từ nhóm đã lưu; tên nhóm của lớp đã thuộc nhóm khác', () => {
+  const group = {
+    id: 'g1',
+    name: 'Vật Lí 12',
+    parts: [
+      { part_no: 1, classes: [{ id: 'a' }, { id: 'b' }] },
+      { part_no: 2, classes: [{ id: 'c' }] },
+    ],
+  }
+  assert.deepEqual(classGroups.assignmentFromGroup(group), { assignment: { a: 1, b: 1, c: 2 }, partCount: 2 })
+  assert.equal(classGroups.classGroupNames([group]).get('c'), 'Vật Lí 12')
+  assert.equal(classGroups.classGroupNames([group], 'g1').size, 0)
+  assert.equal(classGroups.groupIsBalanced({ incomplete: [], overlaps: [] }), true)
+  assert.equal(classGroups.groupIsBalanced({ incomplete: [{}], overlaps: [] }), false)
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

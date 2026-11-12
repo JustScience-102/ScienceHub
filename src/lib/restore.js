@@ -19,6 +19,8 @@ const STAGE_ORDER = [
   'attendance_records',
   'class_versions',
   'month_closures',
+  'class_groups',
+  'class_group_members',
   'profiles',
 ]
 const REQUIRED_TABLES = STAGE_ORDER.slice(0, 7)
@@ -34,6 +36,8 @@ export const TABLE_LABELS = {
   attendance_records: 'Điểm danh',
   class_versions: 'Lịch sử nhãn lớp',
   month_closures: 'Tháng đã chốt sổ',
+  class_groups: 'Nhóm lớp',
+  class_group_members: 'Lớp trong nhóm',
   profiles: 'Tài khoản giáo viên',
   audit_log: 'Nhật ký thay đổi',
 }
@@ -79,6 +83,7 @@ export function summarizeBackup(backup) {
     version: backup.metadata.version ?? '',
     hasClassVersions: Array.isArray(backup.tables.class_versions),
     hasProfiles: Array.isArray(backup.tables.profiles),
+    hasClassGroups: Array.isArray(backup.tables.class_groups),
     counts,
   }
 }

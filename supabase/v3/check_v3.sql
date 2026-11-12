@@ -55,7 +55,17 @@ join public.classes c on c.id = e.class_id
 group by s.id, s.student_code, s.full_name
 having count(distinct c.grade) > 1;
 
--- 11. Số liệu hiện có (đối chiếu với hệ thống cũ sau khi chuyển dữ liệu)
+-- 11. Học sinh đang học hai lớp cùng một phần của nhóm lớp (cùng nội dung bài học). Mong đợi: 0 dòng
+select s.student_code, s.full_name, g.name as group_name, m.part_no
+from public.class_enrollments e
+join public.class_group_members m on m.class_id = e.class_id
+join public.class_groups g on g.id = m.group_id
+join public.students s on s.id = e.student_id
+where e.status = 'active'
+group by s.id, s.student_code, s.full_name, g.name, m.part_no
+having count(*) > 1;
+
+-- 12. Số liệu hiện có (đối chiếu với hệ thống cũ sau khi chuyển dữ liệu)
 select
   (select count(*) from public.teachers)           as teachers,
   (select count(*) from public.parents)            as parents,
@@ -63,4 +73,5 @@ select
   (select count(*) from public.classes)            as classes,
   (select count(*) from public.class_enrollments)  as enrollments,
   (select count(*) from public.attendance_records) as attendance_records,
-  (select count(*) from public.month_closures)     as closed_months;
+  (select count(*) from public.month_closures)     as closed_months,
+  (select count(*) from public.class_groups)       as class_groups;

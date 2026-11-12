@@ -216,6 +216,28 @@ create table if not exists public.month_closures (
 );
 
 -- ---------------------------------------------------------------------
+-- Nhóm lớp: các lớp dạy CÙNG NỘI DUNG bài học nằm chung một "phần" và không được có học sinh trùng nhau.
+-- Ví dụ nhóm "Vật Lí 12": phần 1 = lớp A, B (cùng nội dung); phần 2 = lớp C, D. Mỗi học sinh nên học đúng
+-- một lớp của mỗi phần (thiếu thì chỉ cảnh báo). Một lớp thuộc tối đa một nhóm. Cấu hình qua RPC (06).
+-- ---------------------------------------------------------------------
+create table if not exists public.class_groups (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null check (btrim(name) <> ''),
+  created_at  timestamptz not null default now()
+);
+
+create unique index if not exists uq_class_groups_name on public.class_groups (lower(name));
+
+create table if not exists public.class_group_members (
+  class_id    uuid primary key references public.classes (id) on delete restrict,
+  group_id    uuid not null references public.class_groups (id) on delete restrict,
+  part_no     smallint not null check (part_no between 1 and 10),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_class_group_members_group on public.class_group_members (group_id, part_no);
+
+-- ---------------------------------------------------------------------
 -- Nhật ký thay đổi (không khóa ngoại để không cản trở thao tác xóa có kiểm soát).
 -- action_group được ghi lúc tạo dòng (hàm _audit_action_group) để lọc nhanh.
 -- ---------------------------------------------------------------------
@@ -270,5 +292,7 @@ alter table public.attendance_records enable row level security;
 alter table public.profiles           enable row level security;
 alter table public.class_versions     enable row level security;
 alter table public.month_closures     enable row level security;
+alter table public.class_groups       enable row level security;
+alter table public.class_group_members enable row level security;
 alter table public.audit_log          enable row level security;
 alter table public.restore_staging    enable row level security;

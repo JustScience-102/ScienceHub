@@ -162,6 +162,9 @@ export default function RestoreSection() {
                 {!summary.hasClassVersions && (
                   <p className="text-amber-700">File cũ không có lịch sử nhãn lớp: phần này sẽ được làm trống.</p>
                 )}
+                {!summary.hasClassGroups && (
+                  <p className="text-amber-700">File không có nhóm lớp: các nhóm lớp hiện tại sẽ bị xóa (tạo lại sau).</p>
+                )}
                 {!summary.hasProfiles && (
                   <p className="text-amber-700">
                     File không có danh sách tài khoản: tài khoản giáo viên hiện tại sẽ bị gỡ (phải liên kết lại).

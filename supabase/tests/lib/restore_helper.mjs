@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 
 const STAGE_ORDER = [
   'teachers', 'parents', 'students', 'classes', 'class_schedules', 'class_enrollments',
-  'attendance_records', 'class_versions', 'month_closures', 'profiles',
+  'attendance_records', 'class_versions', 'month_closures', 'class_groups', 'class_group_members', 'profiles',
 ]
 
 export async function stageBackup(ctx, backup, chunkSize = 500) {

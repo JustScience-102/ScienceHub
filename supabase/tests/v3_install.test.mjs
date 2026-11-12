@@ -81,10 +81,10 @@ export default {
     'check_v3.sql: các mục "Mong đợi: 0 dòng" đều rỗng': async (ctx) => {
       const { readSql } = await import('./lib/harness.mjs')
       const results = await ctx.exec(readSql('supabase/v3/check_v3.sql'))
-      assert.equal(results.length, 11)
+      assert.equal(results.length, 12)
       assert.ok(results[0].rows.some((r) => r.version === 'V3.0'))
       assert.ok(Number(results[1].rows[0].manager_active) >= 1)
-      for (const index of [2, 3, 4, 5, 6, 7, 8, 9]) {
+      for (const index of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
         assert.deepEqual(results[index].rows, [], `mục ${index + 1}`)
       }
     },

@@ -35,6 +35,12 @@ export function toVietnameseError(error) {
   if (/attendance_one_per_day/.test(text)) {
     return 'Học sinh này đã có điểm danh trong ngày này ở lớp này.'
   }
+  if (/uq_class_groups_name/.test(text)) {
+    return 'Đã có nhóm lớp trùng tên. Hãy đặt tên khác.'
+  }
+  if (/class_group_members_pkey/.test(text)) {
+    return 'Mỗi lớp chỉ thuộc một nhóm lớp. Hãy tải lại trang rồi kiểm tra lại.'
+  }
   if (/uq_enrollments_one_active/.test(text)) {
     return 'Học sinh này đang học lớp này rồi.'
   }
