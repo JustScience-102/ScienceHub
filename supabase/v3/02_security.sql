@@ -293,7 +293,7 @@ begin
     where schemaname = 'public' and tablename in (
       'parents', 'teachers', 'students', 'classes', 'class_schedules', 'class_enrollments',
       'attendance_records', 'profiles', 'class_versions', 'month_closures', 'audit_log',
-      'restore_staging', 'schema_migrations')
+      'restore_staging', 'schema_migrations', 'class_groups', 'class_group_members')
   loop
     execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename);
   end loop;
@@ -348,7 +348,8 @@ as $$
     when p_action in ('attendance_create', 'attendance_update', 'attendance_delete') then 'attendance'
     when p_action in ('makeup_record', 'makeup_cancel') then 'makeup'
     when p_action in ('enrollment_create', 'enrollment_drop', 'enrollment_transfer', 'enrollment_graduate') then 'enrollment'
-    when p_action in ('class_create', 'class_update', 'class_hide', 'class_restore', 'class_schedule_update') then 'class'
+    when p_action in ('class_create', 'class_update', 'class_hide', 'class_restore', 'class_schedule_update',
+                      'class_group_save', 'class_group_delete') then 'class'
     when p_action in ('student_create', 'student_update', 'student_hide', 'student_restore', 'parent_update') then 'student'
     when p_action in ('teacher_create', 'teacher_update', 'teacher_hide', 'teacher_restore',
                       'teacher_account_link', 'teacher_account_unlink',

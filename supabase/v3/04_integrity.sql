@@ -505,6 +505,54 @@ create trigger trg_enrollments_sync_student
   after insert or update of status on public.class_enrollments
   for each row execute function public._trg_enrollments_sync_student();
 
+-- Nhóm lớp: học sinh không được đang học hai lớp cùng một phần (cùng nội dung bài học) của một nhóm.
+-- Kiểm tra lúc COMMIT (hoãn) nên "Đổi lớp" giữa hai lớp cùng phần (vào lớp mới trước, nghỉ lớp cũ sau,
+-- trong một giao dịch) vẫn được. Hai lần ghi danh đồng thời đã bị xếp hàng nhờ khóa dòng học sinh ở 6a.
+create or replace function public._trg_enrollments_group_check()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_msg text;
+begin
+  if not exists (select 1 from public.class_group_members where class_id = new.class_id) then
+    return null;
+  end if;
+
+  select format(
+           'Học sinh %s đang học lớp %s nên không thể học thêm lớp %s: hai lớp cùng nội dung bài học (nhóm lớp "%s", phần %s). Muốn chuyển, hãy dùng "Đổi lớp".',
+           s.full_name, oc.name, nc.name, g.name, nm.part_no)
+    into v_msg
+  from public.class_enrollments me
+  join public.class_group_members nm on nm.class_id = me.class_id
+  join public.class_groups g on g.id = nm.group_id
+  join public.class_group_members om
+    on om.group_id = nm.group_id and om.part_no = nm.part_no and om.class_id <> nm.class_id
+  join public.class_enrollments oe
+    on oe.class_id = om.class_id and oe.student_id = me.student_id and oe.status = 'active'
+  join public.classes oc on oc.id = om.class_id
+  join public.classes nc on nc.id = nm.class_id
+  join public.students s on s.id = me.student_id
+  where me.id = new.id and me.status = 'active'
+  order by oc.name
+  limit 1;
+
+  if v_msg is not null then
+    raise exception 'Trung tâm: %', v_msg;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists trg_enrollments_group_check on public.class_enrollments;
+create constraint trigger trg_enrollments_group_check
+  after insert on public.class_enrollments
+  deferrable initially deferred
+  for each row
+  execute function public._trg_enrollments_group_check();
+
 -- ---------------------------------------------------------------------
 -- 7. Học sinh: đổi phụ huynh hoặc ẩn/hiện thì đồng bộ phụ huynh cũ và mới
 -- ---------------------------------------------------------------------

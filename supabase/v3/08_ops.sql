@@ -17,7 +17,8 @@ as $$
 declare
   c_all    constant text[] := array[
     'parents', 'teachers', 'students', 'classes', 'class_schedules', 'class_enrollments',
-    'attendance_records', 'profiles', 'class_versions', 'month_closures', 'audit_log'
+    'attendance_records', 'profiles', 'class_versions', 'month_closures', 'class_groups',
+    'class_group_members', 'audit_log'
   ];
   v_want   text[] := coalesce(p_tables, c_all);
   v_name   text;
@@ -53,6 +54,7 @@ begin
           when 'teachers' then 'x.created_at, x.id'
           when 'classes' then 'x.created_at, x.id'
           when 'month_closures' then 'x.month_start'
+          when 'class_group_members' then 'x.group_id, x.part_no, x.class_id'
           when 'audit_log' then 'x.created_at desc, x.id desc'
           else 'x.created_at, x.id'
         end,
@@ -191,6 +193,10 @@ declare
   v_exname     text;
   v_exphone    text;
   v_grades     jsonb;
+  v_parts      jsonb;
+  v_gkey       text;
+  v_gname      text;
+  v_gclass     text;
   v_errors     jsonb := '[]'::jsonb;
   v_warnings   jsonb := '[]'::jsonb;
   v_missing    jsonb := '[]'::jsonb;
@@ -323,6 +329,7 @@ begin
       v_sid     := null;
       v_exphone := null;
       v_grades  := '[]'::jsonb;
+      v_parts   := '{}'::jsonb;
       if v_pid is not null then
         select count(*), min(s.id::text)::uuid, min(s.phone) into v_cnt, v_sid, v_exphone
         from public.students s
@@ -336,10 +343,17 @@ begin
           select coalesce(jsonb_agg(distinct c.grade), '[]'::jsonb) into v_grades
           from public.class_enrollments e join public.classes c on c.id = e.class_id
           where e.student_id = v_sid and e.status = 'active';
+          -- Phần nhóm lớp em đang học: {"<group_id>:<phần>": "<tên lớp>"}
+          select coalesce(jsonb_object_agg(m.group_id::text || ':' || m.part_no, c.name), '{}'::jsonb) into v_parts
+          from public.class_enrollments e
+          join public.class_group_members m on m.class_id = e.class_id
+          join public.classes c on c.id = e.class_id
+          where e.student_id = v_sid and e.status = 'active';
         end if;
       end if;
       m_students := m_students || jsonb_build_object(v_skey, jsonb_build_object(
-        'id', v_sid, 'name', v_sname, 'phone', v_exphone, 'existing', v_sid is not null, 'grades', v_grades, 'line', v_line));
+        'id', v_sid, 'name', v_sname, 'phone', v_exphone, 'existing', v_sid is not null, 'grades', v_grades,
+        'parts', v_parts, 'line', v_line));
     end if;
 
     v_student := m_students->v_skey;
@@ -391,6 +405,24 @@ begin
           v_sname, v_class.name, v_class.grade)));
       continue;
     end if;
+
+    -- Nhóm lớp: không xếp em vào hai lớp cùng nội dung (cùng phần), kể cả lớp em đang học.
+    v_gkey := null;
+    select m.group_id::text || ':' || m.part_no, g.name into v_gkey, v_gname
+    from public.class_group_members m join public.class_groups g on g.id = m.group_id
+    where m.class_id = v_class.id;
+    if v_gkey is not null then
+      v_gclass := m_students->v_skey->'parts'->>v_gkey;
+      if v_gclass is not null and v_gclass <> v_class.name then
+        v_errors := v_errors || jsonb_build_array(jsonb_build_object('line', v_line,
+          'message', format('%s đang/được xếp vào lớp %s, không thể thêm vào lớp %s vì hai lớp cùng nội dung bài học (nhóm lớp "%s").',
+            v_sname, v_gclass, v_class.name, v_gname)));
+        continue;
+      end if;
+      m_students := jsonb_set(m_students, array[v_skey, 'parts'],
+        (m_students->v_skey->'parts') || jsonb_build_object(v_gkey, v_class.name));
+    end if;
+
     if not ((m_students->v_skey->'grades') @> to_jsonb(v_class.grade)) then
       m_students := jsonb_set(m_students, array[v_skey, 'grades'], (m_students->v_skey->'grades') || to_jsonb(v_class.grade));
     end if;
@@ -656,7 +688,8 @@ begin
   end if;
   if p_table is null or not (p_table = any (array[
        '_metadata', 'teachers', 'parents', 'students', 'classes', 'class_schedules', 'class_enrollments',
-       'attendance_records', 'class_versions', 'month_closures', 'profiles'])) then
+       'attendance_records', 'class_versions', 'month_closures', 'profiles', 'class_groups',
+       'class_group_members'])) then
     raise exception 'Trung tâm: Bảng "%" không nằm trong danh sách được phép khôi phục.', coalesce(p_table, '');
   end if;
   if p_table = '_metadata' then
@@ -734,7 +767,7 @@ as $$
 declare
   c_insert   constant text[] := array[
     'teachers', 'parents', 'students', 'classes', 'class_schedules', 'class_enrollments',
-    'attendance_records', 'class_versions', 'month_closures'
+    'attendance_records', 'class_versions', 'month_closures', 'class_groups', 'class_group_members'
   ];
   t          text;
   v_meta     jsonb;
@@ -791,6 +824,8 @@ begin
   delete from public.class_schedules    where true;
   delete from public.profiles           where role = 'teacher';
   delete from public.class_enrollments  where true;
+  delete from public.class_group_members where true;
+  delete from public.class_groups       where true;
   delete from public.classes            where true;
   delete from public.students           where true;
   delete from public.parents            where true;
@@ -899,10 +934,10 @@ declare
   c_required constant text[] := array[
     'teachers', 'parents', 'students', 'classes', 'class_schedules', 'class_enrollments', 'attendance_records'
   ];
-  c_optional constant text[] := array['class_versions', 'month_closures', 'profiles'];
+  c_optional constant text[] := array['class_versions', 'month_closures', 'profiles', 'class_groups', 'class_group_members'];
   c_diff     constant text[] := array[
     'teachers', 'parents', 'students', 'classes', 'class_schedules', 'class_enrollments',
-    'attendance_records', 'class_versions', 'month_closures'
+    'attendance_records', 'class_versions', 'month_closures', 'class_groups', 'class_group_members'
   ];
   v_dry      boolean := coalesce(p_dry_run, true);
   v_meta     jsonb;
@@ -991,8 +1026,8 @@ begin
       '       (select count(*) from (select k from f except select k from cur) a), '
       '       (select count(*) from (select k from cur except select k from f) b)',
       t,
-      case when t = 'month_closures' then 'month_start' else 'id' end,
-      case when t = 'month_closures' then 'month_start' else 'id' end
+      case t when 'month_closures' then 'month_start' when 'class_group_members' then 'class_id' else 'id' end,
+      case t when 'month_closures' then 'month_start' when 'class_group_members' then 'class_id' else 'id' end
     ) into v_cur, v_in_file, v_added, v_removed using p_run_id, t;
     v_tables := v_tables || jsonb_build_object('name', t, 'current', v_cur, 'in_file', v_in_file,
                                                'added', v_added, 'removed', v_removed);

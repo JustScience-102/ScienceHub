@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, BookOpen, Users, Pencil, Trash2, RotateCcw, ClipboardCheck, Search } from 'lucide-react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Plus, BookOpen, Users, Pencil, Trash2, RotateCcw, ClipboardCheck, Search, Layers } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
@@ -8,6 +8,7 @@ import ClassForm from '../components/classes/ClassForm'
 import ClassRoster from '../components/classes/ClassRoster'
 import ChangeTeacherDialog from '../components/classes/ChangeTeacherDialog'
 import TeacherStatsBar from '../components/classes/TeacherStatsBar'
+import ClassGroupsPanel from '../components/classes/ClassGroupsPanel'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
 import { formatCurrency } from '../lib/format'
@@ -19,6 +20,9 @@ import { compareVietnameseNames, normalizeText } from '../lib/text'
 import { NONE, buildOptions, classGrade } from '../lib/grade'
 import SelectField from '../components/SelectField'
 import MobileFilters from '../components/MobileFilters'
+
+// Hộp thoại cấu hình nhóm lớp chỉ Quản lý dùng: tải riêng khi mở.
+const ClassGroupsModal = lazy(() => import('../components/classes/ClassGroupsModal'))
 
 const BTN =
   'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors'
@@ -110,6 +114,8 @@ export default function ClassesPage({
   const [subjectFilter, setSubjectFilter] = useState('')
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [groupsOpen, setGroupsOpen] = useState(false) // hộp thoại Nhóm lớp (chỉ Quản lý)
+  const [groupsKey, setGroupsKey] = useState(0) // đổi khi nhóm lớp thay đổi để bảng cảnh báo tải lại
 
   useEffect(() => {
     if (!supabase) return undefined
@@ -386,20 +392,43 @@ export default function ClassesPage({
           <Plus size={18} aria-hidden="true" />
           Thêm lớp
         </button>
+        {!isTeacher && (
+          <button
+            type="button"
+            onClick={() => setGroupsOpen(true)}
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50 md:inline-flex"
+          >
+            <Layers size={18} aria-hidden="true" />
+            Nhóm lớp
+          </button>
+        )}
       </div>
 
       <MobileFilters
         id="class-filters"
         activeCount={activeFilterCount}
         actions={
-          <button
-            type="button"
-            onClick={() => setEditing({ mode: 'create' })}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
-          >
-            <Plus size={18} aria-hidden="true" />
-            Thêm lớp
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setEditing({ mode: 'create' })}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              <Plus size={18} aria-hidden="true" />
+              Thêm lớp
+            </button>
+            {!isTeacher && (
+              <button
+                type="button"
+                onClick={() => setGroupsOpen(true)}
+                aria-label="Nhóm lớp"
+                title="Nhóm lớp"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 ring-1 ring-sky-300 hover:bg-sky-50"
+              >
+                <Layers size={18} aria-hidden="true" />
+              </button>
+            )}
+          </>
         }
       >
         <div className="space-y-3">
@@ -665,6 +694,7 @@ export default function ClassesPage({
         </Notice>
       )}
       {isSupabaseConfigured && isTeacher && <TeacherStatsBar refreshKey={reloadKey} />}
+      {isSupabaseConfigured && <ClassGroupsPanel refreshKey={`${reloadKey}|${groupsKey}`} />}
       {isSupabaseConfigured && toolbar}
       {body}
 
@@ -687,6 +717,17 @@ export default function ClassesPage({
           onConfirm={(chosenTeacherId) => restoreClass(restoring, chosenTeacherId)}
           onClose={() => setRestoring(null)}
         />
+      )}
+      {groupsOpen && !isTeacher && (
+        <Suspense fallback={null}>
+          <ClassGroupsModal
+            classes={classes}
+            teacherById={teacherById}
+            activeCounts={activeCounts}
+            onChanged={() => setGroupsKey((key) => key + 1)}
+            onClose={() => setGroupsOpen(false)}
+          />
+        </Suspense>
       )}
       {deleting && (
         <ConfirmDialog
