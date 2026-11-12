@@ -35,6 +35,7 @@ export const TABLE_LABELS = {
   class_versions: 'Lịch sử nhãn lớp',
   month_closures: 'Tháng đã chốt sổ',
   profiles: 'Tài khoản giáo viên',
+  audit_log: 'Nhật ký thay đổi',
 }
 
 // Hàm thuần: đọc nội dung file, kiểm tra hình dạng. Trả { backup } hoặc { error } (tiếng Việt).

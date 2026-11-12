@@ -4,8 +4,8 @@
 --
 -- Quy tắc (đã chốt với Trung tâm):
 --   * Tên lớp = MônKhôngDấu_Khối_TênGọiGV_STT, ví dụ VatLi_12_Nam_1. Trình duyệt không gửi tên lên.
---   * Tên gọi GV = từ cuối của họ tên, bỏ dấu, viết hoa chữ đầu ("Nguyễn Thị Lan" -> "Lan"),
---     giống hệt hàm subjectToken/teacherToken của frontend (src/lib/className.js).
+--   * Tên gọi GV = từ cuối của họ tên, bỏ dấu, viết hoa chữ đầu ("Nguyễn Thị Lan" -> "Lan").
+--     Trình duyệt không tự ghép tên, chỉ xem trước qua preview_class_name (src/lib/classNamePreview.js).
 --   * Hai giáo viên trùng tên gọi (Lam / Lâm) cùng TỪNG dạy một môn (kể cả lớp đã ẩn và lịch sử lớp)
 --     thì cả hai thêm chữ theo thứ tự được thêm vào Trung tâm: LamA, LamB, ... Khác môn thì không thêm.
 --   * Tên luôn tính từ dữ liệu hiện tại: sửa họ tên giáo viên thì tên lớp và nhãn trong lịch sử lớp
@@ -19,6 +19,16 @@ language sql
 immutable
 as $$
   select translate(coalesce(p_text, ''), 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüýÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĨĩĪīĬĭĮįİĴĵĶķĹĺĻļĽľŃńŅņŇňŌōŎŏŐőŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžƠơƯưǍǎǏǐǑǒǓǔǕǖǗǘǙǚǛǜǞǟǠǡǦǧǨǩǪǫǬǭǰǴǵǸǹǺǻȀȁȂȃȄȅȆȇȈȉȊȋȌȍȎȏȐȑȒȓȔȕȖȗȘșȚțȞȟȦȧȨȩȪȫȬȭȮȯȰȱȲȳḀḁḂḃḄḅḆḇḈḉḊḋḌḍḎḏḐḑḒḓḔḕḖḗḘḙḚḛḜḝḞḟḠḡḢḣḤḥḦḧḨḩḪḫḬḭḮḯḰḱḲḳḴḵḶḷḸḹḺḻḼḽḾḿṀṁṂṃṄṅṆṇṈṉṊṋṌṍṎṏṐṑṒṓṔṕṖṗṘṙṚṛṜṝṞṟṠṡṢṣṤṥṦṧṨṩṪṫṬṭṮṯṰṱṲṳṴṵṶṷṸṹṺṻṼṽṾṿẀẁẂẃẄẅẆẇẈẉẊẋẌẍẎẏẐẑẒẓẔẕẖẗẘẙẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰựỲỳỴỵỶỷỸỹ', 'AAAAAACEEEEIIIINOOOOOUUUUYaaaaaaceeeeiiiinooooouuuuyyAaAaAaCcCcCcCcDdDdEeEeEeEeEeGgGgGgGgHhIiIiIiIiIJjKkLlLlLlNnNnNnOoOoOoRrRrRrSsSsSsSsTtTtUuUuUuUuUuUuWwYyYZzZzZzOoUuAaIiOoUuUuUuUuUuAaAaGgKkOoOojGgNnAaAaAaEeEeIiIiOoOoRrRrUuUuSsTtHhAaEeOoOoOoOoYyAaBbBbBbCcDdDdDdDdDdEeEeEeEeEeFfGgHhHhHhHhHhIiIiKkKkKkLlLlLlLlMmMmMmNnNnNnNnOoOoOoOoPpPpRrRrRrRrSsSsSsSsSsTtTtTtTtUuUuUuUuUuVvVvWwWwWwWwWwXxXxYyZzZzZzhtwyAaAaAaAaAaAaAaAaAaAaAaAaEeEeEeEeEeEeEeEeIiIiOoOoOoOoOoOoOoOoOoOoOoOoUuUuUuUuUuUuUuYyYyYyYy');
+$$;
+
+-- Họ tên để SO TRÙNG (học sinh cùng phụ huynh khi đăng ký, sửa, nhập CSV): gom khoảng trắng và chữ thường,
+-- GIỮ NGUYÊN DẤU. "Nguyễn  Minh Anh" và "NGUYỄN MINH ANH" là một; "Hòa" và "Hóa", "Thu" và "Thư" là hai em khác nhau.
+create or replace function public._norm_name(p_text text)
+returns text
+language sql
+immutable
+as $$
+  select lower(regexp_replace(btrim(coalesce(p_text, '')), '\s+', ' ', 'g'));
 $$;
 
 -- Một từ: bỏ dấu, chữ thường, viết hoa chữ đầu ("lâm" -> "Lam")

@@ -98,26 +98,6 @@ export function weekdayLabel(iso) {
   return WEEK_DAYS.find((item) => item.value === value)?.full ?? ''
 }
 
-// days: mảng số thứ trong tuần (2..8) mà lớp có học.
-// Tìm ngày gần nhất theo hướng direction (-1 lùi, +1 tiến) có lịch học, bắt đầu từ ngày SAU fromISO.
-// limitISO (tùy chọn): không vượt quá ngày này khi tiến. Không thấy thì trả về null.
-export function findScheduledDate(days, fromISO, direction, limitISO) {
-  if (!days || days.length === 0) return null
-  for (let step = 1; step <= 60; step += 1) {
-    const candidate = addDaysISO(fromISO, direction * step)
-    if (limitISO && candidate > limitISO) return null
-    if (days.includes(dayOfWeekFromISO(candidate))) return candidate
-  }
-  return null
-}
-
-// Ngày có lịch học gần nhất tính từ fromISO trở về trước (tính cả fromISO).
-export function latestScheduledDate(days, fromISO) {
-  if (!days || days.length === 0) return null
-  if (days.includes(dayOfWeekFromISO(fromISO))) return fromISO
-  return findScheduledDate(days, fromISO, -1)
-}
-
 // ---- Lịch theo thời kỳ ----
 
 // Các dòng lịch có hiệu lực vào ngày dateISO.
@@ -152,7 +132,8 @@ export function hasSessionOn(rows, dateISO) {
   return schedulesOn(rows, dateISO).some((row) => row.day_of_week === day)
 }
 
-// Như findScheduledDate nhưng theo lịch thời kỳ: ngày gần nhất SAU fromISO (theo hướng direction) có buổi học.
+// Ngày gần nhất SAU fromISO theo hướng direction (-1 lùi, +1 tiến) mà lớp có buổi học (theo lịch hiệu lực
+// của từng ngày). limitISO (tùy chọn): không vượt quá ngày này khi tiến. Không thấy trong 60 ngày thì null.
 export function findSessionDate(rows, fromISO, direction, limitISO) {
   if (!rows || rows.length === 0) return null
   for (let step = 1; step <= 60; step += 1) {

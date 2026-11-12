@@ -2,10 +2,11 @@
 // Tiền được định dạng qua formatCurrency, ngày qua formatDate/todayISO (xem schedule.js).
 import { supabase } from './supabaseClient'
 import { formatCurrency, formatDate } from './format'
+import { TABLE_LABELS } from './restore'
 import { todayISO } from './schedule'
 
+// Các nhóm thao tác (action_group trong supabase/v3/02_security.sql). Ô chọn tự thêm mục "Tất cả".
 export const ACTION_GROUP_OPTIONS = [
-  { value: '', label: 'Tất cả thao tác' },
   { value: 'attendance', label: 'Điểm danh (Có mặt / Vắng / Xóa)' },
   { value: 'makeup', label: 'Học bù' },
   { value: 'enrollment', label: 'Ghi danh · Cho nghỉ · Đổi lớp · Hoàn thành cuối cấp' },
@@ -180,96 +181,113 @@ export function describeAuditGroup(entry) {
   }`
 }
 
-const HIDDEN_PAYLOAD_KEYS = new Set([
-  'attendance_id',
-  'enrollment_id',
-  'class_id',
-  'student_id',
-  'parent_id',
-  'teacher_id',
-  'user_id',
-  'new_enrollment',
-])
-
+// Nhãn tiếng Việt cho các khóa trong old_data / new_data mà trigger và RPC V3 ghi
+// (supabase/v3/05_rpc_core.sql, 06_rpc_admin.sql, 07_audit.sql, 08_ops.sql).
 const FIELD_LABELS = {
+  // Điểm danh & học bù
   attendance_date: 'Ngày điểm danh',
+  makeup_of_date: 'Bù cho buổi ngày',
   status: 'Trạng thái',
   price_snapshot: 'Đơn giá đóng băng',
   class_name: 'Lớp học',
   orig_class_name: 'Lớp gốc',
-  from_class_name: 'Từ lớp',
+  is_makeup: 'Học bù',
+  // Ghi danh
   to_class_name: 'Sang lớp',
-  transfer_date: 'Ngày chuyển lớp',
+  joined_at: 'Ngày vào lớp',
+  left_at: 'Ngày nghỉ học',
+  left_reason: 'Lý do nghỉ',
   student_code: 'Mã học sinh',
   student_name: 'Học sinh',
-  full_name: 'Họ tên',
-  phone: 'Số điện thoại',
-  email: 'Email',
-  grade: 'Khối',
+  // Lớp học, lịch học
+  name: 'Tên lớp',
   subject: 'Môn học',
+  grade: 'Khối',
   class_no: 'Thứ tự lớp',
   teacher_name: 'Giáo viên',
   price_per_session: 'Đơn giá / buổi',
-  parent_name: 'Phụ huynh',
-  parent_phone: 'SĐT phụ huynh',
-  parent_code: 'Mã phụ huynh',
-  joined_at: 'Ngày vào lớp',
-  left_at: 'Ngày nghỉ học',
-  active: 'Kích hoạt tài khoản',
-  is_makeup: 'Học bù',
   schedule: 'Lịch học',
+  valid_from: 'Áp dụng từ ngày',
   deleted_at: 'Trạng thái ẩn',
+  // Học sinh, phụ huynh, giáo viên, tài khoản
+  full_name: 'Họ tên',
+  phone: 'Số điện thoại',
+  email: 'Email',
+  parent_name: 'Phụ huynh',
+  parent_code: 'Mã phụ huynh',
+  active: 'Kích hoạt tài khoản',
+  // Hệ thống: khóa sổ, sao lưu, làm mới nhật ký, chuyển năm học, khôi phục
+  month_start: 'Tháng',
+  charged_sessions: 'Số buổi tính phí',
+  revenue: 'Doanh thu',
+  reason: 'Lý do',
+  tables: 'Bảng đã xuất',
+  counts: 'Số dòng từng bảng',
+  year: 'Năm',
+  month: 'Tháng',
+  rows: 'Số dòng',
   deleted_count: 'Số dòng nhật ký đã xóa',
   before_date: 'Ngày chốt nhật ký',
   rollover_date: 'Ngày chuyển năm học',
   promoted_count: 'Số lớp lên khối',
   closed_count: 'Số lớp cuối cấp đã đóng',
-  dropped_students: 'Số học sinh cho nghỉ',
+  graduated_students: 'Số học sinh hoàn thành cuối cấp',
+  file_version: 'Phiên bản file sao lưu',
   file_exported_at: 'File sao lưu xuất lúc',
-  restored_students: 'Số học sinh khôi phục',
-  restored_classes: 'Số lớp khôi phục',
-  restored_enrollments: 'Số ghi danh khôi phục',
-  restored_attendance: 'Số buổi điểm danh khôi phục',
+  renamed_classes: 'Số lớp đổi tên',
 }
 
-const STATUS_VALUE_LABELS = {
-  present: 'Có mặt',
-  absent: 'Vắng (tính phí)',
-  absent_excused: 'Vắng có phép (0đ)',
-  active: 'Đang học',
-  dropped: 'Đã nghỉ',
+const VALUE_LABELS = {
+  status: {
+    present: 'Có mặt',
+    absent: 'Vắng (tính phí)',
+    absent_excused: 'Vắng có phép (0đ)',
+    active: 'Đang học',
+    dropped: 'Đã nghỉ',
+  },
+  left_reason: { dropped: 'Nghỉ hẳn', transferred: 'Đổi lớp', graduated: 'Hoàn thành lớp cuối cấp' },
+}
+const MONEY_KEYS = new Set(['price_snapshot', 'price_per_session', 'revenue'])
+const DATE_KEYS = new Set(['joined_at', 'left_at', 'valid_from', 'before_date', 'rollover_date'])
+const tableLabel = (name) => TABLE_LABELS[name] ?? name
+
+function formatValue(key, rawVal) {
+  if (key === 'deleted_at') {
+    return rawVal ? `Đã ẩn (${formatVnDateTime(rawVal)})` : 'Đang hiển thị'
+  }
+  if (rawVal === null || rawVal === '') return 'Trống'
+  if (VALUE_LABELS[key]?.[rawVal]) return VALUE_LABELS[key][rawVal]
+  if (MONEY_KEYS.has(key)) return formatCurrency(rawVal)
+  if (key === 'file_exported_at') return formatVnDateTime(rawVal)
+  if (key === 'month_start' && typeof rawVal === 'string') {
+    const [year, month] = rawVal.split('-')
+    return `Tháng ${Number(month)}/${year}`
+  }
+  if (key === 'tables' && Array.isArray(rawVal)) return rawVal.map(tableLabel).join(', ')
+  if (key === 'counts' && typeof rawVal === 'object') {
+    return Object.entries(rawVal)
+      .map(([table, count]) => `${tableLabel(table)}: ${count}`)
+      .join(', ')
+  }
+  if (typeof rawVal === 'boolean') return rawVal ? 'Có' : 'Không'
+  if (
+    (DATE_KEYS.has(key) || key.endsWith('_date')) &&
+    typeof rawVal === 'string' &&
+    /^\d{4}-\d{2}-\d{2}/.test(rawVal)
+  ) {
+    return formatDate(rawVal)
+  }
+  if (Array.isArray(rawVal)) return rawVal.join(', ')
+  if (typeof rawVal === 'object') return JSON.stringify(rawVal)
+  return String(rawVal)
 }
 
-// [{key, label, value}] để hiện dữ liệu trước -> sau; ẩn các cột id kỹ thuật.
+// [{key, label, value}] để hiện dữ liệu trước -> sau; ẩn các cột id kỹ thuật (…_id).
 export function formatAuditPayload(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return []
-  const entries = []
-  for (const [key, rawVal] of Object.entries(data)) {
-    if (HIDDEN_PAYLOAD_KEYS.has(key) || key.endsWith('_id') || rawVal === undefined) continue
-    const label = FIELD_LABELS[key] || key
-    let display
-    if (rawVal === null || rawVal === '') {
-      display = 'Trống'
-    } else if (key === 'price_snapshot' || key === 'price_per_session') {
-      display = formatCurrency(rawVal)
-    } else if (key === 'status' && STATUS_VALUE_LABELS[rawVal]) {
-      display = STATUS_VALUE_LABELS[rawVal]
-    } else if (key === 'deleted_at') {
-      display = typeof rawVal === 'string' ? `Đã ẩn (${formatVnDateTime(rawVal)})` : 'Đã ẩn'
-    } else if (typeof rawVal === 'boolean') {
-      display = rawVal ? 'Có' : 'Không'
-    } else if (
-      (key.endsWith('_date') || key === 'joined_at' || key === 'left_at' || key === 'before_date') &&
-      typeof rawVal === 'string' &&
-      /^\d{4}-\d{2}-\d{2}/.test(rawVal)
-    ) {
-      display = formatDate(rawVal)
-    } else {
-      display = String(rawVal)
-    }
-    entries.push({ key, label, value: display })
-  }
-  return entries
+  return Object.entries(data)
+    .filter(([key, rawVal]) => !key.endsWith('_id') && rawVal !== undefined)
+    .map(([key, rawVal]) => ({ key, label: FIELD_LABELS[key] || key, value: formatValue(key, rawVal) }))
 }
 
 export async function fetchAuditLogs({

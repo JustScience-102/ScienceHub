@@ -10,6 +10,7 @@ import RegisterStudentFlow from '../components/classes/RegisterStudentFlow'
 import StudentProfile from '../components/students/StudentProfile'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
+import { formatDate } from '../lib/format'
 import { fetchAll } from '../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../lib/text'
 import { NONE, buildOptions, classGrade } from '../lib/grade'
@@ -523,11 +524,8 @@ export default function StudentsPage({ isTeacher = false, teacherId = null } = {
     )
   }
 
-  // Ngày học sinh nghỉ hết lớp (lúc hệ thống tự ẩn học sinh), dạng dd/mm/yyyy.
-  function hiddenSince(student) {
-    const date = new Date(student.deleted_at)
-    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('vi-VN')
-  }
+  // Ngày học sinh nghỉ hết lớp (lúc hệ thống tự ẩn học sinh), dạng DD/MM/YYYY.
+  const hiddenSince = (student) => formatDate(student.deleted_at)
 
   // Bảng (máy tính) và thẻ (điện thoại) của một danh sách học sinh.
   // dimmed: danh sách học sinh đã ẩn, hiển thị mờ hơn kèm ngày nghỉ.

@@ -1,16 +1,11 @@
 // Hỗ trợ "Đổi lớp" và "Đăng ký thêm lớp" trong Hồ sơ học sinh.
-// Quy tắc cùng khối cũng được Database chặn cứng (trigger check_enrollment_grade);
+// Quy tắc cùng khối được Database chặn cứng (trigger trg_enrollments_before_insert, supabase/v3/04_integrity.sql);
 // phần kiểm tra ở đây chỉ để khóa sẵn lựa chọn sai và nói rõ lý do.
 
 import { supabase } from './supabaseClient'
 import { toVietnameseError } from './errors'
 import { fetchAll } from './fetchAll'
 import { classGrade } from './grade'
-
-// Báo lỗi đổi lớp (dùng errors.js).
-export function transferError(error) {
-  return toVietnameseError(error)
-}
 
 // Tải mọi lớp chưa ẩn kèm giáo viên, lịch và sĩ số (số ghi danh 'active').
 // Tải theo trang vì Supabase chỉ trả tối đa 1000 dòng mỗi lần.
@@ -27,8 +22,8 @@ export async function loadClassChoices() {
     ),
     fetchAll(() => supabase.from('class_enrollments').select('id, class_id').eq('status', 'active')),
   ])
-  if (classResult.error) return { error: transferError(classResult.error) }
-  if (enrollResult.error) return { error: transferError(enrollResult.error) }
+  if (classResult.error) return { error: toVietnameseError(classResult.error) }
+  if (enrollResult.error) return { error: toVietnameseError(enrollResult.error) }
 
   const counts = {}
   for (const row of enrollResult.data) counts[row.class_id] = (counts[row.class_id] ?? 0) + 1
@@ -46,8 +41,7 @@ export function studentGradeOf(activeEnrollments) {
 
 // Danh sách lớp để chọn:
 //  - bỏ lớp học sinh đang học (hoặc lớp bị loại trừ, ví dụ lớp đang rời đi);
-//  - lớp khác khối của học sinh thì giữ lại nhưng khóa, kèm lý do;
-//  - lớp chưa có khối (lớp mock cũ) thì cho chọn, giống Database.
+//  - lớp khác khối của học sinh thì giữ lại nhưng khóa, kèm lý do.
 // Sắp theo tên lớp.
 export function buildClassChoices({ classes, activeEnrollments, excludeClassIds = [] }) {
   const hidden = new Set([...excludeClassIds, ...activeEnrollments.map((row) => row.class_id)])

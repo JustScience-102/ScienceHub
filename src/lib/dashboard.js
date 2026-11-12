@@ -2,7 +2,6 @@
 // (dashboard_summary, dashboard_schedule trong supabase/v3/05_rpc_core.sql).
 // Doanh thu chỉ cộng attendance_records.price_snapshot, không đọc classes.price_per_session.
 
-import { toVietnameseError } from './errors'
 import { normalizeText } from './text'
 
 // Đưa kết quả jsonb của dashboard_summary về số, tránh phụ thuộc kiểu dữ liệu trả về.
@@ -67,9 +66,4 @@ export function classTitle(cls) {
   if (!cls.subject) return cls.name
   const group = cls.class_no ?? /_(\d+)$/.exec(cls.name ?? '')?.[1]
   return [cls.subject, cls.grade, group && `Nhóm ${group}`].filter(Boolean).join(' ')
-}
-
-// Báo lỗi Dashboard (dùng errors.js).
-export function dashboardError(error) {
-  return toVietnameseError(error)
 }

@@ -264,7 +264,7 @@ export default function AuditLogModal({
               onChange={setActionGroup}
               placeholder="Tất cả thao tác"
             >
-              {ACTION_GROUP_OPTIONS.filter((option) => option.value).map((option) => (
+              {ACTION_GROUP_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

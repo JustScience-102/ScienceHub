@@ -161,12 +161,7 @@ export default function App() {
     supabase.rpc('my_profile').then(({ data, error }) => {
       if (cancelled) return
       if (error) {
-        const missing = error.code === 'PGRST202' || error.code === '42883'
-        forceSignOut(
-          missing
-            ? 'Database chưa cài đủ bộ SQL V3. Hãy chạy lần lượt các file trong thư mục supabase/v3 (00 đến 09) trong Supabase SQL Editor.'
-            : toVietnameseError(error),
-        )
+        forceSignOut(toVietnameseError(error))
         return
       }
       if (!data || data.status !== 'ok') {

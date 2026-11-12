@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRightLeft, ChevronLeft, ChevronRight, CalendarX, History, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, CalendarX, History, Plus } from 'lucide-react'
 import PageShell from '../PageShell'
 import AuditLogModal from '../audit/AuditLogModal'
 import EmptyState from '../EmptyState'
+import MonthNav from '../MonthNav'
 import Notice from '../Notice'
 import TransferClassModal from './TransferClassModal'
 import AddClassModal from './AddClassModal'
@@ -18,9 +19,7 @@ import {
   monthOf,
   monthStart,
   nextMonthStart,
-  shiftMonth,
   monthLabel,
-  sameMonth,
   summarizeMonth,
   remainingSessions,
 } from '../../lib/tuition'
@@ -30,9 +29,6 @@ const STATUS_STYLES = {
   absent: 'bg-red-50 text-red-700',
   absent_excused: 'bg-slate-100 text-slate-600',
 }
-
-const NAV_BTN =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
 
 function teacherOf(cls) {
   return cls?.teachers?.full_name || 'Chưa gắn giáo viên'
@@ -226,7 +222,6 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
     })
   }, [summary, labelledActive])
 
-  const isCurrentMonth = sameMonth(month, currentMonth)
   const isCurrentOrFuture = month.year * 12 + month.month >= currentMonth.year * 12 + currentMonth.month
 
   const back = (
@@ -417,37 +412,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
           <h2 id="tuition-title" className="text-lg font-semibold text-slate-800">
             Điểm danh và học phí dự kiến
           </h2>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setMonth(shiftMonth(month, -1))}
-              aria-label="Tháng trước"
-              className={NAV_BTN}
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <span className="min-w-28 text-center text-sm font-semibold text-slate-800" aria-live="polite">
-              {monthLabel(month)}
-            </span>
-            <button
-              type="button"
-              onClick={() => setMonth(shiftMonth(month, 1))}
-              disabled={isCurrentMonth}
-              aria-label="Tháng sau"
-              className={NAV_BTN}
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-            {!isCurrentMonth && (
-              <button
-                type="button"
-                onClick={() => setMonth(currentMonth)}
-                className="ml-1 min-h-11 rounded-lg px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"
-              >
-                Tháng này
-              </button>
-            )}
-          </div>
+          <MonthNav month={month} currentMonth={currentMonth} onChange={setMonth} />
         </div>
 
         {!recordsLoading && recordsState.error && <Notice type="error">{recordsState.error}</Notice>}
