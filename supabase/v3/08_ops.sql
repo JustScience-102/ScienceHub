@@ -150,15 +150,11 @@ $$;
 -- ---------------------------------------------------------------------
 -- 3. Nhập học sinh hàng loạt từ CSV (tối đa 500 dòng). p_dry_run = true chỉ kiểm tra, không ghi gì.
 --    Mỗi dòng: {line, student_name, student_phone, parent_name, parent_phone, class_name, joined_at}.
---    Học sinh nhận diện bằng họ tên (không phân biệt hoa/thường) + SĐT phụ huynh; đã có thì chỉ ghi danh thêm.
+--    Học sinh nhận diện bằng họ tên (_norm_name: không phân biệt hoa/thường, có phân biệt dấu) + SĐT phụ huynh,
+--    cùng quy tắc với register_student_in_class / update_student; đã có thì chỉ ghi danh thêm.
 -- ---------------------------------------------------------------------
-create or replace function public._import_norm_name(p_text text)
-returns text
-language sql
-immutable
-as $$
-  select lower(regexp_replace(btrim(coalesce(p_text, '')), '\s+', ' ', 'g'));
-$$;
+-- Bản trước có hàm riêng cho nhập CSV; nay dùng chung public._norm_name (03_naming.sql).
+drop function if exists public._import_norm_name(text);
 
 create or replace function public.import_students_bulk(p_rows jsonb, p_dry_run boolean default true)
 returns jsonb
@@ -302,7 +298,7 @@ begin
       select p.id, p.full_name into v_pid, v_exname from public.parents p where p.phone = v_pphone;
       if found then
         m_parents := m_parents || jsonb_build_object(v_pkey, jsonb_build_object('id', v_pid, 'name', v_exname, 'existing', true, 'line', v_line));
-        if v_pname <> '' and public._import_norm_name(v_pname) <> public._import_norm_name(v_exname) then
+        if v_pname <> '' and public._norm_name(v_pname) <> public._norm_name(v_exname) then
           v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('line', v_line,
             'message', format('SĐT phụ huynh %s đã có trong hệ thống với tên "%s", giữ nguyên tên này.', v_pphone, v_exname)));
         end if;
@@ -312,14 +308,14 @@ begin
     elsif v_pname <> '' and not (m_parents->v_pkey->>'existing')::boolean then
       if m_parents->v_pkey->>'name' is null then
         m_parents := jsonb_set(m_parents, array[v_pkey, 'name'], to_jsonb(v_pname));
-      elsif public._import_norm_name(v_pname) <> public._import_norm_name(m_parents->v_pkey->>'name') then
+      elsif public._norm_name(v_pname) <> public._norm_name(m_parents->v_pkey->>'name') then
         v_warnings := v_warnings || jsonb_build_array(jsonb_build_object('line', v_line,
           'message', format('SĐT phụ huynh %s xuất hiện với tên khác, dùng tên "%s" ở dòng đầu tiên.', v_pphone, m_parents->v_pkey->>'name')));
       end if;
     end if;
 
     -- Học sinh (họ tên + SĐT phụ huynh)
-    v_skey  := v_pphone || '|' || public._import_norm_name(v_sname);
+    v_skey  := v_pphone || '|' || public._norm_name(v_sname);
     v_first := false;
     if m_students->v_skey is null then
       v_first   := true;
@@ -330,7 +326,7 @@ begin
       if v_pid is not null then
         select count(*), min(s.id::text)::uuid, min(s.phone) into v_cnt, v_sid, v_exphone
         from public.students s
-        where s.parent_id = v_pid and public._import_norm_name(s.full_name) = public._import_norm_name(v_sname);
+        where s.parent_id = v_pid and public._norm_name(s.full_name) = public._norm_name(v_sname);
         if v_cnt > 1 then
           v_errors := v_errors || jsonb_build_array(jsonb_build_object('line', v_line,
             'message', format('Phụ huynh %s có nhiều học sinh trùng tên "%s", không xác định được em nào. Hãy xử lý trực tiếp trên web.', v_pphone, v_sname)));

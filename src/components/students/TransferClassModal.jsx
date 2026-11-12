@@ -7,7 +7,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { STATUS_LABELS } from '../../lib/tuition'
-import { buildClassChoices, loadClassChoices, transferError } from '../../lib/transfer'
+import { buildClassChoices, loadClassChoices } from '../../lib/transfer'
 import { classTitle } from '../../lib/dashboard'
 
 // Hộp thoại ĐỔI LỚP: học sinh rời lớp hiện tại và vào lớp mới CÙNG KHỐI trong một lần lưu.
@@ -115,7 +115,7 @@ export default function TransferClassModal({
     })
     setSaving(false)
     if (error) {
-      setFormError(transferError(error))
+      setFormError(toVietnameseError(error))
       return
     }
     onDone(

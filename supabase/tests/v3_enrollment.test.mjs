@@ -33,6 +33,20 @@ export default {
       assert.equal(await ctx.value(`select full_name from public.parents where id = $1`, [s.parent]), 'Nguyễn Văn Minh')
     },
 
+    'Cùng phụ huynh + cùng tên (không phân biệt hoa/thường, có phân biệt dấu) không tạo hồ sơ thứ hai': async (ctx) => {
+      assert.equal(await ctx.value(`select public._norm_name('Hòa') = public._norm_name('Hóa')`), false)
+      assert.equal(await ctx.value(`select public._norm_name(' NGUYỄN  Minh Anh ') = public._norm_name('Nguyễn Minh Anh')`), true)
+      await expectError(
+        register(ctx, { classId: s.li9, name: 'NGUYỄN MINH ANH', parentPhone: '0901000001' }),
+        'đã có học sinh',
+      )
+      // Đổi tên thành tên trùng anh chị em cũng bị chặn
+      await expectError(
+        ctx.manager.rpc('update_student', { p_student_id: s.khoi, p_full_name: 'Nguyễn Minh Anh', p_phone: null, p_parent_name: 'Nguyễn Văn Minh', p_parent_phone: '0901000001' }),
+        'trùng tên',
+      )
+    },
+
     'SĐT sai định dạng và SĐT học sinh trùng báo lỗi tiếng Việt': async (ctx) => {
       await expectError(register(ctx, { classId: s.toan9a, name: 'X', parentPhone: '123' }), 'SĐT phụ huynh "123" chưa đúng')
       await register(ctx, { classId: s.toan9a, name: 'Y', parentPhone: '0901000009', phone: '0987000001' })

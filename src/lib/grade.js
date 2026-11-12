@@ -3,14 +3,10 @@
 // Giá trị đặc biệt của ô lọc: mục chưa có khối / chưa có môn.
 export const NONE = '__none__'
 
-// Khối của một lớp: cột grade, nếu trống thì lấy số cuối của tên lớp ("Toán 9" -> 9).
-// Giống hàm class_effective_grade ở Database; chỉ phục vụ các lớp mock cũ chưa được sửa.
+// Khối của một lớp: cột grade (1..12). Dữ liệu thiếu hoặc không hợp lệ thì null.
 export function classGrade(cls) {
-  if (!cls) return null
-  if (cls.grade) return Number(cls.grade)
-  const match = /\s(\d{1,2})$/.exec(String(cls.name ?? ''))
-  const value = match ? Number(match[1]) : 0
-  return value >= 1 && value <= 12 ? value : null
+  const grade = Number(cls?.grade)
+  return Number.isInteger(grade) && grade >= 1 && grade <= 12 ? grade : null
 }
 
 // Gom các giá trị khác nhau thành danh sách cho ô lọc. Mục không có giá trị xếp cuối

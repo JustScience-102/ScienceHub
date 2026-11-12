@@ -2,8 +2,6 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import {
   Banknote,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   DatabaseBackup,
   GraduationCap,
   History,
@@ -16,20 +14,19 @@ import {
 import PageShell from '../components/PageShell'
 import Notice from '../components/Notice'
 import FormField from '../components/FormField'
+import MonthNav from '../components/MonthNav'
 import StatCard from '../components/dashboard/StatCard'
 import TodaySchedule from '../components/dashboard/TodaySchedule'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { toVietnameseError } from '../lib/errors'
 import { formatCurrency, formatDate } from '../lib/format'
 import { addDaysISO, todayISO, weekdayLabel } from '../lib/schedule'
-import { monthLabel, monthOf, sameMonth, shiftMonth } from '../lib/tuition'
-import { dashboardError, parseSummary } from '../lib/dashboard'
+import { monthLabel, monthOf, sameMonth } from '../lib/tuition'
+import { parseSummary } from '../lib/dashboard'
 
 // Hai hộp thoại lớn chỉ tải khi mở (giảm dung lượng tải trang lần đầu).
 const AuditLogModal = lazy(() => import('../components/audit/AuditLogModal'))
 const BackupModal = lazy(() => import('../components/backup/BackupModal'))
-
-const NAV_BTN =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
 
 // onOpenAttendance(classId, date): do App.jsx truyền vào để nhảy sang màn hình Điểm danh của lớp.
 export default function DashboardPage({ onOpenAttendance }) {
@@ -59,7 +56,7 @@ export default function DashboardPage({ onOpenAttendance }) {
       setSummaryState((prev) => ({
         key: `${month.year}-${month.month}`,
         data: error ? prev.data : parseSummary(data),
-        error: error ? dashboardError(error) : '',
+        error: error ? toVietnameseError(error) : '',
       }))
     }
     load()
@@ -78,7 +75,7 @@ export default function DashboardPage({ onOpenAttendance }) {
       setScheduleState((prev) => ({
         key: scheduleDate,
         rows: error || !Array.isArray(data) ? prev.rows : data,
-        error: error ? dashboardError(error) : '',
+        error: error ? toVietnameseError(error) : '',
       }))
     }
     load()
@@ -143,37 +140,7 @@ export default function DashboardPage({ onOpenAttendance }) {
           <h2 id="stats-title" className="text-lg font-semibold text-slate-800">
             Thống kê {monthLabel(month).toLowerCase()}
           </h2>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setMonth(shiftMonth(month, -1))}
-              aria-label="Tháng trước"
-              className={NAV_BTN}
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <span className="min-w-28 text-center text-sm font-semibold text-slate-800" aria-live="polite">
-              {monthLabel(month)}
-            </span>
-            <button
-              type="button"
-              onClick={() => setMonth(shiftMonth(month, 1))}
-              disabled={isCurrentMonth}
-              aria-label="Tháng sau"
-              className={NAV_BTN}
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-            {!isCurrentMonth && (
-              <button
-                type="button"
-                onClick={() => setMonth(currentMonth)}
-                className="ml-1 min-h-11 rounded-lg px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"
-              >
-                Tháng này
-              </button>
-            )}
-          </div>
+          <MonthNav month={month} currentMonth={currentMonth} onChange={setMonth} />
         </div>
 
         {!summaryLoading && summaryState.error && <Notice type="error">{summaryState.error}</Notice>}

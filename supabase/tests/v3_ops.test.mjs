@@ -54,6 +54,21 @@ export default {
       s.emB = await ctx.value(`select id from public.students where full_name = 'Em B'`)
     },
 
+    'Nhập CSV: khác hoa/thường là cùng một học sinh (như khi đăng ký), khác dấu là học sinh khác': async (ctx) => {
+      const same = await ctx.manager.rpc('import_students_bulk', {
+        p_rows: [row(2, 'EM  a', '0901000001', 'Toan_8_Lan_1')],
+        p_dry_run: true,
+      })
+      assert.equal(same.ok, true, JSON.stringify(same.errors))
+      // Nhận ra là "Em A" đang học Toan_8_Lan_1 nên bỏ qua, không tạo học sinh mới.
+      assert.deepEqual([same.summary.new_students, same.summary.existing_students, same.summary.skipped], [0, 0, 1])
+      const other = await ctx.manager.rpc('import_students_bulk', {
+        p_rows: [row(2, 'Em Á', '0901000001', 'Toan_8_Lan_1')],
+        p_dry_run: true,
+      })
+      assert.deepEqual([other.summary.new_students, other.summary.skipped], [1, 0])
+    },
+
     'Nhập CSV khác khối với lớp đang học bị chặn': async (ctx) => {
       const r = await ctx.manager.rpc('import_students_bulk', { p_rows: [row(2, 'Em A', '0901000001', 'Toan_9_Lan_1')], p_dry_run: true })
       assert.equal(r.ok, false)

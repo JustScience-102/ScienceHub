@@ -338,6 +338,7 @@ declare
   v_owner        uuid;
   v_parent_id    uuid;
   v_student_id   uuid;
+  v_dup_code     text;
 begin
   if p_class_id is null then
     raise exception 'Trung tâm: Vui lòng chọn lớp cho học sinh.';
@@ -374,6 +375,18 @@ begin
     end if;
     insert into public.parents (full_name, phone) values (v_parent_name, v_parent_phone)
     returning id into v_parent_id;
+  else
+    -- Cùng phụ huynh + cùng tên (không phân biệt hoa thường, phân biệt dấu, kể cả học sinh đã ẩn) là CÙNG một em:
+    -- không tạo mã học sinh thứ hai, bắt chọn lại em đã có.
+    select s.student_code into v_dup_code
+    from public.students s
+    where s.parent_id = v_parent_id
+      and public._norm_name(s.full_name) = public._norm_name(v_name)
+    order by s.student_code
+    limit 1;
+    if v_dup_code is not null then
+      raise exception 'Trung tâm: Phụ huynh này đã có học sinh "%" (%). Hãy chọn em đó trong danh sách thay vì tạo mới.', v_name, v_dup_code;
+    end if;
   end if;
 
   insert into public.students (full_name, phone, parent_id) values (v_name, v_phone, v_parent_id)
@@ -463,6 +476,18 @@ begin
         returning id into v_new_parent;
       end if;
     end if;
+  end if;
+
+  -- Chỉ kiểm tra khi đổi tên hoặc đổi phụ huynh (cho phép sửa SĐT của hồ sơ trùng cũ để còn dọn dẹp).
+  if exists (
+    select 1 from public.students cur
+    where cur.id = p_student_id and (cur.full_name, cur.parent_id) is distinct from (v_name, v_new_parent)
+  ) and exists (
+    select 1 from public.students s
+    where s.parent_id = v_new_parent and s.id <> p_student_id
+      and public._norm_name(s.full_name) = public._norm_name(v_name)
+  ) then
+    raise exception 'Trung tâm: Phụ huynh này đã có một học sinh trùng tên "%". Không thể có hai hồ sơ cùng tên và cùng phụ huynh.', v_name;
   end if;
 
   update public.students

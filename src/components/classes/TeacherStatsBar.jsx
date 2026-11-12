@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Banknote, ChevronLeft, ChevronRight, GraduationCap, School } from 'lucide-react'
+import { Banknote, GraduationCap, School } from 'lucide-react'
 import Notice from '../Notice'
+import MonthNav from '../MonthNav'
 import StatCard from '../dashboard/StatCard'
 import { supabase } from '../../lib/supabaseClient'
+import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency } from '../../lib/format'
 import { todayISO } from '../../lib/schedule'
-import { monthLabel, monthOf, sameMonth, shiftMonth } from '../../lib/tuition'
-import { dashboardError, parseSummary } from '../../lib/dashboard'
-
-const NAV_BTN =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent'
+import { monthLabel, monthOf } from '../../lib/tuition'
+import { parseSummary } from '../../lib/dashboard'
 
 // Thanh thống kê riêng của Giáo viên ở đầu trang Lớp học (dữ liệu từ dashboard_summary, nhánh Giáo viên).
 // Số lớp và số học sinh là con số HIỆN TẠI; doanh thu và số buổi tính phí theo Tháng/Năm đang chọn.
@@ -33,7 +32,7 @@ export default function TeacherStatsBar({ refreshKey }) {
       setState((prev) => ({
         key,
         data: error ? prev.data : parseSummary(data),
-        error: error ? dashboardError(error) : '',
+        error: error ? toVietnameseError(error) : '',
       }))
     }
     load()
@@ -44,7 +43,6 @@ export default function TeacherStatsBar({ refreshKey }) {
 
   const loading = state.key !== key
   const summary = state.data
-  const isCurrentMonth = sameMonth(month, currentMonth)
 
   return (
     <section aria-labelledby="teacher-stats-title" className="space-y-3 rounded-xl border border-slate-200 p-4">
@@ -52,37 +50,7 @@ export default function TeacherStatsBar({ refreshKey }) {
         <h2 id="teacher-stats-title" className="text-lg font-semibold text-slate-800">
           Thống kê của bạn
         </h2>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMonth(shiftMonth(month, -1))}
-            aria-label="Tháng trước"
-            className={NAV_BTN}
-          >
-            <ChevronLeft size={18} aria-hidden="true" />
-          </button>
-          <span className="min-w-28 text-center text-sm font-semibold text-slate-800" aria-live="polite">
-            {monthLabel(month)}
-          </span>
-          <button
-            type="button"
-            onClick={() => setMonth(shiftMonth(month, 1))}
-            disabled={isCurrentMonth}
-            aria-label="Tháng sau"
-            className={NAV_BTN}
-          >
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
-          {!isCurrentMonth && (
-            <button
-              type="button"
-              onClick={() => setMonth(currentMonth)}
-              className="ml-1 min-h-11 rounded-lg px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"
-            >
-              Tháng này
-            </button>
-          )}
-        </div>
+        <MonthNav month={month} currentMonth={currentMonth} onChange={setMonth} />
       </div>
 
       {!loading && state.error && <Notice type="error">{state.error}</Notice>}
