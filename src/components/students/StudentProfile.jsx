@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRightLeft, CalendarX, History, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, CalendarX, ClipboardList, GraduationCap, History, Plus } from 'lucide-react'
 import PageShell from '../PageShell'
 import AuditLogModal from '../audit/AuditLogModal'
 import EmptyState from '../EmptyState'
@@ -7,6 +7,7 @@ import MonthNav from '../MonthNav'
 import Notice from '../Notice'
 import TransferClassModal from './TransferClassModal'
 import AddClassModal from './AddClassModal'
+import HomeworkHistory from './HomeworkHistory'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
@@ -41,6 +42,7 @@ function gradeText(cls) {
 
 // Hồ sơ chi tiết học sinh: lớp đang học, giáo viên, lịch học, lịch sử điểm danh theo tháng
 // và tổng học phí dự kiến (chỉ cộng price_snapshot đã đóng băng lúc điểm danh).
+// Tab "Lịch sử làm bài tập": điểm các bài trên app giao bài ScienceHub (HomeworkHistory).
 export default function StudentProfile({ studentId, onBack, isTeacher = false }) {
   const today = todayISO()
   const currentMonth = monthOf(today)
@@ -54,6 +56,8 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
   const [notice, setNotice] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [studentAuditOpen, setStudentAuditOpen] = useState(false)
+  // Tab: lớp & học phí (mặc định) hoặc lịch sử làm bài tập trên app giao bài ScienceHub.
+  const [tab, setTab] = useState('classes')
   // Lịch sử nhãn lớp (V2-6): tên lớp, khối, giáo viên đúng vào ngày điểm danh. Lỗi tải thì dùng nhãn hiện tại.
   const [versions, setVersions] = useState([])
 
@@ -263,7 +267,7 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
   }
 
   return (
-    <PageShell title={`Hồ sơ: ${student.full_name}`} description="Thông tin, lớp đang học và học phí dự kiến.">
+    <PageShell title={`Hồ sơ: ${student.full_name}`} description="Thông tin, lớp đang học, học phí dự kiến và lịch sử làm bài tập.">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {back}
         {!isTeacher && (
@@ -321,209 +325,238 @@ export default function StudentProfile({ studentId, onBack, isTeacher = false })
         </div>
       </dl>
 
-      <section aria-labelledby="active-classes-title" className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 id="active-classes-title" className="text-lg font-semibold text-slate-800">
-            Các lớp đang học ({activeEnrollments.length})
-          </h2>
+      <div role="tablist" aria-label="Nội dung hồ sơ" className="flex gap-2 overflow-x-auto border-b border-slate-200">
+        {[
+          { value: 'classes', label: 'Lớp & học phí', icon: GraduationCap },
+          { value: 'homework', label: 'Lịch sử làm bài tập', icon: ClipboardList },
+        ].map((item) => (
           <button
+            key={item.value}
             type="button"
-            onClick={() => {
-              setNotice('')
-              setAddingClass(true)
-            }}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-sky-300 px-4 text-sm font-medium text-sky-700 hover:bg-sky-50"
+            role="tab"
+            aria-selected={tab === item.value}
+            onClick={() => setTab(item.value)}
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-medium ${
+              tab === item.value
+                ? 'border-sky-500 text-sky-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
-            <Plus size={16} aria-hidden="true" />
-            Đăng ký thêm lớp
+            <item.icon size={16} aria-hidden="true" />
+            {item.label}
           </button>
-        </div>
-        {activeEnrollments.length === 0 ? (
-          <EmptyState title="Học sinh không học lớp nào" text="Học sinh sẽ hiện lại khi được thêm vào một lớp." />
-        ) : (
-          <ul className="grid gap-3 md:grid-cols-2">
-            {activeEnrollments.map((row) => (
-              <li key={row.id} className="rounded-xl border border-slate-200 p-4">
-                <p className="font-semibold text-slate-800">{row.classes?.name}</p>
-                <p className="text-sm text-slate-500">
-                  {row.classes?.subject || 'Chưa có môn'} · {gradeText(row.classes)}
-                </p>
-                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                  <div>
-                    <dt className="text-xs text-slate-500">Giáo viên</dt>
-                    <dd className="font-medium text-slate-700">{teacherOf(row.classes)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-slate-500">Vào lớp</dt>
-                    <dd className="font-medium text-slate-700">{formatDate(row.joined_at)}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-xs text-slate-500">Lịch học</dt>
-                    <dd className="font-medium text-slate-700">{formatSchedule(row.classes?.class_schedules)}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-xs text-slate-500">Đơn giá</dt>
-                    <dd className="font-medium text-slate-700">
-                      {formatCurrency(row.classes?.price_per_session)}/buổi (giá hiện tại)
-                    </dd>
-                  </div>
-                </dl>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setTransferring(row)
-                  }}
-                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <ArrowRightLeft size={16} aria-hidden="true" />
-                  Đổi lớp
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        ))}
+      </div>
 
-      {droppedEnrollments.length > 0 && (
-        <section aria-labelledby="dropped-classes-title" className="space-y-3">
-          <h2 id="dropped-classes-title" className="text-lg font-semibold text-slate-800">
-            Lớp đã nghỉ ({droppedEnrollments.length})
-          </h2>
-          <ul className="space-y-2">
-            {droppedEnrollments.map((row) => (
-              <li
-                key={row.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500"
-              >
-                <span className="font-medium text-slate-700">{row.classes?.name}</span>
-                {' · '}
-                {teacherOf(row.classes)}
-                {' · '}
-                {formatDate(row.joined_at)} – {formatDate(row.left_at)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {tab === 'homework' && <HomeworkHistory studentId={student.id} />}
 
-      <section aria-labelledby="tuition-title" className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 id="tuition-title" className="text-lg font-semibold text-slate-800">
-            Điểm danh và học phí dự kiến
-          </h2>
-          <MonthNav month={month} currentMonth={currentMonth} onChange={setMonth} />
-        </div>
-
-        {!recordsLoading && recordsState.error && <Notice type="error">{recordsState.error}</Notice>}
-
-        {recordsLoading && recordsState.key === '' ? (
-          <p className="text-sm text-slate-500">
-            Trung tâm đang tải điểm danh của {monthLabel(month).toLowerCase()}...
-          </p>
-        ) : (
-          <div className={`space-y-4 transition-opacity ${recordsLoading ? 'opacity-60' : 'opacity-100'}`}>
-            <div className="rounded-xl bg-sky-50 p-4">
-              <p className="text-sm text-sky-700">Tổng học phí dự kiến {monthLabel(month).toLowerCase()}</p>
-              <p className="text-2xl font-bold text-sky-900">{formatCurrency(summary.total)}</p>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
-                <span className="rounded-md bg-emerald-100/80 px-2 py-1 text-emerald-800">
-                  Có mặt: {summary.presentCount} buổi
-                </span>
-                <span className="rounded-md bg-red-100/80 px-2 py-1 text-red-800">
-                  Vắng: {summary.absentCount} buổi
-                </span>
-                <span className="rounded-md bg-white/80 px-2 py-1 text-slate-700">
-                  Có phép: {summary.excusedCount} buổi
-                </span>
-                {isCurrentOrFuture && (
-                  <span className="rounded-md bg-sky-100 px-2 py-1 text-sky-800">
-                    Còn lại theo lịch: {totalRemaining} buổi
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-xs text-sky-700">
-                Cộng giá đã lưu của các buổi Có mặt và Vắng đã điểm danh ({summary.chargedCount} buổi tính tiền),{' '}
-                {isTeacher ? 'chỉ tính các lớp do bạn phụ trách' : 'từ tất cả các lớp'}. Vắng có phép không tính tiền.
-                Đổi đơn giá lớp sau này không làm đổi số tiền này.
-              </p>
-            </div>
-
-            {summary.groups.length === 0 && (
-              <EmptyState
-                icon={CalendarX}
-                title="Chưa có buổi điểm danh nào trong tháng này"
-                text="Khi lớp điểm danh cho học sinh, các buổi sẽ hiện ở đây."
-              />
-            )}
-
-            {sections.map((group) => (
-              <article key={group.classId} className="rounded-xl border border-slate-200">
-                <header className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-800">
-                      {group.cls ? classTitle(group.cls) : 'Lớp không xác định'}
-                      {!group.active && (
-                        <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs font-normal text-slate-600">
-                          Đã nghỉ
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-sm text-slate-500">
-                      {group.cls?.subject || 'Chưa có môn'} · {teacherOf(group.cls)}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Có mặt: {group.presentCount} · Vắng: {group.absentCount} · Có phép: {group.excusedCount}
-                    </p>
-                  </div>
-                  <div className="sm:text-right">
-                    <p className="text-sm text-slate-500">{group.chargedCount} buổi tính tiền</p>
-                    <p className="font-semibold text-slate-800">{formatCurrency(group.total)}</p>
-                  </div>
-                </header>
-
-                {group.rows.length === 0 ? (
-                  <p className="p-4 text-sm text-slate-500">Chưa có buổi điểm danh nào trong tháng này.</p>
-                ) : (
-                  <ul className="divide-y divide-slate-100">
-                    {group.rows.map((row) => (
-                      <li
-                        key={row.id}
-                        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-medium text-slate-800">{formatDate(row.date)}</span>
-                          <span className="ml-2 text-slate-500">{weekdayLabel(row.date)}</span>
-                          {row.makeup && (
-                            <span className="mt-1 block text-xs text-sky-700">
-                              Học bù tại lớp {row.makeupClassName || 'khác'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[row.status]}`}>
-                            {STATUS_LABELS[row.status]}
-                          </span>
-                          <span className="w-24 text-right font-medium text-slate-700">
-                            {row.status === 'absent_excused' ? 'Không tính' : formatCurrency(row.amount)}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {group.active && isCurrentOrFuture && (
-                  <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-                    Còn {remaining[group.classId] ?? 0} buổi theo lịch trong tháng chưa điểm danh (chưa tính vào học
-                    phí).
-                  </p>
-                )}
-              </article>
-            ))}
+      {tab === 'classes' && (
+        <>
+        <section aria-labelledby="active-classes-title" className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 id="active-classes-title" className="text-lg font-semibold text-slate-800">
+              Các lớp đang học ({activeEnrollments.length})
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                setNotice('')
+                setAddingClass(true)
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-sky-300 px-4 text-sm font-medium text-sky-700 hover:bg-sky-50"
+            >
+              <Plus size={16} aria-hidden="true" />
+              Đăng ký thêm lớp
+            </button>
           </div>
+          {activeEnrollments.length === 0 ? (
+            <EmptyState title="Học sinh không học lớp nào" text="Học sinh sẽ hiện lại khi được thêm vào một lớp." />
+          ) : (
+            <ul className="grid gap-3 md:grid-cols-2">
+              {activeEnrollments.map((row) => (
+                <li key={row.id} className="rounded-xl border border-slate-200 p-4">
+                  <p className="font-semibold text-slate-800">{row.classes?.name}</p>
+                  <p className="text-sm text-slate-500">
+                    {row.classes?.subject || 'Chưa có môn'} · {gradeText(row.classes)}
+                  </p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-slate-500">Giáo viên</dt>
+                      <dd className="font-medium text-slate-700">{teacherOf(row.classes)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-500">Vào lớp</dt>
+                      <dd className="font-medium text-slate-700">{formatDate(row.joined_at)}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs text-slate-500">Lịch học</dt>
+                      <dd className="font-medium text-slate-700">{formatSchedule(row.classes?.class_schedules)}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs text-slate-500">Đơn giá</dt>
+                      <dd className="font-medium text-slate-700">
+                        {formatCurrency(row.classes?.price_per_session)}/buổi (giá hiện tại)
+                      </dd>
+                    </div>
+                  </dl>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setTransferring(row)
+                    }}
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <ArrowRightLeft size={16} aria-hidden="true" />
+                    Đổi lớp
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {droppedEnrollments.length > 0 && (
+          <section aria-labelledby="dropped-classes-title" className="space-y-3">
+            <h2 id="dropped-classes-title" className="text-lg font-semibold text-slate-800">
+              Lớp đã nghỉ ({droppedEnrollments.length})
+            </h2>
+            <ul className="space-y-2">
+              {droppedEnrollments.map((row) => (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500"
+                >
+                  <span className="font-medium text-slate-700">{row.classes?.name}</span>
+                  {' · '}
+                  {teacherOf(row.classes)}
+                  {' · '}
+                  {formatDate(row.joined_at)} – {formatDate(row.left_at)}
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-      </section>
+
+        <section aria-labelledby="tuition-title" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 id="tuition-title" className="text-lg font-semibold text-slate-800">
+              Điểm danh và học phí dự kiến
+            </h2>
+            <MonthNav month={month} currentMonth={currentMonth} onChange={setMonth} />
+          </div>
+
+          {!recordsLoading && recordsState.error && <Notice type="error">{recordsState.error}</Notice>}
+
+          {recordsLoading && recordsState.key === '' ? (
+            <p className="text-sm text-slate-500">
+              Trung tâm đang tải điểm danh của {monthLabel(month).toLowerCase()}...
+            </p>
+          ) : (
+            <div className={`space-y-4 transition-opacity ${recordsLoading ? 'opacity-60' : 'opacity-100'}`}>
+              <div className="rounded-xl bg-sky-50 p-4">
+                <p className="text-sm text-sky-700">Tổng học phí dự kiến {monthLabel(month).toLowerCase()}</p>
+                <p className="text-2xl font-bold text-sky-900">{formatCurrency(summary.total)}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium">
+                  <span className="rounded-md bg-emerald-100/80 px-2 py-1 text-emerald-800">
+                    Có mặt: {summary.presentCount} buổi
+                  </span>
+                  <span className="rounded-md bg-red-100/80 px-2 py-1 text-red-800">
+                    Vắng: {summary.absentCount} buổi
+                  </span>
+                  <span className="rounded-md bg-white/80 px-2 py-1 text-slate-700">
+                    Có phép: {summary.excusedCount} buổi
+                  </span>
+                  {isCurrentOrFuture && (
+                    <span className="rounded-md bg-sky-100 px-2 py-1 text-sky-800">
+                      Còn lại theo lịch: {totalRemaining} buổi
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-sky-700">
+                  Cộng giá đã lưu của các buổi Có mặt và Vắng đã điểm danh ({summary.chargedCount} buổi tính tiền),{' '}
+                  {isTeacher ? 'chỉ tính các lớp do bạn phụ trách' : 'từ tất cả các lớp'}. Vắng có phép không tính tiền.
+                  Đổi đơn giá lớp sau này không làm đổi số tiền này.
+                </p>
+              </div>
+
+              {summary.groups.length === 0 && (
+                <EmptyState
+                  icon={CalendarX}
+                  title="Chưa có buổi điểm danh nào trong tháng này"
+                  text="Khi lớp điểm danh cho học sinh, các buổi sẽ hiện ở đây."
+                />
+              )}
+
+              {sections.map((group) => (
+                <article key={group.classId} className="rounded-xl border border-slate-200">
+                  <header className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-800">
+                        {group.cls ? classTitle(group.cls) : 'Lớp không xác định'}
+                        {!group.active && (
+                          <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs font-normal text-slate-600">
+                            Đã nghỉ
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        {group.cls?.subject || 'Chưa có môn'} · {teacherOf(group.cls)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Có mặt: {group.presentCount} · Vắng: {group.absentCount} · Có phép: {group.excusedCount}
+                      </p>
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="text-sm text-slate-500">{group.chargedCount} buổi tính tiền</p>
+                      <p className="font-semibold text-slate-800">{formatCurrency(group.total)}</p>
+                    </div>
+                  </header>
+
+                  {group.rows.length === 0 ? (
+                    <p className="p-4 text-sm text-slate-500">Chưa có buổi điểm danh nào trong tháng này.</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-100">
+                      {group.rows.map((row) => (
+                        <li
+                          key={row.id}
+                          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <span className="font-medium text-slate-800">{formatDate(row.date)}</span>
+                            <span className="ml-2 text-slate-500">{weekdayLabel(row.date)}</span>
+                            {row.makeup && (
+                              <span className="mt-1 block text-xs text-sky-700">
+                                Học bù tại lớp {row.makeupClassName || 'khác'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[row.status]}`}>
+                              {STATUS_LABELS[row.status]}
+                            </span>
+                            <span className="w-24 text-right font-medium text-slate-700">
+                              {row.status === 'absent_excused' ? 'Không tính' : formatCurrency(row.amount)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {group.active && isCurrentOrFuture && (
+                    <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+                      Còn {remaining[group.classId] ?? 0} buổi theo lịch trong tháng chưa điểm danh (chưa tính vào học
+                      phí).
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+        </>
+      )}
 
       {transferring && (
         <TransferClassModal

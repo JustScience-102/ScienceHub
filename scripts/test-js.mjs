@@ -21,6 +21,7 @@ const schedule = await import('../src/lib/schedule.js')
 const { remainingSessions } = await import('../src/lib/tuition.js')
 const { fetchAll } = await import('../src/lib/fetchAll.js')
 const classGroups = await import('../src/lib/classGroups.js')
+const homework = await import('../src/lib/homework.js')
 
 let passed = 0
 let failed = 0
@@ -152,6 +153,32 @@ await test('Mở form sửa từ nhóm đã lưu; tên nhóm của lớp đã th
   assert.equal(classGroups.classGroupNames([group], 'g1').size, 0)
   assert.equal(classGroups.groupIsBalanced({ incomplete: [], overlaps: [] }), true)
   assert.equal(classGroups.groupIsBalanced({ incomplete: [{}], overlaps: [] }), false)
+})
+await test('Lịch sử làm bài tập (ScienceHub): chữ hiển thị và tóm tắt', () => {
+  const lop = { kind: 'class', score10: '8.50', attempts: 1 }
+  const thap = {
+    kind: 'tower',
+    floors_total: 3,
+    floors_passed: 2,
+    floors: [
+      { floor: 1, score10: 9, passed: true, attempts: 1 },
+      { floor: 3, score10: null, passed: false, attempts: 0 },
+    ],
+  }
+  assert.equal(homework.resultLabel(lop), '8,5 điểm')
+  assert.equal(homework.kindLabel(lop), 'Bài tại lớp')
+  assert.equal(homework.resultLabel(thap), 'Qua 2/3 tầng')
+  assert.equal(homework.kindLabel(thap), 'Tháp 3 tầng')
+  assert.equal(homework.floorLabel(thap.floors[0]), 'Tầng 1: 9 điểm, đã qua (1 lượt)')
+  assert.equal(homework.floorLabel(thap.floors[1]), 'Tầng 3: chưa làm')
+  assert.deepEqual(homework.summarizeHomework([lop, { kind: 'class', score10: 7 }, thap]), {
+    total: 3,
+    classCount: 2,
+    classAverage: 7.75,
+    towerCount: 1,
+    towersDone: 0,
+  })
+  assert.equal(homework.formatScore(null), '—')
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

@@ -12,7 +12,7 @@ Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 ## Cài đặt
 1. `npm install`
 2. Sao chép `.env.example` thành `.env` và điền `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Không đưa khóa `service_role` vào frontend.
-3. Trên một project Supabase mới (trống), trong SQL Editor chạy lần lượt `supabase/v3/00_meta.sql` -> `09_grants.sql`. Bộ này chạy lại nhiều lần vẫn an toàn; sau mỗi lần sửa SQL phải chạy lại `09_grants.sql`.
+3. Trên một project Supabase mới (trống), trong SQL Editor chạy lần lượt `supabase/v3/00_meta.sql` -> `09_grants.sql`. Bộ này chạy lại nhiều lần vẫn an toàn; sau mỗi lần sửa SQL phải chạy lại `09_grants.sql`. Nối app giao bài ScienceHub (kho `ScienceApp`): chạy thêm `supabase/v3/10_sciencehub.sql` rồi chạy lại `09_grants.sql`; tài khoản kết nối `sciencehub_link` do app giao bài tạo (`npm run dong-bo -- noi-trung-tam`, xem `app/README.md` của kho ScienceApp).
 4. Supabase Authentication > Users: tạo user Quản lý (bật Auto Confirm), sửa email trong `supabase/v3/bootstrap_manager.sql` rồi chạy file đó.
 5. Chạy `supabase/v3/check_v3.sql` và đối chiếu kết quả mong đợi ghi trong từng truy vấn.
 6. (Tùy chọn) Chuyển dữ liệu từ hệ thống cũ: đăng nhập Quản lý, vào Tổng quan -> Sao lưu & Năm học -> Khôi phục từ file sao lưu, chọn file `.json` đã xuất từ hệ thống cũ, xem trước rồi gõ `KHOI PHUC`.
