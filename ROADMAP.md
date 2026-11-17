@@ -5,6 +5,14 @@
 
 ---
 
+## 0a. Nối app giao bài tập ScienceHub (kho `ScienceApp`) — 17/11/2026
+
+Người dùng chốt: app giao bài lấy học sinh, lớp, ghi danh từ Trung tâm (mã HS làm tên đăng nhập) và gửi điểm bài tập về; điểm chỉ hiện ở **hồ sơ học sinh**, tab **"Lịch sử làm bài tập"** (phục vụ báo cáo phụ huynh sau này), không làm bảng điểm theo lớp (xem ở app giao bài).
+- SQL `supabase/v3/10_sciencehub.sql` (chạy sau 09 rồi chạy lại 09): schema riêng `sciencehub` (PostgREST không mở) gồm bảng `sciencehub.results` (mỗi bài × học sinh một dòng, nối bằng mã HS, không khóa ngoại để khôi phục sao lưu/chuyển năm học không bị chặn), hàm `sciencehub.roster()` cho app giao bài đồng bộ (không trả số điện thoại, phụ huynh, học phí); RPC `public.student_homework_history(p_student_id)` (Quản lý: mọi học sinh; Giáo viên: `my_student_ids()`). Tài khoản CSDL `sciencehub_link` (chỉ gọi `roster()`, đọc/ghi `results`) do app giao bài tạo, mật khẩu không nằm trong kho này. `sciencehub.results` không nằm trong file sao lưu `.json`: mất thì app giao bài gửi lại toàn bộ (`npm run dong-bo -- gui-diem tat-ca`).
+- Frontend: `components/students/HomeworkHistory.jsx`, `lib/homework.js`; `StudentProfile.jsx` thêm 2 tab "Lớp & học phí" (nội dung cũ, không đổi) / "Lịch sử làm bài tập" (người dùng cho phép sửa file đã khóa này).
+- Test: `supabase/tests/v3_sciencehub.test.mjs` (7 tình huống), `scripts/test-js.mjs` (chữ hiển thị). `npm test` 12 + 109 đạt, lint 0 cảnh báo, build sạch.
+- **Nghiệm thu:** SQL Editor của project Supabase chính thức: chạy `10_sciencehub.sql` rồi `09_grants.sql` → đăng nhập Quản lý → Học sinh → mở hồ sơ một em đã nộp bài trên app giao bài → tab "Lịch sử làm bài tập" thấy tên bài, môn, ngày nộp, điểm (tháp: số tầng đã qua + điểm từng tầng); đăng nhập Giáo viên chỉ mở được hồ sơ học sinh lớp mình.
+
 ## 0. V3: Xây lại trên project Supabase mới (nhánh `v3`) — ĐANG LÀM
 Kế hoạch đã duyệt ngày 29/10/2026. Production V2 (nhánh `main`, project Supabase cũ) KHÔNG bị đụng tới cho tới ngày chuyển và giữ làm phương án quay lui.
 
