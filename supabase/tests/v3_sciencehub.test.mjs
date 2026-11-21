@@ -15,7 +15,7 @@ export default {
     s.lan = await addTeacher(ctx, 'Trần Thị Lan', '0912000012')
     s.namClass = (await addClass(ctx, { teacherId: s.nam, subject: 'Vật Lí', grade: 12 })).id
     s.lanClass = (await addClass(ctx, { teacherId: s.lan, subject: 'Hóa học', grade: 12 })).id
-    s.an = await register(ctx, { classId: s.namClass, name: 'Lê Văn An', parentPhone: '0901000011' })
+    s.an = await register(ctx, { classId: s.namClass, name: 'Lê Văn An', parentName: 'Lê Văn Hùng', parentPhone: '0901000011', phone: '0987000011' })
     s.binh = await register(ctx, { classId: s.lanClass, name: 'Phạm Thị Bình', parentPhone: '0901000012' })
     s.anCode = await ctx.value('select student_code from public.students where id = $1', [s.an])
     // App giao bài ghi điểm bằng tài khoản riêng; ở đây ghi thẳng bằng quyền chủ Database.
@@ -64,14 +64,16 @@ export default {
       await expectDenied(ctx.anon.query('select sciencehub.roster()'))
     },
 
-    'roster() trả mã HS, họ tên, khối, lớp, ghi danh – không có số điện thoại': async (ctx) => {
+    'roster() trả mã HS, họ tên, khối, lớp, ghi danh, SĐT phụ huynh – không có tên phụ huynh, SĐT học sinh': async (ctx) => {
       const r = await ctx.value('select sciencehub.roster()')
       const an = r.students.find((x) => x.code === s.anCode)
-      assert.deepEqual(Object.keys(an).sort(), ['code', 'grade', 'left', 'name'])
+      assert.deepEqual(Object.keys(an).sort(), ['code', 'grade', 'left', 'name', 'phone'])
+      assert.equal(an.phone, '0901000011', 'SĐT phụ huynh làm mật khẩu ban đầu bên app giao bài')
       assert.equal(an.left, false)
       assert.ok(r.classes.some((c) => c.id === s.namClass && c.subject === 'Vật Lí'))
       assert.ok(r.enrollments.some((e) => e.code === s.anCode && e.class_id === s.namClass))
-      assert.ok(!JSON.stringify(r).includes('0901000011'), 'không lộ số điện thoại phụ huynh')
+      assert.ok(!JSON.stringify(r).includes('0987000011'), 'không lộ SĐT học sinh')
+      assert.ok(!JSON.stringify(r).includes('Lê Văn Hùng'), 'không lộ tên phụ huynh')
     },
 
     'Chạy lại 10_sciencehub.sql rồi 09_grants.sql: vẫn đúng, giữ điểm': async (ctx) => {

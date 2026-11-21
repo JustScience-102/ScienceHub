@@ -4,7 +4,8 @@
 --
 -- App giao bài (ScienceApp, Supabase riêng) nối vào Database này bằng tài khoản CSDL "sciencehub_link"
 -- (tạo bằng lệnh `npm run dong-bo -- noi-trung-tam` của ScienceApp, tệp noi-trung-tam.sql; mật khẩu không nằm ở đây):
---   * đọc danh sách học sinh/lớp/ghi danh qua sciencehub.roster() (không đọc số điện thoại, phụ huynh, học phí);
+--   * đọc danh sách học sinh/lớp/ghi danh qua sciencehub.roster(); từ 21/11/2026 có thêm SĐT phụ huynh, chỉ để làm
+--     mật khẩu ban đầu của tài khoản học sinh bên app giao bài (không đọc tên phụ huynh, SĐT học sinh, học phí);
 --   * ghi điểm vào sciencehub.results, mỗi (bài, học sinh) một dòng, sau mỗi lần học sinh nộp bài.
 -- Mọi thứ của ScienceApp nằm trong schema riêng "sciencehub" (PostgREST không mở schema này); giao diện Trung tâm
 -- chỉ đọc điểm qua RPC public.student_homework_history (Quản lý: mọi học sinh; Giáo viên: học sinh lớp mình).
@@ -46,8 +47,10 @@ as $$
   select jsonb_build_object(
     'students', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'code', s.student_code, 'name', s.full_name, 'grade', s.grade, 'left', s.deleted_at is not null))
-      from public.students s), '[]'::jsonb),
+        'code', s.student_code, 'name', s.full_name, 'grade', s.grade, 'left', s.deleted_at is not null,
+        'phone', p.phone))
+      from public.students s
+      left join public.parents p on p.id = s.parent_id), '[]'::jsonb),
     'classes', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', c.id, 'name', c.name, 'subject', c.subject, 'grade', c.grade, 'active', c.deleted_at is null))
