@@ -1,6 +1,6 @@
 // Chạy toàn bộ test Database: node scripts/test-db.mjs [từ khóa tên file]
 // Mỗi file supabase/tests/*.test.mjs xuất mặc định một bộ test:
-//   { name, base: 'v2' | 'v3', setup?(ctx), tests: { 'tên': async (ctx) => {} } }
+//   { name, base: 'v3', setup?(ctx), tests: { 'tên': async (ctx) => {} } }
 // Các test trong một bộ dùng chung một Database và chạy theo thứ tự khai báo.
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'

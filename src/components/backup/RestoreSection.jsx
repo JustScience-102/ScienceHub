@@ -121,7 +121,7 @@ export default function RestoreSection() {
             Đưa dữ liệu về <strong>đúng trạng thái trong file</strong>: học sinh, lớp, điểm danh... phát sinh sau thời
             điểm sao lưu sẽ mất, dữ liệu trong file được trả lại đầy đủ. Tài khoản Quản lý và Nhật ký thay đổi được
             giữ nguyên (nhật ký chỉ ghi thêm một dòng). Tài khoản Giáo viên trong file được nối theo email với tài khoản
-            đăng nhập đang có. Nhận cả file sao lưu của hệ thống cũ để chuyển dữ liệu sang hệ thống mới.
+            đăng nhập đang có.
           </p>
         </div>
       </div>

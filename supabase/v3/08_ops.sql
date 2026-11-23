@@ -665,13 +665,13 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
--- 5. Khôi phục từ file sao lưu (.json) - nhận file V3 và file V2 (chuyển dữ liệu sang project mới)
+-- 5. Khôi phục từ file sao lưu (.json) - chỉ nhận file V3 (file của hệ thống cũ V2 bị từ chối)
 --    * Thay thế hoàn toàn: teachers, parents, students, classes, class_schedules, class_enrollments,
---      attendance_records, class_versions, month_closures theo nội dung file.
+--      attendance_records, class_versions, month_closures, class_groups, class_group_members theo nội dung file.
 --    * GIỮ NGUYÊN: tài khoản Quản lý và toàn bộ nhật ký (nhật ký trong file KHÔNG nạp lại; ghi thêm 1 dòng).
 --    * Tài khoản Giáo viên trong file được nối theo EMAIL với user đang có trong Authentication.
---    * Chèn theo các cột có trong file (cột mới của V3 nhận giá trị mặc định); file V2 được bổ sung
---      lý do nghỉ (đổi lớp/nghỉ hẳn); tên lớp tính lại theo quy tắc V3.
+--    * Chèn theo các cột có trong file (cột thêm sau lúc sao lưu nhận giá trị mặc định); tên lớp tính lại
+--      theo dữ liệu hiện tại (họ tên giáo viên có thể đã đổi).
 --    * Một giao dịch; xem trước chạy thật rồi hoàn tác. Trigger nghiệp vụ bỏ qua bằng cờ _is_restoring
 --      (không ALTER TABLE nên không khóa bảng). Bộ đếm mã HS/PH không lùi.
 -- ---------------------------------------------------------------------
@@ -771,7 +771,6 @@ declare
   ];
   t          text;
   v_meta     jsonb;
-  v_v2       boolean;
   v_expected integer;
   v_actual   integer;
   v_warnings jsonb := '[]'::jsonb;
@@ -788,35 +787,8 @@ declare
 begin
   select s.rows into v_meta from public.restore_staging s
   where s.run_id = p_run_id and s.table_name = '_metadata' and s.chunk_no = 0;
-  v_v2 := coalesce(v_meta->>'version', '') !~ '^V3';
 
   perform set_config('sciencehub.restoring', 'on', true);
-
-  -- File V2: bổ sung lý do nghỉ. Có ghi danh khác của cùng học sinh bắt đầu đúng ngày nghỉ => đổi lớp.
-  if v_v2 then
-    with allrows as (
-      select e from public.restore_staging s cross join lateral jsonb_array_elements(s.rows) e
-      where s.run_id = p_run_id and s.table_name = 'class_enrollments'
-    )
-    update public.restore_staging s
-    set rows = (
-      select coalesce(jsonb_agg(
-               case when x.e->>'status' = 'dropped' and coalesce(x.e->>'left_reason', '') = '' then
-                 x.e || jsonb_build_object(
-                   'left_reason', case when nxt.id is not null then 'transferred' else 'dropped' end,
-                   'transfer_to_id', nxt.id)
-               else x.e end
-               order by x.ord), '[]'::jsonb)
-      from jsonb_array_elements(s.rows) with ordinality x(e, ord)
-      left join lateral (
-        select a.e->>'id' as id from allrows a
-        where a.e->>'student_id' = x.e->>'student_id' and a.e->>'joined_at' = x.e->>'left_at'
-          and a.e->>'id' <> x.e->>'id'
-        limit 1
-      ) nxt on true
-    )
-    where s.run_id = p_run_id and s.table_name = 'class_enrollments';
-  end if;
 
   -- Xóa theo thứ tự ngược phụ thuộc.
   delete from public.attendance_records where true;
@@ -866,7 +838,7 @@ begin
       v_prof_all - v_prof_ok));
   end if;
 
-  -- Tên lớp tính lại theo quy tắc V3 (so với tên trong file để báo trước).
+  -- Tên lớp tính lại theo dữ liệu hiện tại (so với tên trong file để báo trước).
   select coalesce(jsonb_object_agg(id::text, name), '{}'::jsonb) into v_old_names from public.classes;
   perform public._refresh_class_names(null);
   select coalesce(jsonb_agg(jsonb_build_object('old_name', v_old_names->>c.id::text, 'new_name', c.name)
@@ -903,14 +875,9 @@ begin
 
   perform public._write_audit_log(
     'center_restore', 'center_backup', null, null, null,
-    case when v_v2
-      then format('Chuyển dữ liệu từ hệ thống cũ (%s, xuất lúc %s): %s học sinh, %s lớp, %s buổi điểm danh.',
-                  coalesce(v_meta->>'version', 'V2'), coalesce(v_meta->>'exported_at', 'không rõ'),
-                  v_counts->>'students', v_counts->>'classes', v_counts->>'attendance_records')
-      else format('Quản lý khôi phục dữ liệu từ file sao lưu xuất lúc %s: %s học sinh, %s lớp, %s buổi điểm danh.',
-                  coalesce(v_meta->>'exported_at', 'không rõ'),
-                  v_counts->>'students', v_counts->>'classes', v_counts->>'attendance_records')
-    end,
+    format('Quản lý khôi phục dữ liệu từ file sao lưu xuất lúc %s: %s học sinh, %s lớp, %s buổi điểm danh.',
+           coalesce(v_meta->>'exported_at', 'không rõ'),
+           v_counts->>'students', v_counts->>'classes', v_counts->>'attendance_records'),
     null,
     jsonb_build_object('file_version', v_meta->>'version', 'file_exported_at', v_meta->>'exported_at',
                        'counts', v_counts, 'renamed_classes', jsonb_array_length(v_renamed)));
@@ -956,7 +923,6 @@ declare
   v_in_file  integer;
   v_added    integer;
   v_removed  integer;
-  v_bad      text;
 begin
   perform public.assert_manager();
   if p_run_id is null then
@@ -975,6 +941,11 @@ begin
 
   if coalesce(v_meta->>'center', '') <> 'Trung tâm ScienceHub' then
     v_errors := v_errors || to_jsonb('File này không phải bản sao lưu của Trung tâm ScienceHub.'::text);
+  end if;
+  if coalesce(v_meta->>'version', '') !~ '^V3' then
+    v_errors := v_errors || to_jsonb(format(
+      'File sao lưu này thuộc hệ thống cũ (phiên bản %s) nên không khôi phục được. Hãy dùng file sao lưu xuất từ hệ thống hiện tại.',
+      coalesce(nullif(v_meta->>'version', ''), 'không rõ')));
   end if;
 
   foreach t in array c_required || c_optional loop
@@ -1001,16 +972,6 @@ begin
         t, v_filecnt, v_rows));
     end if;
   end loop;
-
-  -- Lớp thiếu môn/khối/STT/giáo viên (chỉ có ở dữ liệu cũ): V3 bắt buộc đủ để tự đặt tên lớp.
-  select string_agg(coalesce(c->>'name', '?'), ', ' order by c->>'name') into v_bad
-  from public.restore_staging s cross join lateral jsonb_array_elements(s.rows) c
-  where s.run_id = p_run_id and s.table_name = 'classes'
-    and (coalesce(btrim(c->>'subject'), '') = '' or c->>'grade' is null or c->>'class_no' is null or c->>'teacher_id' is null);
-  if v_bad is not null then
-    v_errors := v_errors || to_jsonb(format(
-      'Các lớp sau thiếu môn, khối, STT hoặc giáo viên nên chưa chuyển được: %s. Hãy bấm Sửa lớp trên hệ thống cũ, tải lại file sao lưu rồi thử lại.', v_bad));
-  end if;
 
   if jsonb_array_length(v_errors) > 0 then
     return jsonb_build_object('dry_run', v_dry, 'ok', false, 'applied', false, 'file', v_file,

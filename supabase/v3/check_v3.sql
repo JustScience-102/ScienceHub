@@ -65,7 +65,7 @@ where e.status = 'active'
 group by s.id, s.student_code, s.full_name, g.name, m.part_no
 having count(*) > 1;
 
--- 12. Số liệu hiện có (đối chiếu với hệ thống cũ sau khi chuyển dữ liệu)
+-- 12. Số liệu hiện có
 select
   (select count(*) from public.teachers)           as teachers,
   (select count(*) from public.parents)            as parents,

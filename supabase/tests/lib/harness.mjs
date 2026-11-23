@@ -11,20 +11,6 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '.
 // Ngày, giờ, thời điểm trả về đúng chuỗi Postgres (không đổi sang Date của JS để khỏi lệch múi giờ).
 const RAW_PARSERS = { 1082: (v) => v, 1083: (v) => v, 1114: (v) => v, 1184: (v) => v }
 
-export const LEGACY_FILES = [
-  '01_schema.sql',
-  '02_triggers.sql',
-  '03_rpc_and_auth.sql',
-  'MANAGER',
-  '04_lockdown_rls.sql',
-  '05_v2_2_teacher_access.sql',
-  '06_v2_3_audit_log.sql',
-  '07_v2_4_backup.sql',
-  '08_v2_5_bulk_import.sql',
-  '09_v2_6_year_rollover.sql',
-  '10_v2_7_restore_backup.sql',
-]
-
 export const MANAGER_EMAIL = 'quanly@sciencehub.test'
 
 export function readSql(relativePath) {
@@ -64,16 +50,7 @@ async function insertAuthUser(db, email) {
 async function buildSnapshot(kind) {
   const db = await openDb()
   await runFile(db, 'supabase/tests/lib/supabase_stub.sql')
-  if (kind === 'v2') {
-    for (const file of LEGACY_FILES) {
-      if (file === 'MANAGER') {
-        await insertAuthUser(db, MANAGER_EMAIL)
-        await db.query('select public.setup_initial_manager($1)', [MANAGER_EMAIL])
-      } else {
-        await runFile(db, `supabase/legacy/${file}`)
-      }
-    }
-  } else if (kind === 'v3') {
+  if (kind === 'v3') {
     for (const file of v3Files()) await runFile(db, `supabase/v3/${file}`)
     await insertAuthUser(db, MANAGER_EMAIL)
     await db.query('select public.setup_initial_manager($1)', [MANAGER_EMAIL])

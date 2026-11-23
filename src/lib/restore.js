@@ -1,6 +1,5 @@
 // Khôi phục dữ liệu từ file sao lưu .json (do export_center_backup xuất ra): supabase/v3/08_ops.sql.
-// Nhận cả file của hệ thống cũ (V2) để chuyển dữ liệu sang project mới: Database tự bổ sung lý do nghỉ,
-// tính lại tên lớp theo quy tắc V3 và nối tài khoản Giáo viên theo email.
+// Chỉ nhận file của hệ thống hiện tại (phiên bản V3). Database tính lại tên lớp và nối tài khoản Giáo viên theo email.
 // Luồng: đọc file -> tải từng phần lên bảng tạm (restore_stage_chunk) -> xem trước (dry-run) -> khôi phục.
 // Nhật ký thay đổi và tài khoản Quản lý không bị thay; nhật ký trong file không được nạp lại.
 import { supabase } from './supabaseClient'
@@ -55,6 +54,11 @@ export function parseBackupText(text) {
   }
   if (data.metadata.center !== CENTER_NAME) {
     return { error: 'File này không phải bản sao lưu của Trung tâm ScienceHub.' }
+  }
+  if (!/^V3/.test(String(data.metadata.version ?? ''))) {
+    return {
+      error: `File sao lưu này thuộc hệ thống cũ (phiên bản ${data.metadata.version || 'không rõ'}) nên không khôi phục được. Hãy dùng file sao lưu xuất từ hệ thống hiện tại.`,
+    }
   }
   for (const name of REQUIRED_TABLES) {
     if (!Array.isArray(data.tables[name])) {
