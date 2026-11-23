@@ -25,12 +25,9 @@ import {
   downloadMonthlyAttendanceTuitionCsv,
   downloadStudentsCsv,
 } from '../../lib/backup'
+import { BTN_PRIMARY, BTN_SECONDARY } from '../../lib/buttonStyles'
 
 const CONFIRM_TEXT = 'XOA NHAT KY'
-const SECONDARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-const PRIMARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50'
 
 export default function BackupModal({ onClose }) {
   const today = todayISO()
@@ -169,7 +166,7 @@ export default function BackupModal({ onClose }) {
             />
             Kèm cả nhật ký thay đổi
           </label>
-          <button type="button" onClick={handleFullBackup} disabled={Boolean(busy)} className={PRIMARY_BTN}>
+          <button type="button" onClick={handleFullBackup} disabled={Boolean(busy)} className={BTN_PRIMARY}>
             <Download size={16} aria-hidden="true" />
             {busy === 'full' ? 'Đang tạo file...' : 'Tải bản sao lưu (.json)'}
           </button>
@@ -184,11 +181,11 @@ export default function BackupModal({ onClose }) {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button type="button" onClick={handleStudents} disabled={Boolean(busy)} className={SECONDARY_BTN}>
+            <button type="button" onClick={handleStudents} disabled={Boolean(busy)} className={BTN_SECONDARY}>
               <FileSpreadsheet size={16} className="text-emerald-600" aria-hidden="true" />
               {busy === 'students' ? 'Đang xuất...' : 'Học sinh & Phụ huynh'}
             </button>
-            <button type="button" onClick={handleClasses} disabled={Boolean(busy)} className={SECONDARY_BTN}>
+            <button type="button" onClick={handleClasses} disabled={Boolean(busy)} className={BTN_SECONDARY}>
               <FileSpreadsheet size={16} className="text-sky-600" aria-hidden="true" />
               {busy === 'classes' ? 'Đang xuất...' : 'Lớp học & Lịch học'}
             </button>
@@ -213,7 +210,7 @@ export default function BackupModal({ onClose }) {
               type="button"
               onClick={handleMonthly}
               disabled={Boolean(busy) || !reportValid}
-              className={PRIMARY_BTN}
+              className={BTN_PRIMARY}
             >
               <FileSpreadsheet size={16} aria-hidden="true" />
               {busy === 'monthly' ? 'Đang xuất...' : 'Điểm danh & Học phí'}
@@ -253,7 +250,7 @@ export default function BackupModal({ onClose }) {
                 type="button"
                 onClick={() => handleAuditBackup('json')}
                 disabled={Boolean(busy) || !cutoffValid}
-                className={PRIMARY_BTN}
+                className={BTN_PRIMARY}
               >
                 <Download size={16} aria-hidden="true" />
                 {busy === 'audit_json' ? 'Đang tải...' : 'Tải nhật ký (.json)'}
@@ -262,7 +259,7 @@ export default function BackupModal({ onClose }) {
                 type="button"
                 onClick={() => handleAuditBackup('csv')}
                 disabled={Boolean(busy) || !cutoffValid}
-                className={SECONDARY_BTN}
+                className={BTN_SECONDARY}
               >
                 <FileSpreadsheet size={16} aria-hidden="true" />
                 {busy === 'audit_csv' ? 'Đang tải...' : 'Tải nhật ký (.csv Excel)'}

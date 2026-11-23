@@ -9,6 +9,7 @@ import { monthStartISO, todayISO } from '../../lib/schedule'
 import { STATUS_LABELS } from '../../lib/tuition'
 import { buildClassChoices, loadClassChoices } from '../../lib/transfer'
 import { classTitle } from '../../lib/dashboard'
+import FormActions from '../FormActions'
 
 // Hộp thoại ĐỔI LỚP: học sinh rời lớp hiện tại và vào lớp mới CÙNG KHỐI trong một lần lưu.
 // Ngày chuyển dùng chung: ngày cuối học lớp cũ = ngày vào lớp mới.
@@ -202,23 +203,12 @@ export default function TransferClassModal({
           </div>
         )}
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving || checking || Boolean(dateError) || Boolean(later.error) || choices.length === 0}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : rows.length > 0 ? 'Xóa các buổi này và đổi lớp' : 'Đổi lớp'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+          disabled={checking || Boolean(dateError) || Boolean(later.error) || choices.length === 0}
+          label={rows.length > 0 ? 'Xóa các buổi này và đổi lớp' : 'Đổi lớp'}
+        />
       </form>
     )
   }

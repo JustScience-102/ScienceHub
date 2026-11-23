@@ -16,6 +16,7 @@ import { useClassNamePreview } from '../../lib/classNamePreview'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { compareVietnameseNames } from '../../lib/text'
 import { validateRequired } from '../../lib/validators'
+import FormActions from '../FormActions'
 
 function parsePrice(raw) {
   const digits = String(raw ?? '').replace(/[\s.,]/g, '')
@@ -367,23 +368,10 @@ export default function ClassForm({ mode, cls, scheduleRows, teachers, lockedTea
           }
         />
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : 'Lưu'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+        />
       </form>
     </Modal>
   )

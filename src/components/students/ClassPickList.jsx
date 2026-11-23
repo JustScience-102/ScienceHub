@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import SearchInput from '../SearchInput'
 import { normalizeText } from '../../lib/text'
 import { formatCurrency } from '../../lib/format'
 import { formatSchedule } from '../../lib/schedule'
@@ -25,21 +25,12 @@ export default function ClassPickList({ choices, counts, selectedId, onSelect, i
         <label htmlFor={`${idPrefix}-search`} className="mb-1 block text-sm font-medium text-slate-700">
           Tìm lớp theo tên, môn hoặc giáo viên
         </label>
-        <div className="relative">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            id={`${idPrefix}-search`}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ví dụ: Toan_9 hoặc tên giáo viên"
-            className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
-          />
-        </div>
+        <SearchInput
+          id={`${idPrefix}-search`}
+          value={query}
+          onChange={setQuery}
+          placeholder="Ví dụ: Toan_9 hoặc tên giáo viên"
+        />
       </div>
 
       {shown.length === 0 ? (

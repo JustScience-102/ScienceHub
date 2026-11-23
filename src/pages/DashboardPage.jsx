@@ -17,7 +17,7 @@ import FormField from '../components/FormField'
 import MonthNav from '../components/MonthNav'
 import StatCard from '../components/dashboard/StatCard'
 import TodaySchedule from '../components/dashboard/TodaySchedule'
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient'
 import { toVietnameseError } from '../lib/errors'
 import { formatCurrency, formatDate } from '../lib/format'
 import { addDaysISO, todayISO, weekdayLabel } from '../lib/schedule'
@@ -45,7 +45,6 @@ export default function DashboardPage({ onOpenAttendance }) {
 
   // Thẻ thống kê: tải lại khi đổi Tháng/Năm. Database tính sẵn từng con số.
   useEffect(() => {
-    if (!supabase) return undefined
     let cancelled = false
     async function load() {
       const { data, error } = await supabase.rpc('dashboard_summary', {
@@ -67,7 +66,6 @@ export default function DashboardPage({ onOpenAttendance }) {
 
   // Lịch học: tải lại khi đổi ngày. Trang mở lại mỗi lần vào Dashboard nên lớp vừa tạo hiện ngay.
   useEffect(() => {
-    if (!supabase) return undefined
     let cancelled = false
     async function load() {
       const { data, error } = await supabase.rpc('dashboard_schedule', { p_date: scheduleDate })
@@ -100,16 +98,6 @@ export default function DashboardPage({ onOpenAttendance }) {
 
   const dayTitle =
     scheduleDate === today ? 'Lịch học hôm nay' : `Lịch học ${weekdayLabel(scheduleDate).toLowerCase()}`
-
-  if (!isSupabaseConfigured) {
-    return (
-      <PageShell title="Tổng quan Trung tâm">
-        <Notice type="error">
-          Trung tâm chưa kết nối Supabase. Hãy điền khóa vào file .env rồi chạy lại ứng dụng.
-        </Notice>
-      </PageShell>
-    )
-  }
 
   return (
     <PageShell

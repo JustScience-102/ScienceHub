@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '../../lib/format'
 import { addDaysISO, hasSessionOn, monthStartISO, weekdayLabel } from '../../lib/schedule'
 import { compareVietnameseNames } from '../../lib/text'
 import { classTitle } from '../../lib/dashboard'
+import FormActions from '../FormActions'
 
 // Hộp thoại "Học bù": học sinh của một lớp KHÁC (cùng giáo viên) đến học bù ở lớp đang mở.
 // Chọn lớp gốc -> chọn học sinh -> chọn buổi gốc được bù.
@@ -252,23 +253,13 @@ export default function MakeupModal({ cls, date, isTeacher = false, onDone, onCl
           ))}
         </SelectField>
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-11 rounded-lg bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-slate-200"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={busy || !selectedEnrollment || !effectiveOriginal}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {busy ? 'Đang lưu...' : 'Ghi nhận học bù'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={busy}
+          disabled={!selectedEnrollment || !effectiveOriginal}
+          label="Ghi nhận học bù"
+          className=""
+        />
       </form>
     </Modal>
   )

@@ -9,7 +9,8 @@ import Notice from '../components/Notice'
 import RowActions from '../components/RowActions'
 import TeacherProfile from '../components/teachers/TeacherProfile'
 import AccountBadge from '../components/teachers/AccountBadge'
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient'
+import SearchInput from '../components/SearchInput'
 import { toVietnameseError } from '../lib/errors'
 import { fetchAll } from '../lib/fetchAll'
 import { compareVietnameseNames, normalizeText } from '../lib/text'
@@ -19,6 +20,7 @@ import {
   validateEmail,
   validateRequired,
 } from '../lib/validators'
+import FormActions from '../components/FormActions'
 
 // Form Thêm / Sửa giáo viên (hộp thoại).
 function TeacherForm({ teacher, onSave, onClose }) {
@@ -84,23 +86,10 @@ function TeacherForm({ teacher, onSave, onClose }) {
           error={errors.email}
           placeholder="giaovien@example.com"
         />
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : 'Lưu'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+        />
       </form>
     </Modal>
   )
@@ -110,7 +99,7 @@ export default function TeachersPage() {
   const [teachers, setTeachers] = useState([])
   const [classCounts, setClassCounts] = useState({})
   const [profilesByTeacher, setProfilesByTeacher] = useState({})
-  const [loading, setLoading] = useState(isSupabaseConfigured)
+  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState(null)
   const [showHidden, setShowHidden] = useState(false)
@@ -122,7 +111,6 @@ export default function TeachersPage() {
   const [openedId, setOpenedId] = useState(null) // giáo viên đang mở hồ sơ
 
   useEffect(() => {
-    if (!supabase) return undefined
     let cancelled = false
 
     async function load() {
@@ -258,21 +246,13 @@ export default function TeachersPage() {
   const toolbar = (
     <div className="space-y-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <Search
-            size={18}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm theo tên, số điện thoại hoặc email giáo viên"
-            aria-label="Tìm kiếm giáo viên"
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
-          />
-        </div>
+        <SearchInput
+          className="flex-1"
+          value={query}
+          onChange={setQuery}
+          placeholder="Tìm theo tên, số điện thoại hoặc email giáo viên"
+          label="Tìm kiếm giáo viên"
+        />
         <button
           type="button"
           onClick={() => setEditing({})}
@@ -305,13 +285,7 @@ export default function TeachersPage() {
   )
 
   let body
-  if (!isSupabaseConfigured) {
-    body = (
-      <Notice type="error">
-        Trung tâm chưa kết nối Supabase. Hãy điền khóa vào file .env rồi chạy lại ứng dụng.
-      </Notice>
-    )
-  } else if (loading && teachers.length === 0) {
+  if (loading && teachers.length === 0) {
     body = <p className="text-sm text-slate-500">Trung tâm đang tải danh sách giáo viên...</p>
   } else if (loadError) {
     body = <Notice type="error">{loadError}</Notice>
@@ -443,7 +417,7 @@ export default function TeachersPage() {
           {notice.text}
         </Notice>
       )}
-      {isSupabaseConfigured && toolbar}
+      {toolbar}
       {body}
 
       {editing && (

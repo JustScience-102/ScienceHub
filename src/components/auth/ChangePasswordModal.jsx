@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import Modal from '../Modal'
+import FormActions from '../FormActions'
 import FormField from '../FormField'
 import Notice from '../Notice'
 import { supabase } from '../../lib/supabaseClient'
@@ -35,7 +35,7 @@ export default function ChangePasswordModal({ recovery = false, onClose }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (busy || !supabase) return
+    if (busy) return
     setFailure('')
     if (!validate()) return
 
@@ -101,24 +101,7 @@ export default function ChangePasswordModal({ recovery = false, onClose }) {
           required
         />
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={busy}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-300"
-          >
-            {busy && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
-            Lưu mật khẩu mới
-          </button>
-        </div>
+        <FormActions onCancel={onClose} busy={busy} label="Lưu mật khẩu mới" className="" />
       </form>
     </Modal>
   )

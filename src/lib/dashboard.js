@@ -34,14 +34,18 @@ export function attendanceStatus(row, date, today) {
   return { label: `Đã điểm danh đủ ${marked}/${total}`, tone: 'done' }
 }
 
-// Mỗi môn một màu pastel cố định. Môn chưa khai báo lấy màu theo tên (ổn định giữa các lần tải).
+// Mỗi môn trong lib/subjects.js một màu pastel cố định (khóa = tên môn đã bỏ dấu, chữ thường; giữ cả tên dài
+// "ngu van", "tieng anh" cho dữ liệu cũ). Môn chưa khai báo lấy màu theo tên (ổn định giữa các lần tải).
 const SUBJECT_COLORS = {
   'vat li': 'bg-sky-100 text-sky-800',
   'hoa hoc': 'bg-emerald-100 text-emerald-800',
   toan: 'bg-rose-100 text-rose-800',
   'sinh hoc': 'bg-lime-100 text-lime-800',
+  van: 'bg-amber-100 text-amber-800',
   'ngu van': 'bg-amber-100 text-amber-800',
+  anh: 'bg-violet-100 text-violet-800',
   'tieng anh': 'bg-violet-100 text-violet-800',
+  'khoa hoc tu nhien': 'bg-teal-100 text-teal-800',
 }
 const FALLBACK_COLORS = [
   'bg-teal-100 text-teal-800',
@@ -52,7 +56,7 @@ const FALLBACK_COLORS = [
 ]
 
 export function subjectColor(subject) {
-  const key = normalizeText(subject).toLowerCase()
+  const key = normalizeText(subject)
   if (!key) return 'bg-slate-100 text-slate-700'
   if (SUBJECT_COLORS[key]) return SUBJECT_COLORS[key]
   let hash = 0

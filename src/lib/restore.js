@@ -93,7 +93,7 @@ export function summarizeBackup(backup) {
 }
 
 // Hàm thuần: cắt mảng thành các phần (luôn có ít nhất 1 phần, kể cả mảng rỗng).
-export function chunkRows(rows, size = CHUNK_SIZE) {
+function chunkRows(rows, size = CHUNK_SIZE) {
   const chunks = []
   for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size))
   return chunks.length > 0 ? chunks : [[]]

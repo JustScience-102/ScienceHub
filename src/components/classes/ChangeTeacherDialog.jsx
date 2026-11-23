@@ -5,6 +5,7 @@ import SelectField from '../SelectField'
 import { compareVietnameseNames } from '../../lib/text'
 import { useClassNamePreview } from '../../lib/classNamePreview'
 import { classTitle } from '../../lib/dashboard'
+import FormActions from '../FormActions'
 
 // Hộp thoại nhỏ chọn giáo viên khác khi KHÔI PHỤC lớp mà giáo viên cũ đang bị ẩn.
 // Không đụng tới môn, khối, lịch học, đơn giá. Tên lớp mới do Database đặt (xem trước ở đây).
@@ -73,23 +74,11 @@ export default function ChangeTeacherDialog({ cls, oldTeacherName, teachers, onC
           </div>
         )}
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : 'Khôi phục lớp'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+          label="Khôi phục lớp"
+        />
       </form>
     </Modal>
   )

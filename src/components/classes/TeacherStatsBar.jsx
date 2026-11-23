@@ -21,7 +21,6 @@ export default function TeacherStatsBar({ refreshKey }) {
   const key = `${month.year}-${month.month}-${refreshKey}`
 
   useEffect(() => {
-    if (!supabase) return undefined
     let cancelled = false
     async function load() {
       const { data, error } = await supabase.rpc('dashboard_summary', {

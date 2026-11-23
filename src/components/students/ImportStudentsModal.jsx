@@ -2,7 +2,9 @@ import { useRef, useState } from 'react'
 import { Download, FileUp } from 'lucide-react'
 import Modal from '../Modal'
 import Notice from '../Notice'
+import FormActions from '../FormActions'
 import { toVietnameseError } from '../../lib/errors'
+import { BTN_SECONDARY } from '../../lib/buttonStyles'
 import {
   MAX_IMPORT_ROWS,
   TEMPLATE_COLUMN_LABELS,
@@ -207,35 +209,23 @@ export default function ImportStudentsModal({ onDone, onClose }) {
           </div>
         )}
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          {fileName && (
-            <button
-              type="button"
-              onClick={resetFile}
-              disabled={busy}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-slate-200"
-            >
-              <FileUp size={16} aria-hidden="true" />
-              Chọn file khác
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="min-h-11 rounded-lg bg-slate-100 px-4 text-sm font-medium text-slate-700 hover:bg-slate-200"
-          >
-            Hủy
-          </button>
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={busy || !canImport}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {busy ? 'Đang xử lý...' : `Nhập ${summary?.enrollments ?? 0} lượt ghi danh`}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          onConfirm={handleImport}
+          busy={busy}
+          disabled={!canImport}
+          label={`Nhập ${summary?.enrollments ?? 0} lượt ghi danh`}
+          busyLabel="Đang xử lý..."
+          className=""
+          extra={
+            fileName && (
+              <button type="button" onClick={resetFile} disabled={busy} className={BTN_SECONDARY}>
+                <FileUp size={16} aria-hidden="true" />
+                Chọn file khác
+              </button>
+            )
+          }
+        />
       </div>
     </Modal>
   )

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { compareVietnameseNames } from '../../lib/text'
 import { classTitle } from '../../lib/dashboard'
+import FormActions from '../FormActions'
 
 // Đăng ký học sinh từ trang Học sinh: BẮT BUỘC chọn lớp trước (mọi học sinh phải thuộc ít nhất
 // một lớp), sau đó dùng chung hộp thoại thêm học sinh vào lớp.
@@ -179,21 +180,10 @@ export default function RegisterStudentFlow({ isTeacher = false, teacherId: ownT
             </option>
           ))}
         </SelectField>
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600"
-          >
-            Tiếp tục
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          label="Tiếp tục"
+        />
       </form>
     )
   }

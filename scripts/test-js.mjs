@@ -22,6 +22,8 @@ const { remainingSessions } = await import('../src/lib/tuition.js')
 const { fetchAll } = await import('../src/lib/fetchAll.js')
 const classGroups = await import('../src/lib/classGroups.js')
 const homework = await import('../src/lib/homework.js')
+const { subjectColor } = await import('../src/lib/dashboard.js')
+const { SUBJECTS } = await import('../src/lib/subjects.js')
 
 let passed = 0
 let failed = 0
@@ -179,6 +181,14 @@ await test('Lịch sử làm bài tập (ScienceHub): chữ hiển thị và tó
     towersDone: 0,
   })
   assert.equal(homework.formatScore(null), '—')
+})
+
+console.log('\n▶ Màu môn học (src/lib/dashboard.js)')
+await test('Mỗi môn trong danh sách có màu riêng, không trùng nhau', () => {
+  const colors = SUBJECTS.map((subject) => subjectColor(subject))
+  assert.equal(new Set(colors).size, SUBJECTS.length, colors.join(' | '))
+  assert.equal(subjectColor('Ngữ văn'), subjectColor('Văn'))
+  assert.equal(subjectColor('Tiếng Anh'), subjectColor('Anh'))
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

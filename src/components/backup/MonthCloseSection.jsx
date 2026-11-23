@@ -5,16 +5,14 @@ import { Lock, LockOpen } from 'lucide-react'
 import Notice from '../Notice'
 import FormField from '../FormField'
 import SelectField from '../SelectField'
+import FormActions from '../FormActions'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { todayISO } from '../../lib/schedule'
 import { monthLabel, monthOf, shiftMonth } from '../../lib/tuition'
-import { closeMonth, listClosedMonths, monthFromStart, reopenMonth } from '../../lib/monthClose'
+import { closeMonth, listClosedMonths, reopenMonth } from '../../lib/monthClose'
+import { BTN_PRIMARY, BTN_SECONDARY } from '../../lib/buttonStyles'
 
-const SECONDARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-const PRIMARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50'
 
 const monthKey = ({ year, month }) => `${year}-${String(month).padStart(2, '0')}-01`
 
@@ -62,7 +60,7 @@ export default function MonthCloseSection() {
   }
 
   function handleClose() {
-    const target = monthFromStart(selected)
+    const target = monthOf(selected)
     return run('close', async () => {
       const result = await closeMonth(target)
       setNotice({
@@ -73,7 +71,7 @@ export default function MonthCloseSection() {
   }
 
   function handleReopen() {
-    const target = monthFromStart(reopening)
+    const target = monthOf(reopening)
     return run('reopen', async () => {
       await reopenMonth(target, reason.trim())
       setNotice({ type: 'success', text: `Trung tâm đã mở lại sổ ${monthLabel(target).toLowerCase()}.` })
@@ -116,7 +114,7 @@ export default function MonthCloseSection() {
           type="button"
           onClick={handleClose}
           disabled={Boolean(busy) || closed === null || selectedClosed}
-          className={PRIMARY_BTN}
+          className={BTN_PRIMARY}
         >
           <Lock size={16} aria-hidden="true" />
           {busy === 'close' ? 'Đang chốt...' : selectedClosed ? 'Tháng này đã chốt' : 'Chốt sổ tháng này'}
@@ -128,7 +126,7 @@ export default function MonthCloseSection() {
           {closed.map((row) => (
             <li key={row.month_start} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                <strong>{monthLabel(monthFromStart(row.month_start))}</strong>
+                <strong>{monthLabel(monthOf(row.month_start))}</strong>
                 <span className="text-slate-500">
                   {' '}
                   · chốt {formatDate(row.closed_at)}
@@ -142,7 +140,7 @@ export default function MonthCloseSection() {
                   setReason('')
                 }}
                 disabled={Boolean(busy)}
-                className={SECONDARY_BTN}
+                className={BTN_SECONDARY}
               >
                 <LockOpen size={16} aria-hidden="true" />
                 Mở lại sổ
@@ -155,7 +153,7 @@ export default function MonthCloseSection() {
       {reopening && (
         <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
           <p className="text-xs font-semibold text-amber-800">
-            Mở lại sổ {monthLabel(monthFromStart(reopening)).toLowerCase()}: lý do sẽ được ghi vào Nhật ký thay đổi.
+            Mở lại sổ {monthLabel(monthOf(reopening)).toLowerCase()}: lý do sẽ được ghi vào Nhật ký thay đổi.
           </p>
           <FormField
             id="month-reopen-reason"
@@ -165,19 +163,15 @@ export default function MonthCloseSection() {
             onChange={setReason}
             placeholder="Ví dụ: Sửa điểm danh nhầm của em Minh Anh ngày 12/10"
           />
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={() => setReopening(null)} disabled={Boolean(busy)} className={SECONDARY_BTN}>
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={handleReopen}
-              disabled={Boolean(busy) || reason.trim().length < 5}
-              className={PRIMARY_BTN}
-            >
-              {busy === 'reopen' ? 'Đang mở...' : 'Mở lại sổ'}
-            </button>
-          </div>
+          <FormActions
+            onCancel={() => setReopening(null)}
+            onConfirm={handleReopen}
+            busy={Boolean(busy)}
+            disabled={reason.trim().length < 5}
+            label="Mở lại sổ"
+            busyLabel={busy === 'reopen' ? 'Đang mở...' : 'Mở lại sổ'}
+            className=""
+          />
         </div>
       )}
     </section>

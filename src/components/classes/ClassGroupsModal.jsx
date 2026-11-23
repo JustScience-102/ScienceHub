@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Layers, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, Layers, Pencil, Plus, Trash2 } from 'lucide-react'
 import Modal from '../Modal'
 import FormField from '../FormField'
 import Notice from '../Notice'
+import FormActions from '../FormActions'
+import SearchInput from '../SearchInput'
 import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { classTitle } from '../../lib/dashboard'
@@ -145,21 +147,12 @@ function GroupForm({ group, groups, classes, teacherById, activeCounts, onSaved,
         </div>
       </div>
 
-      <div className="relative">
-        <Search
-          size={16}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Tìm lớp theo tên, môn, khối hoặc giáo viên"
-          aria-label="Tìm lớp"
-          className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
-        />
-      </div>
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Tìm lớp theo tên, môn, khối hoặc giáo viên"
+        label="Tìm lớp"
+      />
 
       <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
         {rows.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">Không có lớp phù hợp.</li>}
@@ -194,19 +187,7 @@ function GroupForm({ group, groups, classes, teacherById, activeCounts, onSaved,
         })}
       </ul>
 
-      <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={saving}
-          className={`${BTN} border border-slate-300 text-slate-700 hover:bg-slate-50`}
-        >
-          Hủy
-        </button>
-        <button type="submit" disabled={saving} className={`${BTN} bg-sky-500 text-white hover:bg-sky-600`}>
-          {saving ? 'Đang lưu...' : 'Lưu nhóm lớp'}
-        </button>
-      </div>
+      <FormActions onCancel={onBack} busy={saving} label="Lưu nhóm lớp" />
     </form>
   )
 }
@@ -284,19 +265,15 @@ export default function ClassGroupsModal({ classes, teacherById, activeCounts, o
               Xóa nhóm lớp <strong>{deleting.name}</strong>? Lớp, học sinh và điểm danh không thay đổi; chỉ bỏ ràng buộc
               không trùng học sinh và cảnh báo của nhóm này.
             </p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setDeleting(null)}
-                disabled={busy}
-                className={`${BTN} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
-              >
-                Hủy
-              </button>
-              <button type="button" onClick={confirmDelete} disabled={busy} className={`${BTN} bg-red-500 text-white hover:bg-red-600`}>
-                {busy ? 'Đang xóa...' : 'Xóa nhóm'}
-              </button>
-            </div>
+            <FormActions
+              onCancel={() => setDeleting(null)}
+              onConfirm={confirmDelete}
+              busy={busy}
+              danger
+              label="Xóa nhóm"
+              busyLabel="Đang xóa..."
+              className=""
+            />
           </div>
         )}
         <p className="text-sm leading-relaxed text-slate-600">

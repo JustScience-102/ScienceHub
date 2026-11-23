@@ -17,7 +17,7 @@ export async function fetchClassVersions(classIds) {
 }
 
 // Thời kỳ chứa ngày dateISO của lớp classId, hoặc null nếu dùng nhãn hiện tại.
-export function pickClassVersion(versions, classId, dateISO) {
+function pickClassVersion(versions, classId, dateISO) {
   if (!dateISO) return null
   let hit = null
   for (const version of versions ?? []) {

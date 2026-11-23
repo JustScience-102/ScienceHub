@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { toVietnameseError } from '../../lib/errors'
 import { formatCurrency, formatDate } from '../../lib/format'
 import { monthStartISO, todayISO } from '../../lib/schedule'
+import FormActions from '../FormActions'
 
 const STATUS_LABELS = {
   present: 'Có mặt',
@@ -36,7 +37,7 @@ export default function DropEnrollmentDialog({
 
   // Tải các buổi điểm danh nằm sau ngày nghỉ đang chọn.
   useEffect(() => {
-    if (!supabase || !dateValid) return undefined
+    if (!dateValid) return undefined
     let cancelled = false
     supabase
       .from('attendance_records')
@@ -146,24 +147,15 @@ export default function DropEnrollmentDialog({
           </div>
         )}
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={saving || loading || Boolean(dateError) || Boolean(later.error)}
-            className="min-h-11 rounded-lg bg-red-500 px-4 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang xử lý...' : needsDelete ? 'Xóa các buổi này và cho nghỉ' : 'Cho nghỉ'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          onConfirm={handleConfirm}
+          busy={saving}
+          disabled={loading || Boolean(dateError) || Boolean(later.error)}
+          danger
+          label={needsDelete ? 'Xóa các buổi này và cho nghỉ' : 'Cho nghỉ'}
+          busyLabel="Đang xử lý..."
+        />
       </div>
     </Modal>
   )

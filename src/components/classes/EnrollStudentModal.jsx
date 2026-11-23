@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, UserPlus, ArrowLeft } from 'lucide-react'
+import { UserPlus, ArrowLeft } from 'lucide-react'
 import Modal from '../Modal'
 import FormField from '../FormField'
 import Notice from '../Notice'
@@ -9,7 +9,6 @@ import { fetchAll } from '../../lib/fetchAll'
 import { normalizeText, compareVietnameseNames } from '../../lib/text'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { classGrade } from '../../lib/grade'
-import { canAutoFocus } from '../../lib/pointer'
 import { classTitle } from '../../lib/dashboard'
 import {
   normalizePhone,
@@ -18,6 +17,8 @@ import {
   validateRequired,
   TEMP_PARENT_NAME,
 } from '../../lib/validators'
+import FormActions from '../FormActions'
+import SearchInput from '../SearchInput'
 
 // Danh sách học sinh để chọn một em (radio). Học sinh đã học lớp này bị khóa.
 function StudentPickList({ students, selectedId, onSelect, activeHere, activeCounts, parentOf, blocked }) {
@@ -459,22 +460,13 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
               <label htmlFor="enroll-search" className="mb-1 block text-sm font-medium text-slate-700">
                 Tìm theo tên, mã, SĐT học sinh hoặc SĐT phụ huynh
               </label>
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  aria-hidden="true"
-                />
-                <input
-                  id="enroll-search"
-                  type="search"
-                  autoFocus={canAutoFocus()}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Ví dụ: Minh Anh, HS0001 hoặc 0901234567"
-                  className="min-h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
-                />
-              </div>
+              <SearchInput
+                id="enroll-search"
+                autoFocus
+                value={query}
+                onChange={setQuery}
+                placeholder="Ví dụ: Minh Anh, HS0001 hoặc 0901234567"
+              />
             </div>
             {searchResults.length === 0 ? (
               <p className="rounded-lg border border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
@@ -512,23 +504,11 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : showNewForm ? 'Đăng ký và thêm vào lớp' : 'Thêm vào lớp'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+          label={showNewForm ? 'Đăng ký và thêm vào lớp' : 'Thêm vào lớp'}
+        />
       </form>
     )
   }

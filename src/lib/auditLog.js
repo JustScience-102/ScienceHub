@@ -16,7 +16,7 @@ export const ACTION_GROUP_OPTIONS = [
   { value: 'system', label: 'Hệ thống (Sao lưu · Khóa sổ · Năm học · Khôi phục)' },
 ]
 
-export const ACTION_META = {
+const ACTION_META = {
   attendance_create: { label: 'Điểm danh mới', badge: 'bg-sky-50 text-sky-700 border-sky-200' },
   attendance_update: { label: 'Sửa điểm danh', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   attendance_delete: { label: 'Xóa điểm danh', badge: 'bg-red-50 text-red-700 border-red-200' },
@@ -54,7 +54,7 @@ export const ACTION_META = {
   month_reopen: { label: 'Mở lại sổ tháng', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
 }
 
-export const ACTOR_ROLE_LABELS = {
+const ACTOR_ROLE_LABELS = {
   manager: 'Quản lý',
   teacher: 'Giáo viên',
   system: 'Hệ thống',

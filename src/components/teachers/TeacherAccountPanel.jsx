@@ -8,6 +8,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { validateEmail, validateRequired } from '../../lib/validators'
 import { accountStatus } from '../../lib/teacherAccount'
 import AccountBadge from './AccountBadge'
+import FormActions from '../FormActions'
 
 // Hộp thoại liên kết tài khoản: email phải là user đã tạo sẵn trong Supabase Authentication.
 function LinkAccountDialog({ teacher, onDone, onClose }) {
@@ -55,23 +56,12 @@ function LinkAccountDialog({ teacher, onDone, onClose }) {
           error={error}
           placeholder="giaovien@example.com"
         />
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang liên kết...' : 'Liên kết tài khoản'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+          label="Liên kết tài khoản"
+          busyLabel="Đang liên kết..."
+        />
       </form>
     </Modal>
   )

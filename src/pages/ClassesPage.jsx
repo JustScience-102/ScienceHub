@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
-import { Plus, BookOpen, Users, Pencil, Trash2, RotateCcw, ClipboardCheck, Search, Layers } from 'lucide-react'
+import { Plus, BookOpen, Users, Pencil, Trash2, RotateCcw, ClipboardCheck, Layers } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
@@ -9,7 +9,8 @@ import ClassRoster from '../components/classes/ClassRoster'
 import ChangeTeacherDialog from '../components/classes/ChangeTeacherDialog'
 import TeacherStatsBar from '../components/classes/TeacherStatsBar'
 import ClassGroupsPanel from '../components/classes/ClassGroupsPanel'
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient'
+import SearchInput from '../components/SearchInput'
 import { toVietnameseError } from '../lib/errors'
 import { formatCurrency } from '../lib/format'
 import { fetchAll } from '../lib/fetchAll'
@@ -97,7 +98,7 @@ export default function ClassesPage({
   const [teachers, setTeachers] = useState([])
   const [schedules, setSchedules] = useState({})
   const [activeCounts, setActiveCounts] = useState({})
-  const [loading, setLoading] = useState(isSupabaseConfigured)
+  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState(null)
   const [showHidden, setShowHidden] = useState(false)
@@ -118,7 +119,6 @@ export default function ClassesPage({
   const [groupsKey, setGroupsKey] = useState(0) // đổi khi nhóm lớp thay đổi để bảng cảnh báo tải lại
 
   useEffect(() => {
-    if (!supabase) return undefined
     let cancelled = false
 
     async function load() {
@@ -369,21 +369,13 @@ export default function ClassesPage({
   const toolbar = (
     <div className="space-y-3">
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <Search
-            size={18}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm theo tên lớp, môn học hoặc giáo viên"
-            aria-label="Tìm kiếm lớp học"
-            className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-base outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 sm:text-sm"
-          />
-        </div>
+        <SearchInput
+          className="flex-1"
+          value={query}
+          onChange={setQuery}
+          placeholder="Tìm theo tên lớp, môn học hoặc giáo viên"
+          label="Tìm kiếm lớp học"
+        />
         <button
           type="button"
           onClick={() => setEditing({ mode: 'create' })}
@@ -516,13 +508,7 @@ export default function ClassesPage({
   )
 
   let body
-  if (!isSupabaseConfigured) {
-    body = (
-      <Notice type="error">
-        Trung tâm chưa kết nối Supabase. Hãy điền khóa vào file .env rồi chạy lại ứng dụng.
-      </Notice>
-    )
-  } else if (loading && classes.length === 0) {
+  if (loading && classes.length === 0) {
     body = <p className="text-sm text-slate-500">Trung tâm đang tải danh sách lớp...</p>
   } else if (loadError) {
     body = <Notice type="error">{loadError}</Notice>
@@ -693,9 +679,9 @@ export default function ClassesPage({
           {notice.text}
         </Notice>
       )}
-      {isSupabaseConfigured && isTeacher && <TeacherStatsBar refreshKey={reloadKey} />}
-      {isSupabaseConfigured && <ClassGroupsPanel refreshKey={`${reloadKey}|${groupsKey}`} />}
-      {isSupabaseConfigured && toolbar}
+      {isTeacher && <TeacherStatsBar refreshKey={reloadKey} />}
+      <ClassGroupsPanel refreshKey={`${reloadKey}|${groupsKey}`} />
+      {toolbar}
       {body}
 
       {editing && (

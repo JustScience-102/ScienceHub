@@ -22,9 +22,3 @@ export async function reopenMonth({ year, month }, reason) {
   const { error } = await supabase.rpc('reopen_month', { p_year: year, p_month: month, p_reason: reason })
   if (error) throw error
 }
-
-// "2026-10-01" -> { year: 2026, month: 10 }
-export function monthFromStart(monthStart) {
-  const [year, month] = String(monthStart).split('-').map(Number)
-  return { year, month }
-}

@@ -10,11 +10,8 @@ import { formatDate } from '../../lib/format'
 import { todayISO } from '../../lib/schedule'
 import { downloadFullCenterBackupJson } from '../../lib/backup'
 import { CLOSING_GRADES, ROLLOVER_CONFIRM_TEXT, previewRollover, runRollover } from '../../lib/rollover'
+import { BTN_PRIMARY, BTN_SECONDARY } from '../../lib/buttonStyles'
 
-const SECONDARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-const PRIMARY_BTN =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50'
 
 export default function RolloverSection() {
   const today = todayISO()
@@ -100,7 +97,7 @@ export default function RolloverSection() {
 
       <div className="space-y-2 rounded-lg border border-sky-200 bg-white p-3">
         <p className="text-xs font-semibold text-slate-800">Bước 1: Tải bản sao lưu toàn hệ thống trước khi chuyển</p>
-        <button type="button" onClick={handleBackup} disabled={Boolean(busy)} className={PRIMARY_BTN}>
+        <button type="button" onClick={handleBackup} disabled={Boolean(busy)} className={BTN_PRIMARY}>
           <Download size={16} aria-hidden="true" />
           {busy === 'backup' ? 'Đang tạo file...' : 'Tải bản sao lưu (.json)'}
         </button>
@@ -122,7 +119,7 @@ export default function RolloverSection() {
           type="button"
           onClick={handlePreview}
           disabled={Boolean(busy) || !backedUp || !dateValid}
-          className={SECONDARY_BTN}
+          className={BTN_SECONDARY}
         >
           <Search size={16} aria-hidden="true" />
           {busy === 'preview' ? 'Đang kiểm tra...' : 'Xem trước'}

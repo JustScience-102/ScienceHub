@@ -7,6 +7,7 @@ import { toVietnameseError } from '../../lib/errors'
 import { monthStartISO, todayISO } from '../../lib/schedule'
 import { buildClassChoices, loadClassChoices } from '../../lib/transfer'
 import { classTitle } from '../../lib/dashboard'
+import FormActions from '../FormActions'
 
 // Hộp thoại ĐĂNG KÝ THÊM LỚP cho học sinh (giữ nguyên các lớp đang học, chỉ thêm lớp mới CÙNG KHỐI).
 //  activeEnrollments: mọi ghi danh 'active' của học sinh (để xác định khối và bỏ các lớp đang học)
@@ -134,23 +135,12 @@ export default function AddClassModal({
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={saving || choices.length === 0}
-            className="min-h-11 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {saving ? 'Đang lưu...' : 'Đăng ký lớp'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onClose}
+          busy={saving}
+          disabled={choices.length === 0}
+          label="Đăng ký lớp"
+        />
       </form>
     )
   }

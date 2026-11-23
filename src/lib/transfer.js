@@ -31,7 +31,7 @@ export async function loadClassChoices() {
 }
 
 // Khối mà học sinh đang học: lấy từ các lớp 'active' có khối rõ ràng (Database đảm bảo cùng một khối).
-export function studentGradeOf(activeEnrollments) {
+function studentGradeOf(activeEnrollments) {
   for (const enrollment of activeEnrollments) {
     const grade = classGrade(enrollment.classes)
     if (grade) return grade

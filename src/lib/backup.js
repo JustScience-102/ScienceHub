@@ -4,18 +4,9 @@
 import { supabase } from './supabaseClient'
 import { formatDate } from './format'
 import { compareVietnameseNames } from './text'
-import { todayISO } from './schedule'
+import { formatSchedule, todayISO } from './schedule'
 import { fetchAllAuditLogsBefore, formatVnDateTime, getActionMeta, getActorRoleLabel } from './auditLog'
-
-const DAY_LABELS = {
-  2: 'Thứ 2',
-  3: 'Thứ 3',
-  4: 'Thứ 4',
-  5: 'Thứ 5',
-  6: 'Thứ 6',
-  7: 'Thứ 7',
-  8: 'Chủ nhật',
-}
+import { CENTER_NAME } from './restore'
 
 // ---- CSV ----
 
@@ -126,7 +117,7 @@ export async function downloadAuditBackup({ beforeDate, format = 'json', onProgr
   const filename = `${baseName}.json`
   downloadJson(
     {
-      center: 'Trung tâm ScienceHub',
+      center: CENTER_NAME,
       before_date: beforeDate,
       exported_at: new Date().toISOString(),
       total_records: items.length,
@@ -219,12 +210,6 @@ export async function downloadClassesCsv() {
   const rows = [...(tables.classes ?? [])]
     .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'vi'))
     .map((cls) => {
-      const schedule = [...(scheduleByClass.get(cls.id) ?? [])]
-        .sort((a, b) => a.day_of_week - b.day_of_week)
-        .map(
-          (row) =>
-            `${DAY_LABELS[row.day_of_week] ?? `Thứ ${row.day_of_week}`} (${String(row.start_time).slice(0, 5)}-${String(row.end_time).slice(0, 5)})`,
-        )
       return {
         name: cls.name,
         subject: cls.subject ?? '',
@@ -232,7 +217,8 @@ export async function downloadClassesCsv() {
         teacher_name: teachersById.get(cls.teacher_id)?.full_name ?? '',
         price_per_session: cls.price_per_session ?? 0,
         active_students: activeCountByClass.get(cls.id) ?? 0,
-        schedule: schedule.join('; '),
+        // Lịch đang áp dụng (cùng cách hiển thị với trang Lớp học), không gộp lịch của các thời kỳ cũ.
+        schedule: formatSchedule(scheduleByClass.get(cls.id) ?? []),
         status: cls.deleted_at ? 'Đã ẩn' : 'Đang hoạt động',
       }
     })

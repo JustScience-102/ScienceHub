@@ -50,13 +50,13 @@ export function sameMonth(a, b) {
 // ---- Tiền ----
 
 // Số tiền tính của một bản ghi điểm danh: chỉ price_snapshot, trống (NULL) thì 0.
-export function recordAmount(record) {
+function recordAmount(record) {
   if (!record || record.status === 'absent_excused') return 0
   return Number(record.price_snapshot) || 0
 }
 
 // Học bù: bản ghi nằm ở lớp bù (class_id) nhưng enrollment_id trỏ về ghi danh của lớp GỐC.
-export function isMakeupRecord(record, enrollmentById) {
+function isMakeupRecord(record, enrollmentById) {
   const enrollment = enrollmentById[record.enrollment_id]
   return Boolean(enrollment) && enrollment.class_id !== record.class_id
 }
