@@ -1,0 +1,20 @@
+{
+  "name": "sciencehub-site",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/react": "7.1.7",
+    "@tailwindcss/vite": "4.3.3",
+    "astro": "7.4.10",
+    "lucide-react": "1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "4.3.3"
+  }
+}

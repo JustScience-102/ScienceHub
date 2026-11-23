@@ -7,7 +7,9 @@
 - **Stack:** React (Vite) + Tailwind CSS (`@tailwindcss/vite`) + `@supabase/supabase-js` + `lucide-react`. Kiểm thử Database bằng `@electric-sql/pglite` (chỉ lúc phát triển).
 - **Điều hướng:** không dùng thư viện router; điều hướng bằng state ở `App.jsx` và state con trong từng trang.
 - **Hạ tầng:** Vercel (frontend) nối thẳng Supabase (Database, Auth, RLS, RPC). Project Supabase `ScienceHub` là Database chính thức; project `ScienceApp` thuộc app giao bài tập (kho khác).
-- **Phong cách UI:** đơn giản, rõ ràng, tông xanh dương nhạt / trắng / xám sáng, lấy cảm hứng từ Azota. Dùng component sẵn có trước khi tự viết: `FormActions` (cặp nút Hủy / nút chính), `SearchInput`, `FormField`, `SelectField`, `Modal`, `ConfirmDialog`, `Notice`, `EmptyState`, `MonthNav`; kiểu nút ở `lib/buttonStyles.js`.
+- **Trang giới thiệu (`site/`, sciencehub.id.vn):** Astro 7 + React + Tailwind, dự án Vercel riêng (Root Directory `site`). Thư viện đã duyệt riêng cho `site/` (24/11/2026): `astro`, `@astrojs/react`, `postgres`. Nối CSDL Trung tâm bằng tài khoản CSDL riêng qua hàm máy chủ, **không** mở quyền cho `anon`. Chi tiết: `ARCHITECTURE.md` mục 5.
+- **Tên miền:** `sciencehub.id.vn` = trang giới thiệu; `quanly.sciencehub.id.vn` = app này; `baitap.sciencehub.id.vn` = app giao bài ScienceApp.
+- **Phong cách UI:** đơn giản, rõ ràng, tông xanh dương nhạt / trắng / xám sáng, lấy cảm hứng từ Azota. Logo "chữ S và quỹ đạo" (`components/BrandLogo.jsx`, ảnh `public/icon-192.png`) dùng chung với app giao bài và trang giới thiệu. Dùng component sẵn có trước khi tự viết: `FormActions` (cặp nút Hủy / nút chính), `SearchInput`, `FormField`, `SelectField`, `Modal`, `ConfirmDialog`, `Notice`, `EmptyState`, `MonthNav`; kiểu nút ở `lib/buttonStyles.js`.
 
 ## 2. Quy ước chung
 - **Ngôn ngữ hiển thị & thông báo lỗi:** 100% tiếng Việt rõ ràng, lịch sự, xưng **"Trung tâm"**.
@@ -48,11 +50,11 @@
 - **Bước 1 - Lên kế hoạch:** với mỗi yêu cầu, nêu kế hoạch ngắn gọn dạng gạch đầu dòng (tạo/sửa file nào, giải quyết logic gì). Chờ người dùng duyệt mới viết code.
 - **Bước 2 - Không tự suy diễn:** điểm nghiệp vụ hay trường hợp biên chưa rõ thì hỏi lại kèm phương án đề xuất trước khi làm.
 - **Bước 3 - Kiểm tra, đẩy lên & bàn giao:**
-  - Chạy `npm test`, `npm run lint`, `npm run build`. Lint phải **0 cảnh báo**: Oxlint vẫn trả mã thoát 0 khi chỉ có cảnh báo, nên đọc kết quả, không chỉ nhìn mã thoát.
+  - Chạy `npm test`, `npm run lint`, `npm run build` (sửa `site/` thì chạy thêm `npm run build:site`). Lint phải **0 cảnh báo**: Oxlint vẫn trả mã thoát 0 khi chỉ có cảnh báo, nên đọc kết quả, không chỉ nhìn mã thoát.
   - Tự làm mọi bước kiểm tra làm được; chỉ liệt kê cho người dùng những việc phải làm tay (chạy SQL trong Supabase SQL Editor, đăng nhập thử trên giao diện thật, cấu hình Supabase/Vercel).
   - Đạt hết thì commit và push lên `main` (mục 5), rồi đưa kịch bản nghiệm thu ngắn gọn (chạy SQL nào, bấm vào đâu, thấy gì trên màn hình).
 
 ## 5. Git & triển khai
 - Chỉ dùng nhánh `main`; mọi thay đổi commit và push thẳng lên `main` (người dùng cho phép 24/11/2026).
-- Mỗi lần push, Vercel triển khai production ngay (https://science-hub-iota.vercel.app). Chỉ push khi mục 4 Bước 3 đã đạt.
+- Mỗi lần push, Vercel triển khai production ngay (https://science-hub-iota.vercel.app; trang giới thiệu `site/` là dự án Vercel thứ hai cùng kho). Chỉ push khi mục 4 Bước 3 đã đạt.
 - Thay đổi có SQL: frontend lên production ngay khi push, còn SQL chỉ có hiệu lực khi người dùng chạy trong SQL Editor. Hãy viết SQL và frontend sao cho thứ tự nào cũng không làm hỏng bản đang chạy, hoặc ghi rõ thứ tự trong kịch bản nghiệm thu.

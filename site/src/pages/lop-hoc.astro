@@ -1,0 +1,26 @@
+---
+// Mốc M2 sẽ thay phần "Đang cập nhật" bằng danh sách lớp lấy tự động từ app quản lý trung tâm.
+import { Info } from 'lucide-react'
+import Base from '../layouts/Base.astro'
+import ContactList from '../components/ContactList.astro'
+import PageHeading from '../components/PageHeading.astro'
+---
+<Base
+  title="Lớp học & học phí"
+  description="Các lớp đang mở, giáo viên, lịch học trong tuần và học phí mỗi buổi của Trung tâm ScienceHub."
+>
+  <PageHeading title="Lớp học & học phí" subtitle="Các lớp đang mở, giáo viên, lịch học trong tuần và học phí mỗi buổi." />
+
+  <div class="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
+    <Info size={18} aria-hidden="true" className="mt-0.5 shrink-0" />
+    <p>
+      Lịch học và học phí đang được cập nhật và sẽ hiện ở đây, khớp với lịch của Trung tâm. Trong lúc chờ, phụ huynh
+      vui lòng liên hệ Trung tâm để được tư vấn.
+    </p>
+  </div>
+
+  <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <h2 class="mb-4 text-lg font-semibold text-slate-800">Liên hệ</h2>
+    <ContactList />
+  </section>
+</Base>

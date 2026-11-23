@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { BookOpen, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import BrandLogo from '../components/BrandLogo'
 import FormField from '../components/FormField'
 import Notice from '../components/Notice'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
@@ -72,9 +73,7 @@ export default function LoginPage({ notice }) {
     <div className="flex min-h-dvh items-center justify-center bg-slate-100 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-500 text-white">
-            <BookOpen size={26} aria-hidden="true" />
-          </span>
+          <BrandLogo className="h-12 w-12 rounded-xl" />
           <div>
             <h1 className="text-xl font-bold text-slate-800">Trung tâm ScienceHub</h1>
             <p className="mt-1 text-sm text-slate-500">

@@ -1,0 +1,8 @@
+---
+// Tiêu đề đầu mỗi trang (cùng cỡ chữ tiêu đề trang của app quản lý).
+const { title, subtitle } = Astro.props
+---
+<div class="mb-5">
+  <h1 class="text-2xl font-bold text-slate-800">{title}</h1>
+  {subtitle && <p class="mt-1 text-sm text-slate-500">{subtitle}</p>}
+</div>

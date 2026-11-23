@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro'
+import PageHeading from '../components/PageHeading.astro'
+import { CENTER } from '../data/center.js'
+
+const SECTIONS = [
+  {
+    title: 'Trung tâm thu những thông tin nào',
+    items: [
+      'Form đăng ký học: họ tên, khối lớp và trường của học sinh, môn và lịch muốn học, họ tên và số điện thoại phụ huynh, số điện thoại học sinh (nếu có), ghi chú của phụ huynh.',
+      'Tra cứu điểm: mã học sinh và số điện thoại phụ huynh, chỉ dùng để kiểm tra đúng phụ huynh của học sinh.',
+    ],
+  },
+  {
+    title: 'Dùng để làm gì',
+    items: [
+      'Liên hệ tư vấn và xếp lớp cho học sinh.',
+      'Cho phụ huynh xem điểm các bài kiểm tra của con.',
+      'Trung tâm không bán, không chia sẻ thông tin cho bên khác và không dùng để quảng cáo.',
+    ],
+  },
+  {
+    title: 'Ai được xem',
+    items: [
+      'Chỉ người quản lý của Trung tâm xem được đơn đăng ký.',
+      'Kết quả tra cứu điểm chỉ hiện cho người nhập đúng mã học sinh và số điện thoại phụ huynh đã đăng ký.',
+    ],
+  },
+  {
+    title: 'Ghi nhớ đăng nhập',
+    items: [
+      'Trang Tra cứu điểm lưu một mã đăng nhập trên trình duyệt để máy nhớ phụ huynh trong 90 ngày. Bấm “Thoát” để xóa trên máy đó.',
+      'Web không dùng công cụ theo dõi hay quảng cáo.',
+    ],
+  },
+  {
+    title: 'Xem, sửa hoặc xóa thông tin',
+    items: [
+      `Phụ huynh muốn xem, sửa hoặc xóa thông tin đã gửi, vui lòng liên hệ ${CENTER.contactName}: ${CENTER.phoneShown}.`,
+    ],
+  },
+]
+---
+<Base title="Chính sách bảo mật" description="Trung tâm ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào.">
+  <PageHeading title="Chính sách bảo mật" subtitle="Trung tâm thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào." />
+
+  <div class="space-y-4">
+    {SECTIONS.map((section) => (
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 class="text-lg font-semibold text-slate-800">{section.title}</h2>
+        <ul class="mt-3 list-disc space-y-2 pl-6 text-base text-slate-700 marker:text-sky-600">
+          {section.items.map((item) => <li>{item}</li>)}
+        </ul>
+      </section>
+    ))}
+  </div>
+</Base>

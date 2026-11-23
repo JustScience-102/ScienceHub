@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react'
+import BrandLogo from '../BrandLogo'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 
@@ -25,9 +25,7 @@ export default function AppLayout({
 
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white">
-            <BookOpen size={18} aria-hidden="true" />
-          </span>
+          <BrandLogo className="h-8 w-8 rounded-lg" />
           <span className="font-bold text-slate-800">Trung tâm ScienceHub</span>
         </div>
         {userProfile && (

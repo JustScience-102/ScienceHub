@@ -4,6 +4,8 @@ Web app quản lý Trung tâm ScienceHub: lớp học, học sinh, phụ huynh, 
 
 Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 
+Thư mục `site/` là **trang giới thiệu công khai** của Trung tâm (sciencehub.id.vn: lớp học & học phí, quy định, đăng ký học, tra cứu điểm), một dự án Vercel riêng. Xem `site/README.md`.
+
 ## Tài liệu dự án
 - `RULES.md`: quy tắc, quy ước và quy trình làm việc.
 - `ARCHITECTURE.md`: cấu trúc Database, nghiệp vụ đã chốt và giao diện (chi tiết từng quy tắc ở chú thích đầu mỗi file `supabase/v3/*.sql`).
@@ -26,4 +28,5 @@ Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 - `npm run dev`: chạy môi trường phát triển.
 - `npm run lint`: kiểm tra mã bằng Oxlint.
 - `npm run build`: build bản production.
+- `npm run build:site`: build trang giới thiệu `site/` (lần đầu chạy `npm install` trong `site/`).
 - `npm test`: kiểm thử hàm JS thuần (`test:js`) và toàn bộ bộ SQL V3 trên PGlite (`test:db`, không cần Supabase). `npm run test:db <từ khóa>` chạy riêng các file test có tên chứa từ khóa.

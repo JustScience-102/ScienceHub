@@ -1,4 +1,5 @@
-import { BookOpen, KeyRound, LogOut } from 'lucide-react'
+import { KeyRound, LogOut } from 'lucide-react'
+import BrandLogo from '../BrandLogo'
 import { navItemsFor } from './navItems'
 
 const ROLE_LABELS = { manager: 'Quản lý', teacher: 'Giáo viên' }
@@ -17,9 +18,7 @@ export default function Sidebar({
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-slate-200">
       <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-200">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500 text-white">
-          <BookOpen size={20} aria-hidden="true" />
-        </span>
+        <BrandLogo />
         <span className="text-lg font-bold text-slate-800">Trung tâm ScienceHub</span>
       </div>
 

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:site": "npm --prefix site run build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test:db": "node scripts/test-db.mjs",

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#0284c7"/>
+  <!-- Thu nhỏ 0,88 quanh tâm để Android cắt tròn không mất electron (vùng an toàn bán kính 40). -->
+  <g transform="translate(50 50) scale(0.88) translate(-50 -50)">
+    <ellipse cx="50" cy="52" rx="41" ry="15" transform="rotate(-24 50 52)" fill="none" stroke="#ffffff" stroke-width="4.5"/>
+    <text x="50" y="73" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="800" font-size="64" fill="#ffffff" stroke="#0284c7" stroke-width="7" paint-order="stroke">S</text>
+    <circle cx="87.4" cy="35.3" r="6" fill="#6ee7b7"/>
+  </g>
+</svg>

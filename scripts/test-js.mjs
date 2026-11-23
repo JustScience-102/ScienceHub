@@ -24,6 +24,7 @@ const classGroups = await import('../src/lib/classGroups.js')
 const homework = await import('../src/lib/homework.js')
 const { subjectColor } = await import('../src/lib/dashboard.js')
 const { SUBJECTS } = await import('../src/lib/subjects.js')
+const parentLookup = await import('../site/src/lib/parentLookup.js')
 
 let passed = 0
 let failed = 0
@@ -189,6 +190,17 @@ await test('Mỗi môn trong danh sách có màu riêng, không trùng nhau', ()
   assert.equal(new Set(colors).size, SUBJECTS.length, colors.join(' | '))
   assert.equal(subjectColor('Ngữ văn'), subjectColor('Văn'))
   assert.equal(subjectColor('Tiếng Anh'), subjectColor('Anh'))
+})
+
+console.log('\n▶ Trang giới thiệu: tra cứu điểm (site/src/lib/parentLookup.js)')
+await test('Điểm viết dấu phẩy, ngày theo giờ Việt Nam, tên môn như app trung tâm', () => {
+  assert.equal(parentLookup.scoreText(7.5), '7,5')
+  assert.equal(parentLookup.scoreText(6.25), '6,25')
+  assert.equal(parentLookup.scoreText(8), '8')
+  assert.equal(parentLookup.scoreText(6.666666), '6,67')
+  // 23/11 lúc 18:30 giờ UTC là 01:30 sáng 24/11 ở Việt Nam.
+  assert.equal(parentLookup.vnDate('2026-11-23T18:30:00Z'), '24/11/2026')
+  for (const name of Object.values(parentLookup.SUBJECT_NAMES)) assert.ok(SUBJECTS.includes(name), name)
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

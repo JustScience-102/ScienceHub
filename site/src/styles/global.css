@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Cùng chữ và màu nền với app quản lý trung tâm (src/index.css) và app giao bài. Luôn nền sáng. */
+@theme {
+  --font-sans: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+/* Đang gõ vào ô nhập trên điện thoại: ẩn thanh tab đáy để nó không nổi ngay trên bàn phím ảo
+   (giống BottomNav của app quản lý). Cờ data-typing do script trong layouts/Base.astro đặt. */
+body[data-typing] .bottom-nav {
+  display: none;
+}

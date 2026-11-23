@@ -25,3 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Trang giới thiệu (site/): file Astro tự sinh và cấu hình Vercel trên máy
+.astro
+.vercel

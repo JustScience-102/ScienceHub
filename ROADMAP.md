@@ -7,8 +7,15 @@
 
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
-- **Kiểm thử:** `npm test` đạt 13 tình huống JS + 106 tình huống Database; lint 0 cảnh báo; build sạch.
+- **Kiểm thử:** `npm test` đạt 14 tình huống JS + 106 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
+- **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
+  - **M0 – Tên miền** (người dùng làm tay): tạo dự án Vercel cho `site/` (Root Directory `site`), gắn `sciencehub.id.vn` + `www`; gắn `quanly.sciencehub.id.vn` vào dự án app này, `baitap.sciencehub.id.vn` vào dự án ScienceApp; thêm bản ghi DNS ở nhà đăng ký theo giá trị Vercel hiển thị; thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy). Xong thì đổi `HOMEWORK_APP_URL` ở `site/src/data/center.js` sang `baitap.`.
+  - **M1 – Khung web: xong 24/11/2026.** Đủ 5 tab, logo chung, tab Tra cứu điểm chạy thật (qua ScienceApp). Chờ người dùng gửi: địa chỉ, link Google Maps, giờ làm việc, lời giới thiệu, nội quy/xin nghỉ, cách đóng học phí; duyệt câu chữ trang Quy định và Chính sách bảo mật.
+  - **M2 – Lớp học & học phí tự động** từ app này (`11_website.sql`, `website.catalog()`, tên giáo viên).
+  - **M3 – Form đăng ký** (chọn lịch theo nhóm lớp: mỗi phần đúng một ca) + màn hình "Đơn đăng ký" cho Quản lý.
+  - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem`, thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
+  - Lưu ý chi phí: gói Hobby của Vercel chỉ cho dùng phi thương mại; nên gom các dự án vào một nhóm Vercel Pro.
 - **Tồn đọng nhỏ (không chặn):**
   - Chưa có chức năng gỡ liên kết tài khoản giáo viên (muốn đổi thì liên kết lại bằng email mới; tài khoản cũ mất quyền).
   - `setup_initial_manager` chỉ chạy trong SQL Editor (muốn nhiều Quản lý thì làm hàm riêng).
@@ -18,6 +25,12 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 24/11/2026 — Trang giới thiệu sciencehub.id.vn: mốc M1
+- Người dùng chốt: lịch và học phí lấy từ app trung tâm, có tên giáo viên; form chọn lịch theo nhóm lớp (mỗi phần đúng một ca); tra cứu điểm là một tab của web; đơn đăng ký chỉ Quản lý xem, không vào file sao lưu; duyệt thư viện `astro`, `@astrojs/react`, `postgres` cho `site/`; tên miền con `quanly.`, `baitap.`.
+- Thư mục `site/` (Astro 7 + React + Tailwind): trang chủ, Lớp học & học phí, Quy định, Đăng ký học (hai trang này tạm ghi "đang cập nhật"), Tra cứu điểm (giao diện mới, API của ScienceApp qua `/api/diem/*`), Chính sách bảo mật, 404. CSP chế độ chặn có mã băm.
+- App trung tâm: logo "chữ S và quỹ đạo" thay biểu tượng sách (`components/BrandLogo.jsx`: thanh bên, thanh tiêu đề điện thoại, trang Đăng nhập) và thay favicon mặc định của Vite.
+- `npm run build:site`; test JS thêm phần tra cứu điểm (`site/src/lib/parentLookup.js`).
 
 ### 24/11/2026 — Dọn mã trước khi thêm tính năng mới
 - Bỏ nhánh `v3`: mọi thay đổi commit và push thẳng lên `main`.
