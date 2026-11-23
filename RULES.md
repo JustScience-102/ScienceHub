@@ -2,7 +2,10 @@
 
 > ĐỌC FILE NÀY CÙNG `ARCHITECTURE.md` VÀ `ROADMAP.md` Ở ĐẦU MỖI PHIÊN CHAT.
 
-> **Đang chuyển sang V3 (nhánh `v3`, project Supabase mới — xem mục 0 của `ROADMAP.md`).** Trên nhánh `v3`, SQL nằm ở
+> **Git:** chỉ dùng nhánh `main`; mọi thay đổi commit và push thẳng lên `main` (người dùng cho phép 24/11/2026).
+> Mỗi lần push, Vercel triển khai production ngay, nên chỉ push khi `npm test`, `npm run lint`, `npm run build` đều đạt.
+
+> **Đang chuyển sang V3 (project Supabase mới — xem mục 0 của `ROADMAP.md`).** SQL nằm ở
 > `supabase/v3/` (00 -> 09, mỗi hàm định nghĩa một lần, chạy lại an toàn); bộ V2 ở `supabase/legacy/` chỉ để tra cứu.
 > Quy tắc V3 thay cho mục 3b bên dưới: `authenticated` chỉ có SELECT, mọi thao tác ghi (kể cả Quản lý) qua RPC;
 > quyền chỉ cấp ở `09_grants.sql` (hàm tên không bắt đầu bằng `_` mới mở cho `authenticated`); tên lớp do Database

@@ -1,7 +1,7 @@
 # Tiến độ Dự án & Kế hoạch Triển khai (Roadmap)
 
 > **Câu nhắc mở đầu cho phiên chat mới:**
-> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`. Production vẫn chạy V2 (nhánh `main`); V3 đang làm trên nhánh `v3` cho project Supabase MỚI — xem mục 0 của `ROADMAP.md` (V3-0 -> V3-3 đã viết xong, đang chờ người dùng diễn tập V3-4). CHƯA viết code mới khi chưa được duyệt kế hoạch."
+> "Hãy đọc kỹ `RULES.md`, `ARCHITECTURE.md` và `ROADMAP.md`. Tuân thủ quy trình 3 bước trong `RULES.md`. Chỉ dùng nhánh `main`: mọi thay đổi commit và push thẳng lên `main` (mỗi lần push Vercel triển khai production ngay). Tiến độ V3 (project Supabase MỚI) xem mục 0 của `ROADMAP.md`. CHƯA viết code mới khi chưa được duyệt kế hoạch."
 
 ---
 
@@ -13,7 +13,9 @@ Người dùng chốt: app giao bài lấy học sinh, lớp, ghi danh từ Trun
 - Test: `supabase/tests/v3_sciencehub.test.mjs` (7 tình huống), `scripts/test-js.mjs` (chữ hiển thị). `npm test` 12 + 109 đạt, lint 0 cảnh báo, build sạch.
 - **Nghiệm thu:** SQL Editor của project Supabase chính thức: chạy `10_sciencehub.sql` rồi `09_grants.sql` → đăng nhập Quản lý → Học sinh → mở hồ sơ một em đã nộp bài trên app giao bài → tab "Lịch sử làm bài tập" thấy tên bài, môn, ngày nộp, điểm (tháp: số tầng đã qua + điểm từng tầng); đăng nhập Giáo viên chỉ mở được hồ sơ học sinh lớp mình.
 
-## 0. V3: Xây lại trên project Supabase mới (nhánh `v3`) — ĐANG LÀM
+## 0. V3: Xây lại trên project Supabase mới — ĐANG LÀM
+**24/11/2026 (người dùng chốt):** bỏ nhánh `v3` (đã gộp hết vào `main` qua PR #2 -> #6, xóa cả trên GitHub); từ nay commit và push thẳng lên `main`. Các chỗ nhắc "nhánh `v3`" bên dưới là lịch sử.
+
 Kế hoạch đã duyệt ngày 29/10/2026. Production V2 (nhánh `main`, project Supabase cũ) KHÔNG bị đụng tới cho tới ngày chuyển và giữ làm phương án quay lui.
 
 **Quy tắc mới đã chốt với người dùng:** (a) dựng V3 sạch trên project Supabase MỚI, chuyển dữ liệu bằng file sao lưu `.json` của V2; (b) lịch học theo thời kỳ ("Áp dụng lịch mới từ ngày"); (c) khóa sổ theo tháng (chỉ tháng đã qua, mở lại bắt buộc ghi lý do); (d) nhật ký V2 không nạp sang, V3 chỉ ghi 1 dòng "Chuyển dữ liệu từ hệ thống cũ"; (e) tên lớp do Database sinh `Môn_Khối_TênGọiGV_STT`, đổi họ tên giáo viên thì tên lớp và nhãn lịch sử đổi theo; hai giáo viên trùng tên gọi (Lam/Lâm) cùng từng dạy một môn thì cả hai thêm chữ `LamA`/`LamB` theo thứ tự thêm vào Trung tâm, đã thêm thì giữ luôn; (f) bộ test DB lưu trong repo (`@electric-sql/pglite` 0.5.8, chỉ dùng lúc phát triển).
