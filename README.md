@@ -6,7 +6,7 @@ Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 
 ## Tài liệu dự án
 - `RULES.md`: quy tắc, quy ước và quy trình làm việc.
-- `ARCHITECTURE.md`: cấu trúc Database, nghiệp vụ và giao diện (đang mô tả V2; thay đổi của V3 xem mục 0 của `ROADMAP.md` và chú thích đầu mỗi file `supabase/v3/*.sql`).
+- `ARCHITECTURE.md`: cấu trúc Database, nghiệp vụ đã chốt và giao diện (chi tiết từng quy tắc ở chú thích đầu mỗi file `supabase/v3/*.sql`).
 - `ROADMAP.md`: tiến độ và kế hoạch.
 
 ## Cài đặt
@@ -15,7 +15,7 @@ Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 3. Trên một project Supabase mới (trống), trong SQL Editor chạy lần lượt `supabase/v3/00_meta.sql` -> `09_grants.sql`. Bộ này chạy lại nhiều lần vẫn an toàn; sau mỗi lần sửa SQL phải chạy lại `09_grants.sql`. Nối app giao bài ScienceHub (kho `ScienceApp`): chạy thêm `supabase/v3/10_sciencehub.sql` rồi chạy lại `09_grants.sql`; tài khoản kết nối `sciencehub_link` do app giao bài tạo (`npm run dong-bo -- noi-trung-tam`, xem `app/README.md` của kho ScienceApp).
 4. Supabase Authentication > Users: tạo user Quản lý (bật Auto Confirm), sửa email trong `supabase/v3/bootstrap_manager.sql` rồi chạy file đó.
 5. Chạy `supabase/v3/check_v3.sql` và đối chiếu kết quả mong đợi ghi trong từng truy vấn.
-6. (Tùy chọn) Chuyển dữ liệu từ hệ thống cũ: đăng nhập Quản lý, vào Tổng quan -> Sao lưu & Năm học -> Khôi phục từ file sao lưu, chọn file `.json` đã xuất từ hệ thống cũ, xem trước rồi gõ `KHOI PHUC`.
+6. (Tùy chọn) Đưa dữ liệu từ một bản sao lưu `.json` của hệ thống này vào: đăng nhập Quản lý, vào Tổng quan -> Sao lưu & Năm học -> Khôi phục từ file sao lưu, xem trước rồi gõ `KHOI PHUC`.
 7. Tài khoản Giáo viên: tạo user trong Authentication rồi liên kết ở trang Giáo viên -> Hồ sơ -> Liên kết tài khoản đăng nhập.
 
 ## Triển khai (Vercel)

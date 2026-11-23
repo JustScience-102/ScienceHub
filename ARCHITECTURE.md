@@ -1,198 +1,197 @@
-# Kiến trúc & Nghiệp vụ Hệ thống ScienceHub (Nguồn chân lý hiện hành)
+# Kiến trúc & Nghiệp vụ Hệ thống ScienceHub (V3)
 
-> **Lưu ý V3:** file này vẫn mô tả hệ thống V2. Với V3 (project Supabase mới), cấu trúc
-> Database là bộ `supabase/v3/` (chú thích đầu mỗi file ghi rõ quy tắc) và các thay đổi nghiệp vụ được tóm tắt ở mục 0
-> của `ROADMAP.md`: lịch học theo thời kỳ, khóa sổ tháng, học bù liên kết buổi gốc + hủy học bù, `left_reason`,
-> tên lớp do Database sinh (LamA/LamB), mọi thao tác ghi qua RPC. File này sẽ được viết lại theo V3 ở bước V3-5.
-
-## 1. Cấu trúc Database (Supabase PostgreSQL)
-
-### 1.1. Thứ tự chạy file SQL trong `supabase/`
-1. `01_schema.sql`: Sequences, hàm tiện ích thời gian (`vn_today`, `vn_month_start`, `vn_day_of_week`, `class_effective_grade`) và 8 bảng chuẩn.
-2. `02_triggers.sql`: Toàn bộ 16 trigger (13 nhóm quy tắc) kiểm soát toàn vẹn dữ liệu và đồng bộ ẩn/hiện.
-3. `03_rpc_and_auth.sql`: Các hàm kiểm tra vai trò (`app_role`, `is_manager`, `current_teacher_id`, `my_profile`, `setup_initial_manager`, `assert_manager`) và 10 hàm RPC nghiệp vụ (`drop_enrollment`, `transfer_enrollment` là `SECURITY DEFINER` vì gọi hàm lõi `_drop_enrollment_core` đã bị thu quyền EXECUTE; quyền thật được chốt bởi `assert_manager()`).
-4. `04_lockdown_rls.sql`: Chốt chặn an toàn (yêu cầu có ít nhất 1 Quản lý đang hoạt động), thay policy mở `v1_open_access` (do `01_schema.sql` tạo tạm, RLS đã được bật từ file 01) bằng `v2_manager_all` và thu hồi quyền `anon`.
-5. `mock_data.sql` (tùy chọn): Dữ liệu giả lập theo đúng cấu trúc mới (lớp tên `Môn_Khối_TênGV_STT`, lịch ở `class_schedules`, học sinh chỉ học các lớp cùng khối). Chạy sau file 03, chỉ trên Database trống; xóa trước khi nhập dữ liệu thật.
-6. `05_v2_2_teacher_access.sql` (V2-2): chạy sau file 04. Thêm hàm trợ giúp RLS cho Giáo viên, policy `SELECT` cho Giáo viên, RPC quản lý tài khoản Giáo viên, và **nâng cấp 8 hàm RPC cũ** (`save_class`, `update_student`, `register_student_in_class`, `drop_enrollment`, `transfer_enrollment`, `save_attendance`, `record_makeup`, `dashboard_summary`) để mở nhánh Giáo viên. **Không chạy lại file 03 sau file 05** (file 03 sẽ ghi đè các hàm đã nâng cấp). Chạy lại file 05 thì an toàn.
-7. `06_v2_3_audit_log.sql` (V2-3): chạy sau file 05. Bảng `audit_log` (chỉ Quản lý đọc, chặn UPDATE/DELETE/TRUNCATE), 11 trigger (9 trigger ghi nhật ký tự động trên 8 bảng nghiệp vụ + 2 trigger bảo vệ nhật ký) và 3 RPC chỉ Quản lý (`vn_school_year_bounds`, `query_audit_logs`, `clear_audit_logs_before`). Chạy lại an toàn.
-8. `07_v2_4_backup.sql` (V2-4): chạy sau file 06. RPC xuất dữ liệu `export_center_backup`, `export_monthly_attendance_report` (chỉ Quản lý). Chạy lại an toàn.
-9. Tệp tiện ích tùy chọn (không nằm trong chuỗi chạy bắt buộc): `check_before_launch.sql` (chỉ đọc, danh sách kiểm tra an toàn) và `reset_mock_data.sql` (xóa toàn bộ dữ liệu thử; có khóa an toàn ở đầu file, phải xóa khối khóa mới chạy được).
-10. `08_v2_5_bulk_import.sql` (V2-5): chạy sau file 07. RPC `import_students_bulk` (chỉ Quản lý) nhập học sinh hàng loạt từ file CSV + hàm nội bộ `_import_norm_name`. Chạy lại an toàn.
-11. `09_v2_6_year_rollover.sql` (V2-6): chạy sau file 08. Bảng `class_versions` (lịch sử nhãn lớp theo thời kỳ, chỉ thêm), trigger `trg_class_versions` trên `classes`, hàm `class_label_on`, RPC `rollover_school_year` (chỉ Quản lý) + hàm nội bộ `_rollover_apply`; thay hàm `check_class_grade_change` (gốc ở file 02) bằng bản nới có điều kiện; nâng cấp `query_audit_logs`, `export_center_backup`, `export_monthly_attendance_report`. Chạy lại an toàn. **Không chạy lại `02_triggers.sql` sau file 09** (file 02 có chốt chặn tự từ chối).
-12. `10_v2_7_restore_backup.sql` (V2-7): chạy sau file 09. Khôi phục dữ liệu từ file sao lưu `.json`: bảng tạm `restore_staging`, RPC `restore_stage_chunk`, `restore_stage_abort`, `restore_center_backup` (chỉ Quản lý) + hàm nội bộ `_restore_apply`; nâng cấp `query_audit_logs` (nhóm Hệ thống thêm `center_restore`). Chạy lại an toàn. **Không chạy lại `09_v2_6_year_rollover.sql` sau file 10** (file 09 có chốt chặn tự từ chối).
-13. Từ V2-8 trở đi: tạo migration mới đánh số tiếp (`11_...`), viết chạy lại được nhiều lần; không tạo lại các file `sliceN_migration.sql` cũ.
-
-### 1.2. Chi tiết 8 bảng dữ liệu (`ON DELETE RESTRICT` cho các khóa ngoại nghiệp vụ)
-- **`parents`**: `id`, `parent_code` (`PH0001`..., tự sinh, không đổi), `full_name`, `phone` (bắt buộc, 10 số bắt đầu bằng `0`, duy nhất), `created_at`, `deleted_at`.
-- **`teachers`**: `id`, `full_name`, `phone` (duy nhất nếu có), `email`, `created_at`, `deleted_at`.
-- **`students`**: `id`, `student_code` (`HS0001`..., tự sinh, không đổi), `full_name`, `phone` (duy nhất nếu có), `parent_id` (-> `parents`), `grade` (khối `1..12`, tự gán theo lớp khi ghi danh), `created_at`, `deleted_at`.
-- **`classes`**: `id`, `name` (tự sinh `Môn_Khối_TênGV_STT`, duy nhất giữa các lớp đang hiển thị `uq_classes_name_active`), `subject`, `grade` (`1..12`), `class_no`, `teacher_id` (-> `teachers`), `price_per_session` (đơn giá hiện tại >= 0), `deleted_at`, `created_at`.
-- **`class_schedules`**: `id`, `class_id` (-> `classes`), `day_of_week` (`2..8`), `start_time`, `end_time`, `created_at`. Duy nhất theo `(class_id, day_of_week)` — mỗi lớp mỗi ngày tối đa 1 ca.
-- **`class_enrollments`**: `id`, `class_id`, `student_id`, `status` (`'active'` | `'dropped'`), `joined_at`, `left_at` (bắt buộc khi `'dropped'`), `created_at`. Mỗi học sinh chỉ có tối đa 1 dòng `'active'` trong cùng 1 lớp (`uq_enrollments_one_active`).
-- **`attendance_records`**: `id`, `enrollment_id`, `class_id`, `student_id`, `attendance_date`, `status` (`'present'` | `'absent'` | `'absent_excused'`), `price_snapshot` (bắt buộc có với `present`/`absent`, `NULL` với `absent_excused`), `created_at`. Duy nhất theo `(class_id, student_id, attendance_date)`.
-- **`profiles`**: `user_id` (PK -> `auth.users` on delete cascade), `role` (`'manager'` | `'teacher'`), `teacher_id` (duy nhất -> `teachers`, bắt buộc có nếu `role = 'teacher'`, `NULL` nếu `role = 'manager'`), `active` (boolean), `created_at`.
-- **Bảng bổ sung từ các lát cắt sau:** `audit_log` (V2-3, xem 2.3) và **`class_versions`** (V2-6, xem 2.5): `class_id` (không khóa ngoại), `name`, `subject`, `grade`, `class_no`, `teacher_id`, `teacher_name`, `price_per_session` (chỉ tham khảo), `valid_from`, `valid_to`, `reason` (`'edit'` | `'year_rollover'`), `batch_id`, `created_at`. Mỗi dòng là một thời kỳ ĐÃ ĐÓNG của nhãn lớp; chỉ thêm, trigger chặn UPDATE/DELETE/TRUNCATE; RLS: Quản lý đọc tất cả, Giáo viên đọc lớp của mình.
-
-### 1.3. Các hàm RPC & Tiện ích Database đang có
-- **Auth & Vai trò:**
-  - `app_role()`: Trả về `'manager'` | `'teacher'` | `NULL`. Trả về `NULL` nếu chưa đăng nhập, `profiles.active = false`, giáo viên đã bị ẩn (`teachers.deleted_at IS NOT NULL`), hoặc phiên của giáo viên đã quá **48 giờ** kể từ `auth.users.last_sign_in_at`.
-  - `is_manager()`, `current_teacher_id()`, `my_profile()`, `setup_initial_manager(p_email)` (chỉ chạy trong SQL Editor), `assert_manager()`.
-- **Nghiệp vụ Lớp & Học sinh:**
-  - `save_class(p_class_id, p_name, p_subject, p_grade, p_class_no, p_teacher_id, p_price, p_schedule jsonb, p_restore)`: Thêm/sửa lớp và ghi lại lịch học trong 1 giao dịch.
-  - `register_student_in_class(p_class_id, p_joined_at, p_full_name, p_phone, p_parent_name, p_parent_phone)`: Tạo học sinh + gắn/tạo phụ huynh theo SĐT + ghi danh vào lớp.
-  - `update_student(p_student_id, p_full_name, p_phone, p_parent_name, p_parent_phone)`: Cập nhật học sinh và xử lý thông minh liên kết phụ huynh (không làm đổi SĐT của anh chị em ruột nếu phụ huynh có nhiều con).
-  - `drop_enrollment(p_enrollment_id, p_left_at, p_delete_attendance)`: Cho nghỉ học (xóa mềm), kiểm tra/xóa điểm danh sau ngày nghỉ; gọi hàm lõi `_drop_enrollment_core`.
-  - `transfer_enrollment(p_enrollment_id, p_new_class_id, p_date, p_delete_attendance)`: Đổi lớp trong 1 giao dịch (vào lớp mới trước, nghỉ lớp cũ sau qua `_drop_enrollment_core`; `left_at` cũ = `joined_at` mới = `p_date`).
-- **Điểm danh & Học bù:**
-  - `save_attendance(p_class_id, p_date, p_items jsonb)`: Lưu/sửa/xóa điểm danh cả buổi. Đổi `present` <-> `absent` giữ nguyên giá cũ; từ `absent_excused` sang tính tiền lấy giá hiện tại của lớp; `status = null` thì xóa bản ghi.
-  - `record_makeup(p_makeup_class_id, p_date, p_enrollment_id, p_original_date)`: Ghi học bù giữa 2 lớp cùng giáo viên (không bắt buộc cùng khối). Tạo bản ghi `present` ở lớp bù với `enrollment_id` của lớp gốc và đơn giá của lớp gốc; chuyển buổi gốc thành `absent_excused`.
-- **Dashboard & Thống kê:**
-  - `student_presence_spans()`: Gộp các đợt học nối tiếp hoặc cách nhau tối đa 1 ngày (đổi lớp) thành khoảng hiện diện liên tục tại Trung tâm. Chỉ trả dữ liệu cho Quản lý.
-  - `dashboard_summary(p_year, p_month)`: Quản lý nhận JSON 6 chỉ số thống kê và doanh thu tháng. Giáo viên nhận nhánh riêng cùng khóa JSON: `class_count` (lớp đang hiển thị, hiện tại), `student_count` (học sinh `'active'` không trùng, hiện tại), `revenue` và `charged_sessions` (theo tháng đã chọn, chỉ lớp mình); không dùng `student_presence_spans()`.
-  - `dashboard_schedule(p_date)`: Chỉ Quản lý. Trả về danh sách lớp có lịch học trong ngày kèm sĩ số (`total_count` gồm cả học bù) và số học sinh đã điểm danh (`marked_count`).
-- **Hàm của V2-2 (`05_v2_2_teacher_access.sql`):**
-  - Trợ giúp RLS (`SECURITY DEFINER`, tránh đệ quy RLS giữa các bảng): `teacher_owns_class`, `teacher_owns_enrollment`, `teacher_sees_enrollment`, `teacher_sees_student`, `teacher_sees_parent`.
-  - `assert_staff()`: chốt chặn cho RPC mở cho cả Quản lý và Giáo viên, trả về vai trò.
-  - `link_teacher_account(p_email, p_teacher_id)`, `set_teacher_account_active(p_teacher_id, p_active)`: chỉ Quản lý.
-  - `lookup_parent_by_phone(p_phone)`: tra cứu phụ huynh và các con, chỉ khớp chính xác 10 số, trả `NULL` nếu không khớp.
-  - `enroll_existing_student(p_class_id, p_student_id, p_joined_at)`: ghi danh học sinh đã có (thay cho INSERT trực tiếp từ trình duyệt).
-  - `set_class_hidden(p_class_id, p_hidden, p_new_name, p_new_class_no)`: ẩn/khôi phục lớp (Giáo viên chỉ với lớp mình).
-
-- **Hàm của V2-3 (`06_v2_3_audit_log.sql`) và V2-4 (`07_v2_4_backup.sql`):**
-  - `vn_school_year_bounds(p_start_year)`: khoảng Năm học 15/06 -> 12/06 năm sau.
-  - `query_audit_logs(p_from_date, p_to_date, p_actor_role, p_teacher_id, p_action_group, p_class_id, p_student_id, p_search, p_limit, p_offset)`: chỉ Quản lý; trả `{total, limit, offset, school_year, items}`.
-  - `clear_audit_logs_before(p_before_date, p_expected_count, p_confirm_text)`: chỉ Quản lý; ngoại lệ có kiểm soát duy nhất để xóa nhật ký (xem 2.4).
-  - `export_center_backup(p_include_audit_log, p_tables)` và `export_monthly_attendance_report(p_year, p_month)`: chỉ Quản lý; mỗi lần xuất ghi 1 dòng nhật ký `backup_export`.
-- **Hàm của V2-5 (`08_v2_5_bulk_import.sql`):**
-  - `import_students_bulk(p_rows jsonb, p_dry_run boolean)`: chỉ Quản lý, tối đa 500 dòng/lần. Mỗi dòng `{line, student_name, student_phone, parent_name, parent_phone, class_name, joined_at}`. `p_dry_run = true` chỉ kiểm tra (không ghi, không tiêu hao mã HS/PH); `false` kiểm tra lại rồi ghi toàn bộ trong 1 giao dịch, còn lỗi thì không ghi gì. Trả `{dry_run, ok, applied, total_rows, errors[{line,message}], warnings[], missing_classes[], summary{new_parents,new_students,existing_students,enrollments,skipped}}`.
-  - Quy tắc: học sinh nhận diện bằng Họ tên (không phân biệt hoa/thường) + SĐT phụ huynh; học sinh/phụ huynh đã có thì dùng lại, chỉ ghi danh thêm lớp (đang học đúng lớp đó: cảnh báo và bỏ qua dòng); phụ huynh trùng SĐT khác tên: giữ tên cũ và cảnh báo; không có tên phụ huynh: dùng tên tạm `(Chưa cập nhật tên)`; lớp phải có sẵn và đang hiển thị; cùng khối và ngày vào lớp không ở tương lai.
-- **Hàm của V2-6 (`09_v2_6_year_rollover.sql`):**
-  - `class_label_on(p_class_id, p_date)`: trả `{name, subject, grade, class_no, teacher_name}` của lớp tại ngày đó (thời kỳ trong `class_versions` nếu có, không thì nhãn hiện tại). Chạy với quyền người gọi nên RLS tự giới hạn.
-  - `rollover_school_year(p_date, p_dry_run, p_confirm_text)`: chỉ Quản lý, một giao dịch. Trả `{dry_run, ok, applied, date, promoted[{class_id,old_name,new_name,old_grade,new_grade}], closed[{class_id,name,grade,students}], students_dropped, warnings[], errors[]}`. `p_dry_run = true` chạy thật trong khối con rồi hoàn tác nên bản xem trước luôn khớp bản chạy thật; `false` yêu cầu cụm `CHUYEN NAM HOC`. Quy tắc ở 2.5.
-  - Hàm nội bộ (đã thu quyền EXECUTE): `_rollover_apply`, `_trg_class_versions`, `_guard_class_versions_immutable`, `_guard_class_versions_truncate`.
-- **Hàm của V2-7 (`10_v2_7_restore_backup.sql`, chỉ Quản lý):**
-  - `restore_stage_chunk(p_run_id, p_table, p_chunk, p_rows)`: tải từng phần (tối đa 2000 dòng) của file lên bảng tạm `restore_staging` (RLS bật, không ai đọc/ghi trực tiếp từ trình duyệt). `p_table = '_metadata'` mang `{center, version, exported_at, file_counts, staged_counts}`. Tự dọn phần tải dở quá 1 ngày. `restore_stage_abort(p_run_id)` hủy lần tải.
-  - `restore_center_backup(p_run_id, p_dry_run, p_confirm_text)`: kiểm tra file (đúng Trung tâm, đủ 7 bảng bắt buộc, các phần liên tục, số dòng khớp số đã gửi và số khai báo trong file), trả bảng so sánh `tables[{name,current,in_file,added,removed}]` rồi khôi phục. `p_dry_run = true` chạy thật trong khối con rồi hoàn tác; `false` cần cụm `KHOI PHUC`. Trả `{dry_run, ok, applied, file, tables, warnings[], errors[]}`. Quy tắc ở 2.6.
-  - Hàm nội bộ (đã thu quyền EXECUTE): `_restore_apply`.
-- **Hàm nội bộ của V2-3/V2-5 (đã thu quyền EXECUTE):** `_write_audit_log`, `_guard_audit_log_immutable`, `_guard_audit_log_truncate`, `_fmt_vnd`, `_attendance_status_label`, `_attendance_payload`, `_schedule_snap_label` và các hàm trigger `_trg_audit_*`.
+Web quản lý Trung tâm: lớp học, học sinh, phụ huynh, giáo viên, điểm danh và học phí theo tháng. React (Vite) + Tailwind
+trên Vercel, nối thẳng Supabase (PostgreSQL, Auth, RLS, RPC). Khi file này và mã nguồn lệch nhau, **mã nguồn đúng**:
+chú thích đầu mỗi file `supabase/v3/*.sql` và đầu mỗi hàm ghi quy tắc chi tiết.
 
 ---
 
-## 2. Quy tắc Nghiệp vụ Cốt lõi (Đã chốt)
+## 1. Database (bộ `supabase/v3/`)
 
-### 2.1. Quy tắc Ẩn / Hiện & Khối lớp
-- **Học sinh bắt buộc thuộc ít nhất 1 lớp đang học:** Khi nghỉ lớp cuối cùng, học sinh tự động ẩn (`deleted_at = now()`); khi được ghi danh vào lớp mới, học sinh tự hiện lại. Trang Học sinh không có nút "Khôi phục" riêng.
-- **Phụ huynh tự đồng bộ theo con:** Tự ẩn khi tất cả các con đều ẩn; tự hiện lại khi có ít nhất 1 con hiển thị.
-- **Giáo viên & Lớp học:** Chỉ ẩn được Giáo viên khi không còn lớp chưa ẩn; chỉ ẩn được Lớp khi không còn học sinh `'active'`. Khi ẩn Giáo viên, tài khoản `profiles.active` tự động chuyển thành `false` (khôi phục Giáo viên không tự mở lại tài khoản).
-- **Cùng khối:** Mỗi học sinh chỉ được ghi danh vào các lớp **cùng khối** (Trigger chặn cứng ở DB). Muốn lên khối mới cho một học sinh lẻ (lưu ban, chuyển hướng): cho nghỉ hết các lớp khối cũ rồi đăng ký lớp ở khối mới. Hai ngoại lệ: **Học bù** chỉ yêu cầu cùng giáo viên, không bắt buộc cùng khối; và **Chuyển năm học** (V2-6, mục 2.5) đổi khối của cả loạt lớp trong một giao dịch, trong đó trigger chỉ tạm bỏ qua kiểm tra xung đột khối giữa các lớp và hàm kiểm tra lại ở cuối (sai thì hủy toàn bộ).
+### 1.1. Các file và cách chạy
+Mỗi file chạy lại nhiều lần vẫn an toàn; mỗi hàm chỉ định nghĩa ở **một** file. Sửa SQL: chạy lại file đã sửa trong
+Supabase SQL Editor rồi chạy lại `09_grants.sql`.
 
-### 2.2. Quy tắc Phân quyền V2 (Quản lý vs Giáo viên)
-- **Quản lý (`manager`):** Toàn quyền trên mọi bảng và mọi hàm RPC.
-- **Giáo viên (`teacher`)** (chốt ở V2-2). Giáo viên chỉ có quyền `SELECT` qua RLS; mọi thao tác ghi đi qua RPC `SECURITY DEFINER` tự kiểm tra vai trò, phạm vi lớp và tháng hiện tại:
-  - Phiên đăng nhập tối đa **48 giờ** kể từ `last_sign_in_at`. Dùng chung `LoginPage`, vào thẳng trang **Lớp học**.
-  - **Không** thấy Tổng quan (`DashboardPage`) và Quản lý Giáo viên (`TeachersPage`); menu chỉ có Lớp học, Học sinh, Tài khoản. Thống kê riêng (Lớp đang phụ trách, Tổng số học sinh đang dạy, Doanh thu tháng) nằm ở đầu trang Lớp học, lấy từ `dashboard_summary` (nhánh Giáo viên, chỉ tính các lớp của mình).
-  - Chỉ thấy lớp mình phụ trách (`classes.teacher_id = current_teacher_id()`), học sinh thuộc lớp mình (kể cả em đã nghỉ khỏi lớp mình, để giữ lịch sử) và phụ huynh của các em đó. Không thấy lớp, học sinh hay doanh thu của giáo viên khác.
-  - **Lớp học:** tạo lớp mới cho chính mình, sửa thông tin/lịch/đơn giá lớp mình, ẩn lớp (khi không còn học sinh `'active'`) và khôi phục lớp mình (qua `set_class_hidden`). **Không** chuyển lớp cho giáo viên khác; chỉ Quản lý đổi được `teacher_id`.
-  - **Học sinh:** thêm học sinh vào lớp mình (`register_student_in_class`, `enroll_existing_student`) với ngày vào lớp trong tháng hiện tại; sửa học sinh đang học lớp mình (`update_student`).
-  - **Phụ huynh:** Giáo viên **không được đổi tên phụ huynh**. Nhập SĐT phụ huynh trước (`lookup_parent_by_phone`, chỉ khớp chính xác 10 số): trùng bản ghi có sẵn thì tên bị khóa và hiện danh sách con để chọn, không có em đó thì thêm học sinh mới của phụ huynh đó. Khi sửa học sinh, đổi sang SĐT chưa có: nếu phụ huynh hiện tại chỉ có đúng 1 con thì chỉ đổi SĐT (giữ tên), ngược lại tạo phụ huynh mới.
-  - **Cho nghỉ (`drop_enrollment`):** ở lớp mình, ngày nghỉ trong tháng hiện tại. **Đổi lớp (`transfer_enrollment`):** giữa 2 lớp cùng khối, cùng môn, cùng do mình dạy, ngày chuyển trong tháng hiện tại.
-  - **Điểm danh (`save_attendance`)** và **Học bù (`record_makeup`, giữa 2 lớp của mình):** CHỈ TRONG THÁNG HIỆN TẠI (`vn_month_start()`). Dữ liệu tháng trước chỉ Quản lý sửa được.
-  - Khi Quản lý đổi giáo viên của một lớp, toàn bộ lịch sử điểm danh và doanh thu của lớp đó chuyển theo sang giáo viên mới (điểm danh không lưu giáo viên).
-- **Quản lý tài khoản Giáo viên (chỉ Quản lý):** tạo user trong Supabase Authentication rồi liên kết bằng email qua `link_teacher_account`; khóa/mở khóa bằng `set_teacher_account_active`. Trang Giáo viên hiện nhãn `Chưa cấp tài khoản` / `Đang hoạt động` / `Đã khóa`.
+| File | Nội dung |
+|---|---|
+| `00_meta.sql` | Thu quyền mặc định Supabase cấp cho `anon`/`authenticated`; `schema_migrations`; hàm giờ Việt Nam (`vn_today`, `vn_month_start`, `vn_day_of_week`); cờ `_is_restoring`. |
+| `01_tables.sql` | 14 bảng (mục 1.2), ràng buộc, chỉ mục; bật RLS mọi bảng. |
+| `02_security.sql` | Vai trò (`app_role`, `is_manager`, `current_teacher_id`, `assert_manager`, `assert_staff`, `my_profile`, `setup_initial_manager`), phạm vi Giáo viên (`my_class_ids`, `my_owned_enrollment_ids`, `my_visible_enrollment_ids`, `my_student_ids`, `my_parent_ids`), policy RLS, hàm ghi nhật ký `_write_audit_log`. |
+| `03_naming.sql` | Tên lớp do Database sinh (`class_name_for`, `preview_class_name`, `_refresh_class_names`), view `class_versions_labeled`, `class_label_on`, so trùng họ tên `_norm_name`. |
+| `04_integrity.sql` | Trigger toàn vẹn (mục 1.5); trạng thái suy ra tính lại bằng `_sync_student_state` / `_sync_parent_state`. |
+| `05_rpc_core.sql` | RPC lớp, học sinh, ghi danh, điểm danh, học bù, thống kê. |
+| `06_rpc_admin.sql` | RPC giáo viên, tài khoản, khóa sổ tháng, nhóm lớp. |
+| `07_audit.sql` | Trigger nhật ký, `query_audit_logs`, `clear_audit_logs_before`, `vn_school_year_bounds`. |
+| `08_ops.sql` | Sao lưu, báo cáo tháng, nhập CSV, chuyển năm học, khôi phục. |
+| `09_grants.sql` | Cấp quyền (chạy cuối, chạy lại sau mỗi lần sửa SQL). |
+| `10_sciencehub.sql` | Nối app giao bài ScienceApp (mục 2.14). Chạy sau `09`, rồi chạy lại `09`. |
+| `bootstrap_manager.sql` | Tạo Quản lý đầu tiên (sửa email rồi chạy trong SQL Editor). |
+| `check_v3.sql` | Truy vấn chỉ đọc để đối chiếu cài đặt và quyền. |
 
-### 2.3. Nhật ký thay đổi (`audit_log`, V2-3)
-- **Ghi tự động bằng trigger** (không cần frontend gọi): mọi thao tác dù do Quản lý hay Giáo viên (qua RPC `SECURITY DEFINER`) đều được ghi kèm `auth.uid()`, vai trò (`manager` | `teacher` | `system`), `actor_teacher_id` nếu là Giáo viên và tên người thực hiện.
-- **Các nhóm bộ lọc (loại thao tác):** Điểm danh (tạo/sửa/xóa), Học bù, Ghi danh · Cho nghỉ · Đổi lớp, Lớp học (tạo/sửa/ẩn/khôi phục/đổi lịch học), Học sinh & Phụ huynh (tạo/sửa/tự ẩn/tự hiện/sửa phụ huynh), Giáo viên & Tài khoản (thêm/sửa/ẩn/khôi phục/liên kết/gỡ tài khoản cũ/khóa/mở khóa), Hệ thống (xuất sao lưu, làm mới nhật ký).
-- **Ghi từng dòng, gộp khi hiển thị:** mỗi dòng điểm danh là 1 dòng nhật ký; cột `batch_id` (mã giao dịch) giúp giao diện gộp các dòng của cùng một lần bấm. `price_snapshot` được ghi đúng giá trị đóng băng cũ/mới, không tính lại theo `classes.price_per_session`.
-- **Đổi lớp** tạo 2 dòng (Ghi danh lớp mới + Đổi lớp); giao diện ẩn dòng Ghi danh thừa của cùng học sinh trong cùng giao dịch.
-- **Bảo vệ toàn vẹn:** RLS chỉ cho Quản lý `SELECT`; `authenticated` bị thu `INSERT/UPDATE/DELETE/TRUNCATE`; trigger chặn UPDATE/DELETE/TRUNCATE (thông báo "Nhật ký thay đổi được bảo vệ toàn vẹn..." chỉ hiện khi chạy trong SQL Editor; từ trình duyệt sẽ báo thiếu quyền trước).
+Bộ test `supabase/tests/*.test.mjs` chạy toàn bộ SQL trên PGlite (`npm run test:db`), giả lập `auth` và vai trò của Supabase;
+mỗi lời gọi của người dùng là một giao dịch như PostgREST.
 
-### 2.4. Chu kỳ Năm học & Làm mới nhật ký (V2-3/V2-4)
-- **Năm học của Trung tâm:** 15/06 năm nay -> 12/06 năm sau (`vn_school_year_bounds`, `getCurrentSchoolYearBounds`).
-- **Xóa nhật ký là ngoại lệ có kiểm soát duy nhất** (không hard delete dữ liệu nghiệp vụ): chỉ Quản lý; `clear_audit_logs_before` yêu cầu cụm xác nhận `XOA NHAT KY`, ngày chốt phải là ngày đã qua, và `p_expected_count` phải khớp đúng số dòng sắp xóa (số dòng đã nằm trong file sao lưu vừa tải). Sau khi xóa tự ghi 1 dòng `audit_log_clear`.
-- **Sao lưu thủ công (gói Supabase Free):** Quản lý tải JSON toàn hệ thống và CSV (Học sinh & Phụ huynh, Lớp học & Lịch học, Điểm danh & Học phí theo tháng) từ nút **Sao lưu & Năm học** trên Tổng quan. CSV có BOM UTF-8, SĐT dạng `="0912..."` để Excel giữ số 0 đầu, ô văn bản bắt đầu bằng `= + - @` được thêm tiền tố `'` chống chèn công thức.
+### 1.2. Bảng dữ liệu
+Khóa ngoại nghiệp vụ `ON DELETE RESTRICT`. Không xóa cứng dữ liệu nghiệp vụ (xem `RULES.md`).
+- **`parents`**: `parent_code` (`PH0001`…, tự sinh, không đổi), `full_name`, `phone` (bắt buộc, 10 số bắt đầu `0`, duy nhất), `deleted_at` (hệ thống tự đặt theo các con).
+- **`teachers`**: `full_name`, `phone` (duy nhất nếu có), `email`, `deleted_at`.
+- **`students`**: `student_code` (`HS0001`…), `full_name`, `phone` (duy nhất nếu có), `parent_id`, `grade` và `deleted_at` (tự tính từ các lớp đang học).
+- **`classes`**: `name` (Database sinh, mục 2.3), `subject`, `grade` (1–12), `class_no`, `teacher_id` (đều bắt buộc), `price_per_session` (đơn giá hiện tại), `deleted_at`. Mỗi bộ (môn, khối, giáo viên, STT) chỉ một lớp đang hiển thị (`uq_classes_slot_active`).
+- **`class_schedules`**: `class_id`, `day_of_week` (2 = Thứ 2 … 7 = Thứ 7, 8 = Chủ nhật), `start_time`, `end_time`, `valid_from`, `valid_to` (thời kỳ; `valid_to` NULL = lịch hiện hành). Mỗi lớp mỗi thứ tối đa 1 ca trong một thời kỳ.
+- **`class_enrollments`**: `class_id`, `student_id`, `status` (`active` | `dropped`), `joined_at`, `left_at`, `left_reason` (`dropped` nghỉ hẳn | `transferred` đổi lớp, kèm `transfer_to_id` | `graduated` hoàn thành lớp cuối cấp). Mỗi học sinh tối đa 1 dòng `active` trong một lớp.
+- **`attendance_records`**: `enrollment_id`, `class_id`, `student_id`, `attendance_date`, `status` (`present` | `absent` | `absent_excused`), `price_snapshot` (bắt buộc khi tính tiền, NULL khi Có phép), `makeup_of_date`, `makeup_prev_status`, `makeup_prev_price` (học bù, mục 2.5). Duy nhất theo (lớp, học sinh, ngày); mỗi buổi gốc chỉ bù 1 lần (`uq_attendance_makeup_once`).
+- **`profiles`**: `user_id` (→ `auth.users`), `role` (`manager` | `teacher`), `teacher_id` (duy nhất, bắt buộc với Giáo viên), `active`.
+- **`class_versions`**: thời kỳ ĐÃ ĐÓNG của cấu trúc lớp (môn, khối, STT, giáo viên, giá tham khảo, `valid_from`, `valid_to`, `reason` = `edit` | `year_rollover`). Chỉ thêm, không sửa/xóa. Tên lớp và tên giáo viên của lịch sử tính lại khi đọc qua view `class_versions_labeled`.
+- **`month_closures`**: mỗi dòng là một tháng đã chốt sổ (`month_start`, người và lúc chốt).
+- **`class_groups`**, **`class_group_members`** (`class_id` khóa chính, `group_id`, `part_no`): nhóm lớp (mục 2.7).
+- **`audit_log`**: nhật ký thay đổi (mục 2.9), không khóa ngoại.
+- **`restore_staging`**: bảng tạm chứa file sao lưu đang tải lên; chỉ RPC đọc/ghi, tự dọn sau 1 ngày.
 
-### 2.5. Chuyển năm học & Lịch sử nhãn lớp (V2-6)
-- **Chuyển năm học (`rollover_school_year`, chỉ Quản lý):** người dùng chọn ngày chuyển (không ở tương lai, phải sau buổi điểm danh cuối của mọi lớp đang hiển thị; ngày chuyển thuộc năm học mới).
-  - **Lớp cuối cấp (khối 5, 9, 12):** cho nghỉ toàn bộ học sinh `'active'` (`left_at = ngày chuyển - 1`, hoặc `joined_at` nếu vào lớp muộn hơn) rồi ẩn lớp, giữ nguyên tên. Học sinh và phụ huynh tự ẩn theo quy tắc 2.1. Học sinh muốn học tiếp ở khối sau thì ghi danh vào lớp khối mới sau khi chuyển (tự hiện lại).
-  - **Các lớp khác có khối:** lên 1 khối, tên mới theo `Môn_Khối_TênGV_STT` (xử lý từ khối cao xuống thấp để tên không đụng nhau; giữ STT nếu còn trống, không thì lấy số nhỏ nhất còn trống). Tên không theo mẫu thì giữ nguyên và cảnh báo. `students.grade` tự cập nhật theo lớp. Lớp chưa có khối bị bỏ qua và cảnh báo.
-  - Kiểm tra cuối: không học sinh nào đang học hai lớp khác khối, sai thì hủy toàn bộ. Ghi 1 dòng nhật ký `school_year_rollover` (nhóm "Hệ thống"); thay đổi lớp và cho nghỉ tự ghi bằng các trigger cũ, gộp theo `batch_id`.
-  - Học sinh lưu ban: xử lý tay (cho nghỉ trước khi chuyển rồi ghi danh lại vào lớp khối thấp).
-- **Lịch sử nhãn lớp (`class_versions`):** trigger `trg_class_versions` lưu nhãn CŨ (tên, môn, khối, STT, giáo viên, giá tham khảo) mỗi khi đổi một trong các trường đó, kể cả khi sửa lớp thường hay đổi giáo viên. Thời kỳ cũ chạy từ ngày tạo lớp (hoặc ngày sau thời kỳ trước) đến NGÀY TRƯỚC ngày thay đổi; ngày thay đổi thuộc nhãn mới. Sửa nhiều lần trong một ngày hoặc ngay ngày tạo lớp không sinh dòng rỗng. Chuyển năm học đặt ngày thay đổi theo ngày chuyển (cờ cục bộ giao dịch).
-- **Tra cứu:** hồ sơ học sinh (tên lớp, khối, giáo viên trong lịch sử điểm danh và học phí các tháng cũ, lớp đã nghỉ) và báo cáo `export_monthly_attendance_report` hiện nhãn theo ngày điểm danh. Màn hình lớp đang hoạt động luôn dùng nhãn hiện tại. **Điểm danh, `price_snapshot` và doanh thu không đổi**; quy tắc doanh thu theo lớp khi đổi giáo viên (2.2) giữ nguyên.
-- **Sao lưu:** `export_center_backup` kèm bảng `class_versions`.
+### 1.3. Bảo mật & phân quyền
+- `anon` không có quyền gì trên schema `public`. `authenticated` **chỉ có SELECT** (RLS lọc dòng); mọi thao tác ghi, **kể cả của Quản lý**, đi qua RPC `SECURITY DEFINER` + `search_path` cố định, tự kiểm vai trò ở đầu hàm (`assert_manager()` hoặc `assert_staff()`).
+- Quyền chỉ cấp ở `09_grants.sql`: `authenticated` gọi được mọi hàm tên **không** bắt đầu bằng `_` (trừ `setup_initial_manager`, chỉ chạy trong SQL Editor). Hàm `_...` là hàm nội bộ.
+- `app_role()` trả `manager` | `teacher` | NULL. NULL khi chưa đăng nhập, `profiles.active = false`, giáo viên đã bị ẩn, hoặc **phiên Giáo viên quá 48 giờ** kể từ lần đăng nhập gần nhất. `my_profile()` trả `status` (`ok` | `no_profile` | `inactive` | `teacher_hidden` | `expired`) cho giao diện.
+- Phạm vi Giáo viên tính một lần mỗi truy vấn qua các hàm `my_*_ids()` (mảng uuid): lớp mình dạy; ghi danh thuộc lớp mình hoặc có buổi học bù tại lớp mình; học sinh có ghi danh (mọi trạng thái) hoặc điểm danh tại lớp mình; phụ huynh của các em đó.
 
-### 2.6. Khôi phục từ file sao lưu (V2-7)
-- **Thay thế hoàn toàn, không trộn:** `restore_center_backup` đưa `teachers, parents, students, classes, class_schedules, class_enrollments, attendance_records, class_versions` về đúng nội dung file (file cũ không có `class_versions` thì bảng này được làm trống). Dữ liệu phát sinh sau thời điểm sao lưu bị mất; dữ liệu trong file được trả lại đầy đủ kể cả `price_snapshot`.
-- **Giữ nguyên, không thay:** tài khoản Quản lý (`profiles.role = 'manager'`) và toàn bộ `audit_log` (nhật ký trong file KHÔNG được nạp lại; chỉ ghi thêm 1 dòng `center_restore`, nhóm "Hệ thống"). Người dùng trong Supabase Authentication không bị chạm.
-- **Tài khoản Giáo viên:** lấy theo file, chỉ nạp khi tài khoản còn trong `auth.users` và giáo viên tương ứng còn; phần còn lại được báo trong cảnh báo (liên kết lại ở trang Giáo viên). File không có danh sách tài khoản thì tài khoản giáo viên hiện tại bị gỡ (có cảnh báo).
-- **Bộ đếm mã HS/PH không lùi** (`setval` theo giá trị lớn hơn giữa hiện tại và mã lớn nhất trong file): mã của học sinh tạo sau sao lưu không bị cấp lại.
-- **Cách làm:** một giao dịch; trigger nghiệp vụ của các bảng bị tạm tắt (`DISABLE TRIGGER USER`) trong giao dịch, khóa ngoại và ràng buộc vẫn chạy, bật lại ở cuối; kiểm tra số dòng từng bảng khớp file, sai thì hủy toàn bộ. Cảnh báo (không chặn) nếu file có học sinh học các lớp khác khối. Xem trước chạy thật rồi hoàn tác.
-- **Ngoại lệ có kiểm soát** của quy tắc cấm xóa dữ liệu nghiệp vụ (xem `RULES.md`): chỉ Quản lý, bắt buộc tải sao lưu hiện tại, xem trước, cụm xác nhận `KHOI PHUC`.
+### 1.4. RPC theo nhóm
+- **Lớp:** `save_class` (thêm/sửa lớp + lịch; lịch mới áp dụng từ `p_schedule_from`), `set_class_hidden` (ẩn/khôi phục; Quản lý đổi được giáo viên khi khôi phục), `preview_class_name`.
+- **Học sinh & ghi danh:** `register_student_in_class`, `update_student`, `lookup_parent_by_phone`, `enroll_existing_student`, `drop_enrollment`, `transfer_enrollment` (hai hàm sau dùng lõi `_drop_enrollment_core`).
+- **Điểm danh & học bù:** `save_attendance` (trả lại toàn bộ bản ghi của buổi), `record_makeup`, `cancel_makeup`.
+- **Thống kê:** `dashboard_summary(p_year, p_month)` (Quản lý: 6 chỉ số + doanh thu; Giáo viên: số lớp, số học sinh hiện tại và doanh thu tháng của lớp mình), `dashboard_schedule(p_date)` (chỉ Quản lý).
+- **Quản trị (chỉ Quản lý):** `save_teacher`, `set_teacher_hidden`, `link_teacher_account`, `set_teacher_account_active`, `close_month`, `reopen_month`, `save_class_group`, `delete_class_group`; `class_groups_overview` (Giáo viên xem được nhóm mà mọi lớp đều do mình dạy).
+- **Nhật ký (chỉ Quản lý):** `query_audit_logs`, `clear_audit_logs_before`, `vn_school_year_bounds`.
+- **Vận hành (chỉ Quản lý):** `export_center_backup`, `export_monthly_attendance_report`, `import_students_bulk`, `rollover_school_year`, `restore_stage_chunk`, `restore_stage_abort`, `restore_center_backup`.
+- **App giao bài:** `student_homework_history(p_student_id)` (Quản lý: mọi học sinh; Giáo viên: học sinh lớp mình); `sciencehub.roster()` chỉ tài khoản `sciencehub_link` gọi được.
+- Các RPC có bước xem trước (`import_students_bulk`, `rollover_school_year`, `restore_center_backup`) nhận `p_dry_run`: xem trước **chạy thật rồi hoàn tác**, nên kết quả xem trước luôn khớp lần chạy thật.
+
+### 1.5. Trigger
+- **Toàn vẹn (`04`)**: mã HS/PH không đổi; chỉ ẩn được giáo viên khi không còn lớp đang hiển thị (ẩn thì tài khoản tự khóa); chỉ ẩn được lớp khi không còn học sinh đang học; khối của học sinh đồng bộ theo lớp; kiểm tra **cùng khối** và **nhóm lớp** hoãn tới lúc COMMIT (nên "Đổi lớp" trong một giao dịch không bị chặn nhầm); lịch học không chồng thời kỳ; `class_versions` tự lưu nhãn cũ và không sửa/xóa được; chặn ghi điểm danh vào tháng đã chốt sổ. Khi đang khôi phục (`_is_restoring`) các trigger kiểm tra bỏ qua.
+- **Nhật ký (`07`)**: tự ghi thay đổi trên `attendance_records`, `class_enrollments`, `classes`, `students`, `parents`, `teachers`, `profiles`; bảo vệ `audit_log` khỏi sửa/xóa.
 
 ---
 
-## 3. Cây thư mục Frontend hiện tại (`src/`)
-- **`src/App.jsx`**: Cổng đăng nhập, kiểm tra `my_profile()`, xử lý `PASSWORD_RECOVERY`, hẹn giờ tự đăng xuất khi hết phiên 48h của giáo viên, giữ state điều hướng trang và lối tắt nhảy tới màn hình Điểm danh.
-- **`src/lib/`**:
-  - `supabaseClient.js`: Khởi tạo kết nối Supabase.
-  - `errors.js`: Dịch lỗi Database/Auth sang tiếng Việt.
-  - `format.js`, `text.js`, `validators.js`, `subjects.js`, `grade.js`, `schedule.js`, `className.js`, `voice.js`, `tuition.js`, `dashboard.js`, `transfer.js`.
-- **`src/components/`**:
-  - Dùng chung: `PageShell.jsx`, `ConnectionStatus.jsx`, `Modal.jsx`, `ConfirmDialog.jsx`, `FormField.jsx`, `SelectField.jsx`, `EmptyState.jsx`, `Notice.jsx`, `RowActions.jsx`.
-  - `layout/`: `AppLayout.jsx`, `Sidebar.jsx`, `BottomNav.jsx`, `navItems.js`.
-  - `auth/`: `ChangePasswordModal.jsx`.
-  - `dashboard/`: `StatCard.jsx`, `TodaySchedule.jsx`.
-  - `classes/`: `ClassForm.jsx`, `ClassRoster.jsx`, `ClassAttendance.jsx`, `MakeupModal.jsx`, `EnrollStudentModal.jsx`, `DropEnrollmentDialog.jsx`, `ChangeTeacherDialog.jsx`, `RegisterStudentFlow.jsx`.
-  - `students/`: `StudentProfile.jsx`, `TransferClassModal.jsx`, `AddClassModal.jsx`, `ClassPickList.jsx`.
-  - `teachers/`: `TeacherProfile.jsx`, `TeacherAccountPanel.jsx` (liên kết/khóa tài khoản), `AccountBadge.jsx`.
-  - `classes/` có thêm `TeacherStatsBar.jsx` (thống kê riêng của Giáo viên ở đầu trang Lớp học). `lib/` có thêm `teacherAccount.js`.
-  - V2-3/V2-4: `audit/AuditLogModal.jsx` (tra cứu nhật ký, lọc, gộp theo `batch_id`, "Xem thêm"), `backup/BackupModal.jsx` (sao lưu, xuất CSV, kết thúc Năm học); `lib/auditLog.js` (nhãn thao tác, định dạng, gọi RPC), `lib/backup.js` (JSON/CSV). V2-5: `students/ImportStudentsModal.jsx` (nhập từ file CSV: chọn file -> kiểm tra -> Nhập), `lib/importStudents.js` (đọc CSV dấu `,` `;` hoặc Tab, chuẩn hóa SĐT/ngày, file mẫu, danh sách tên lớp). V2-7: `backup/RestoreSection.jsx` (phần "5. Khôi phục từ file sao lưu": chọn file -> tải sao lưu hiện tại -> xem trước -> gõ `KHOI PHUC`), `lib/restore.js` (đọc và kiểm tra file, tải lên từng phần 500 dòng, gọi RPC). V2-6: `backup/RolloverSection.jsx` (phần "4. Chuyển năm học" trong hộp Sao lưu & Năm học: sao lưu -> xem trước -> gõ `CHUYEN NAM HOC`), `lib/rollover.js` (gọi RPC), `lib/classVersions.js` (tải `class_versions`, chọn nhãn lớp theo ngày; dùng ở `StudentProfile.jsx`). Ở thư mục gốc có `vercel.json` (SPA routing + Security Headers + CSP chế độ Report-Only).
-- **`src/pages/`**: `LoginPage.jsx`, `DashboardPage.jsx`, `ClassesPage.jsx`, `StudentsPage.jsx`, `TeachersPage.jsx`.
+## 2. Quy tắc nghiệp vụ (đã chốt)
+
+### 2.1. Ẩn / hiện & khối
+- Học sinh phải thuộc ít nhất 1 lớp đang học: nghỉ lớp cuối cùng thì tự ẩn, được ghi danh lại thì tự hiện. Không có nút "Xóa học sinh".
+- Phụ huynh tự ẩn khi mọi con đều ẩn, tự hiện khi có con hiện lại.
+- Học sinh chỉ học các lớp **cùng khối** (chặn cứng). Lên khối lẻ (lưu ban, đổi hướng): cho nghỉ hết lớp khối cũ rồi đăng ký lớp khối mới. Ngoại lệ: học bù (chỉ cần cùng giáo viên) và chuyển năm học (mục 2.11).
+
+### 2.2. Quản lý và Giáo viên
+- **Quản lý:** toàn quyền, nhưng vẫn ghi qua RPC.
+- **Giáo viên** (vào thẳng trang Lớp học; không có Tổng quan, Quản lý Giáo viên, Nhật ký, Sao lưu):
+  - Chỉ thấy lớp mình, học sinh của lớp mình (kể cả em đã nghỉ, để giữ lịch sử) và phụ huynh các em.
+  - Tạo lớp cho chính mình, sửa lớp/lịch/đơn giá lớp mình, ẩn/khôi phục lớp mình; **không** chuyển lớp cho giáo viên khác.
+  - Mọi thao tác có ngày (ghi danh, cho nghỉ, đổi lớp, điểm danh, học bù, hủy học bù, áp dụng lịch mới) chỉ với ngày **trong tháng hiện tại**; tháng trước chỉ xem.
+  - Đổi lớp chỉ giữa hai lớp cùng khối, cùng môn, cùng do mình dạy.
+  - **Không đổi tên phụ huynh.** Tra phụ huynh theo SĐT qua `lookup_parent_by_phone` (chỉ khớp đúng 10 số). Sửa học sinh sang SĐT phụ huynh chưa có: phụ huynh hiện tại chỉ có 1 con thì chỉ đổi SĐT (giữ tên), ngược lại tạo phụ huynh mới.
+  - Đổi giáo viên của lớp (Quản lý làm) thì lịch sử điểm danh và doanh thu của lớp theo sang giáo viên mới.
+- **Tài khoản Giáo viên:** tạo user trong Supabase Authentication rồi liên kết bằng email ở hồ sơ giáo viên (`link_teacher_account`); liên kết email khác thì tài khoản cũ mất quyền. Khóa/mở khóa bằng `set_teacher_account_active`.
+
+### 2.3. Tên lớp
+- `MônKhôngDấu_Khối_TênGọiGV_STT`, ví dụ `VatLi_12_Nam_1`. Tên gọi giáo viên là từ cuối của họ tên, bỏ dấu.
+- Hai giáo viên trùng tên gọi (Lam/Lâm) cùng **từng** dạy một môn (kể cả lớp đã ẩn và lịch sử) thì cả hai thêm chữ theo thứ tự được thêm vào Trung tâm: `LamA`, `LamB`; khác môn thì không thêm.
+- Tên luôn tính từ dữ liệu hiện tại: sửa họ tên giáo viên thì tên lớp và nhãn lịch sử đổi theo. Giao diện không tự ghép tên, chỉ xem trước qua `preview_class_name`.
+- STT để trống thì Database chọn số nhỏ nhất còn trống.
+
+### 2.4. Lịch học theo thời kỳ
+- Sửa lịch của lớp thì chọn "Áp dụng lịch mới từ ngày"; lịch cũ vẫn dùng để kiểm điểm danh các ngày trước đó. Giao diện hiện lịch đang áp dụng hôm nay và báo "(lịch mới từ DD/MM/YYYY)" nếu có lịch sắp áp dụng.
+- Mọi kiểm tra "ngày có buổi học" dùng lịch hiệu lực của chính ngày đó (`class_has_session`; `lib/schedule.js` ở giao diện).
+
+### 2.5. Điểm danh, đơn giá đóng băng & học bù
+- Có mặt và Vắng **tính tiền**; Có phép **không tính** (0đ). Doanh thu và học phí **chỉ cộng `price_snapshot`**, không bao giờ nhân với `classes.price_per_session`.
+- Đổi Có mặt ↔ Vắng giữ giá đã đóng băng; chấm mới hoặc từ Có phép sang tính tiền lấy giá hiện tại của lớp.
+- **Học bù** (`record_makeup`): học sinh lớp khác **cùng giáo viên** (không cần cùng khối) học bù ở lớp đang mở, chọn buổi gốc. Buổi bù là Có mặt ở lớp bù, ghi danh vẫn là của lớp gốc, giá là giá đóng băng của buổi gốc (buổi gốc chưa tính tiền thì lấy giá hiện tại của lớp gốc); buổi gốc chuyển thành Có phép. Mỗi buổi gốc chỉ bù 1 lần. Học phí của buổi bù tính về lớp gốc.
+- **Hủy học bù** (`cancel_makeup`): xóa buổi bù và trả buổi gốc về đúng trạng thái/giá trước khi bù. Buổi bù và buổi gốc đã được bù không sửa bằng nút điểm danh thường.
+- Giao diện lưu điểm danh theo hàng đợi tuần tự (bấm liên tục được) và thay bằng dòng máy chủ trả về.
+
+### 2.6. Ghi danh, cho nghỉ, đổi lớp
+- Cho nghỉ là xóa mềm (`status = 'dropped'`, `left_at`, `left_reason`). Có điểm danh sau ngày nghỉ thì phải xác nhận xóa các buổi đó; buổi học bù bị xóa thì buổi gốc được trả lại như trước khi bù.
+- Đổi lớp trong một giao dịch: vào lớp mới từ ngày chuyển, nghỉ lớp cũ cùng ngày (`left_reason = 'transferred'`, `transfer_to_id` trỏ ghi danh mới).
+- Đăng ký học sinh mới bắt buộc chọn lớp. Cùng phụ huynh + cùng họ tên (so bằng `_norm_name`: không phân biệt hoa thường, **phân biệt dấu**) là cùng một em: không tạo mã thứ hai. Đăng ký, sửa học sinh và nhập CSV dùng chung quy tắc này.
+
+### 2.7. Nhóm lớp
+- Gom các lớp dạy cùng nội dung vào các "phần" (ví dụ Vật Lí 12: phần 1 = lớp 1, 2; phần 2 = lớp 3, 4). Một lớp thuộc tối đa một nhóm; chỉ Quản lý cấu hình.
+- Học sinh **không được** học hai lớp cùng phần (chặn cứng, kiểm lúc COMMIT; nhập CSV báo lỗi theo dòng). Học sinh thiếu phần nào thì chỉ **cảnh báo**, kèm sĩ số từng phần (`ClassGroupsPanel`).
+
+### 2.8. Khóa sổ theo tháng
+- Chỉ chốt được tháng đã qua. Sau khi chốt, không ai thêm/sửa/xóa điểm danh có ngày trong tháng đó (kể cả học bù và xóa điểm danh khi cho nghỉ/đổi lớp). Mở lại bắt buộc ghi lý do (vào nhật ký). Không có thu tiền hay công nợ.
+
+### 2.9. Nhật ký thay đổi (`audit_log`)
+- Trigger tự ghi mọi thay đổi dữ liệu nghiệp vụ, dù do Quản lý hay Giáo viên, kèm người thực hiện và vai trò. Đổi lịch học, khóa sổ, sao lưu, chuyển năm học, khôi phục do RPC tự ghi.
+- Ghi từng dòng; `batch_id` (mã giao dịch) để giao diện gộp các dòng cùng một lần bấm. `price_snapshot` ghi đúng giá đóng băng cũ/mới.
+- Nhóm lọc: `attendance`, `makeup`, `enrollment`, `class`, `student`, `teacher`, `system`. Chỉ Quản lý đọc; không ai sửa/xóa, trừ `clear_audit_logs_before` (mục 2.10).
+
+### 2.10. Năm học, sao lưu & làm mới nhật ký
+- Năm học của Trung tâm: 15/06 → 12/06 năm sau (`vn_school_year_bounds`, `getCurrentSchoolYearBounds`).
+- Gói Supabase Free không tự sao lưu: Quản lý tải `.json` toàn hệ thống và CSV (Học sinh & Phụ huynh, Lớp học & Lịch học, Điểm danh & Học phí tháng) ở **Tổng quan → Sao lưu & Năm học**. CSV có BOM UTF-8, SĐT dạng `="0912..."`, ô bắt đầu bằng `= + - @` được thêm `'` chống chèn công thức. Mỗi lần xuất ghi 1 dòng nhật ký.
+- Xóa nhật ký cũ (`clear_audit_logs_before`) là ngoại lệ có kiểm soát: chỉ Quản lý, ngày chốt đã qua, số dòng trong file vừa tải phải khớp số dòng sắp xóa, gõ `XOA NHAT KY`.
+
+### 2.11. Chuyển năm học & lịch sử nhãn lớp
+- `rollover_school_year` (chỉ Quản lý, gõ `CHUYEN NAM HOC`): ngày chuyển do Quản lý chọn, không ở tương lai và sau buổi điểm danh cuối của mọi lớp.
+  - Lớp khối **5, 9, 12**: học sinh hoàn thành (`left_reason = 'graduated'`, ngày nghỉ = ngày chuyển − 1), lớp được ẩn, giữ tên. Thẻ "Học sinh xin nghỉ" ở Tổng quan không tính các em này.
+  - Lớp khác lên 1 khối, tên tự đổi. Kiểm tra cùng khối ở cuối; sai thì hủy toàn bộ. Học sinh lưu ban xử lý tay.
+- Mỗi lần đổi môn/khối/STT/giáo viên của lớp, trigger lưu nhãn cũ vào `class_versions`. Hồ sơ học sinh và báo cáo tháng hiện tên lớp **theo ngày điểm danh** (`lib/classVersions.js`, `class_label_on`); màn hình lớp đang hoạt động dùng nhãn hiện tại. Điểm danh, giá và doanh thu không đổi.
+
+### 2.12. Khôi phục từ file sao lưu
+- Chỉ nhận file `.json` của hệ thống hiện tại (phiên bản `V3`); file của hệ thống cũ (V2) bị từ chối.
+- **Thay thế hoàn toàn** dữ liệu nghiệp vụ bằng nội dung file (giáo viên, phụ huynh, học sinh, lớp, lịch, ghi danh, điểm danh, lịch sử nhãn lớp, khóa sổ, nhóm lớp); dữ liệu phát sinh sau lúc sao lưu bị mất.
+- **Giữ nguyên:** tài khoản Quản lý và toàn bộ nhật ký (nhật ký trong file không nạp lại; ghi thêm 1 dòng `center_restore`). Tài khoản Giáo viên trong file được nối theo **email** với user đang có trong Authentication. Bộ đếm mã HS/PH không lùi.
+- Luồng: tải file lên `restore_staging` từng phần 500 dòng → xem trước (bảng so sánh "sẽ thêm / sẽ mất") → gõ `KHOI PHUC`. Một giao dịch; đây là ngoại lệ có kiểm soát thứ hai của quy tắc cấm xóa dữ liệu.
+
+### 2.13. Nhập học sinh từ CSV
+- Chỉ Quản lý, tối đa 500 dòng/lần, dấu `,` `;` hoặc Tab, UTF-8. Cột: họ tên học sinh, SĐT học sinh, họ tên phụ huynh, SĐT phụ huynh (bắt buộc), tên lớp (phải có sẵn, đang hiển thị), ngày vào lớp.
+- Kiểm tra trước; còn bất kỳ lỗi nào thì không ghi gì. Học sinh nhận diện bằng họ tên + SĐT phụ huynh (mục 2.6); đã có thì chỉ ghi danh thêm. Thiếu tên phụ huynh thì dùng tên tạm `(Chưa cập nhật tên)`.
+
+### 2.14. Nối app giao bài tập ScienceApp
+- ScienceApp (kho và project Supabase riêng) nối vào Database này bằng tài khoản CSDL `sciencehub_link`, mọi thứ nằm trong schema riêng `sciencehub` (PostgREST không mở):
+  - đọc học sinh/lớp/ghi danh qua `sciencehub.roster()` (mã HS làm tên đăng nhập; có SĐT phụ huynh chỉ để làm mật khẩu ban đầu; không đọc tên phụ huynh, SĐT học sinh, học phí);
+  - ghi điểm vào `sciencehub.results` (mỗi bài × học sinh một dòng, nối bằng mã HS, không khóa ngoại).
+- Điểm chỉ hiện ở hồ sơ học sinh, tab **"Lịch sử làm bài tập"** (`student_homework_history`). `sciencehub.results` không nằm trong file sao lưu; mất thì ScienceApp gửi lại (`npm run dong-bo -- gui-diem tat-ca`).
+
 ---
 
-## 4. Đặc tả Chi tiết Giao diện & Luồng thao tác từng Màn hình (UI Blueprint)
+## 3. Frontend (`src/`)
+- **`App.jsx`**: cổng đăng nhập (chưa có khóa Supabase thì dừng ở trang Đăng nhập), kiểm `my_profile()`, xử lý `PASSWORD_RECOVERY`, tự đăng xuất khi hết phiên 48 giờ của Giáo viên, điều hướng bằng state (không dùng router), lối tắt từ Tổng quan sang màn hình Điểm danh. Trang Tổng quan và Giáo viên tải riêng (`lazy`).
+- **`pages/`**: `LoginPage`, `DashboardPage`, `ClassesPage`, `StudentsPage`, `TeachersPage`.
+- **`components/`** dùng chung: `PageShell`, `Modal`, `ConfirmDialog`, `FormActions` (cặp nút Hủy / nút chính cuối hộp thoại), `FormField`, `SelectField`, `SearchInput`, `MobileFilters`, `MonthNav`, `Notice`, `EmptyState`, `RowActions`.
+  - `layout/` (`AppLayout`, `Sidebar`, `BottomNav`, `navItems.js` lọc menu theo vai trò), `auth/`, `dashboard/`, `audit/` (`AuditLogModal`), `backup/` (`BackupModal` + các phần `MonthCloseSection`, `RolloverSection`, `RestoreSection`).
+  - `classes/`: `ClassForm`, `ClassRoster`, `ClassAttendance`, `MakeupModal`, `EnrollStudentModal`, `RegisterStudentFlow`, `DropEnrollmentDialog`, `ChangeTeacherDialog`, `ClassGroupsModal`, `ClassGroupsPanel`, `TeacherStatsBar`.
+  - `students/`: `StudentProfile`, `AddClassModal`, `TransferClassModal`, `ClassPickList`, `ImportStudentsModal`, `HomeworkHistory`.
+  - `teachers/`: `TeacherProfile`, `TeacherAccountPanel`, `AccountBadge`.
+- **`lib/`**:
+  - Kết nối & lỗi: `supabaseClient.js`, `fetchAll.js` (tải theo trang, tránh bị cắt ngầm ở 1000 dòng), `errors.js` (dịch lỗi sang tiếng Việt; nhánh cụ thể đặt trước nhánh chung).
+  - Định dạng & chữ: `format.js` (tiền, ngày), `text.js` (bỏ dấu, sắp theo tên gọi), `validators.js`, `subjects.js`, `grade.js`.
+  - Nghiệp vụ (hàm thuần, có test ở `scripts/test-js.mjs`): `schedule.js` (lịch theo thời kỳ, `todayISO`), `tuition.js` (học phí tháng, tháng/năm), `classGroups.js`, `homework.js`, `dashboard.js` (`classTitle`, màu môn).
+  - Gọi RPC theo chức năng: `classNamePreview.js`, `classVersions.js`, `transfer.js`, `monthClose.js`, `rollover.js`, `restore.js`, `backup.js`, `importStudents.js`, `auditLog.js`, `teacherAccount.js`, `voice.js` (điểm danh giọng nói, Web Speech API).
+  - Kiểu dùng chung: `buttonStyles.js` (`BTN_PRIMARY`, `BTN_SECONDARY`, `BTN_DANGER`), `rowTableStyle.js`, `pointer.js` (chỉ tự focus ô nhập trên thiết bị có chuột).
+- `vercel.json`: SPA rewrite, header bảo mật, CSP (chế độ chặn; `microphone=(self)` cho điểm danh giọng nói).
 
-### 4.1. Khung bố cục chung (`AppLayout`, `Sidebar`, `BottomNav`)
-- **Tông màu & Bố cục:** Nền xám sáng (`bg-slate-50`), thẻ trắng viền mảnh (`border-slate-200`), màu nhấn xanh dương (`blue-600`). Trên máy tính có `Sidebar` bên trái; trên điện thoại có thanh `BottomNav` cố định ở đáy. Quản lý thấy 5 mục (Tổng quan, Lớp học, Học sinh, Giáo viên, Tài khoản); Giáo viên thấy 3 mục (Lớp học, Học sinh, Tài khoản). Danh sách menu lọc theo vai trò qua `navItemsFor(role)` trong `navItems.js`.
-- **Trạng thái kết nối (`ConnectionStatus`):** Kiểm tra kết nối Supabase, không báo lỗi giả khi người dùng chưa đăng nhập.
-- **Tương tác danh sách chuẩn:**
-  - Mọi danh sách chính đều hiển thị dạng **Bảng (`<table>`) trên màn hình `md:` trở lên** và tự chuyển thành **Thẻ (`Card`) trên điện thoại**.
-  - Tên Học sinh, tên Giáo viên và tên Lớp học là **nút bấm chữ xanh** để mở màn hình Chi tiết / Hồ sơ ngay trong trang đó (dùng state `openedId`, có nút "Quay lại" giữ nguyên bộ lọc và từ khóa tìm kiếm trước đó).
+---
 
-### 4.2. Màn hình Tổng quan (`DashboardPage.jsx`)
-- **Hai nút đầu trang (chỉ Quản lý):** **Nhật ký thay đổi** (mở `AuditLogModal`) và **Sao lưu & Năm học** (mở `BackupModal`, gồm 5 phần: sao lưu JSON, xuất CSV, làm mới nhật ký, chuyển năm học, khôi phục từ file sao lưu). Nút **Lịch sử lớp** (`ClassRoster`) và **Lịch sử thay đổi** (`StudentProfile`) chỉ hiện khi không phải Giáo viên và mở nhật ký đã lọc sẵn theo lớp/học sinh đang xem.
-- **Bộ lọc Tháng/Năm:** Nút chuyển Tháng trước / Tháng sau (khóa nút Tháng sau khi đang ở tháng hiện tại).
-- **6 Thẻ thống kê (`StatCard`):** Số lớp đang hoạt động, Số giáo viên, Tổng học sinh đang học (không trùng), Học sinh mới trong tháng, Học sinh xin nghỉ hẳn trong tháng, và Doanh thu dự kiến trong tháng (chỉ cộng `price_snapshot` các buổi đã điểm danh Có mặt + Vắng, kèm tổng số buổi tính phí).
-- **Lịch học trong ngày (`TodaySchedule`):**
-  - Có nút chọn nhanh **Hôm qua / Hôm nay / Ngày mai** và ô chọn ngày bất kỳ.
-  - Mỗi dòng lớp hiển thị: Khung giờ (`start_time - end_time`), Tên lớp, Môn/Khối, Giáo viên phụ trách, và trạng thái điểm danh (`marked_count / total_count` — Đã điểm danh đủ / Đang điểm danh / Chưa điểm danh).
-  - **Lối tắt vận hành:** Bấm vào bất kỳ dòng lớp học nào trong lịch sẽ nhảy thẳng sang màn hình **Điểm danh** của đúng lớp đó và đúng ngày đang xem.
+## 4. Giao diện & luồng thao tác
 
-### 4.3. Màn hình Quản lý Lớp học & Điểm danh (`ClassesPage`, `ClassRoster`, `ClassAttendance`)
-- **Danh sách Lớp học (`ClassesPage`):**
-  - Mặc định lọc các lớp **có lịch học HÔM NAY**; có công tắc *"Hiện tất cả lớp"*, công tắc *"Hiện cả lớp đã ẩn"*, bộ lọc theo Ngày trong tuần, Khối (`1..12`), Môn học và ô tìm kiếm.
-  - Trên mỗi dòng lớp có nút lối tắt **"Điểm danh"** (mở thẳng tab Điểm danh) và menu thao tác Sửa / Ẩn / Khôi phục.
-- **Form Thêm/Sửa Lớp (`ClassForm`):**
-  - Chọn Môn (từ danh sách cố định), Khối (`1..12`), Giáo viên phụ trách, Số thứ tự lớp (`class_no` tự gợi ý số nhỏ nhất còn trống) -> **Tên lớp tự động sinh** theo công thức `Môn_Khối_TênGV_STT` (ví dụ: `VatLi_12_Nam_1`), không gõ tay.
-  - Cấu hình lịch học: Tích chọn các thứ trong tuần (`Thứ 2 .. Chủ nhật`), mỗi thứ được chọn có ô nhập `Giờ bắt đầu` và `Giờ kết thúc` riêng.
-- **Chi tiết Lớp học (`ClassRoster`):** Có 2 tab chuyển đổi là **Học sinh** và **Điểm danh**:
-  - **Tab Học sinh:** Hiển thị danh sách học sinh đang học (`active`) và mục học sinh đã nghỉ (`dropped`) sắp theo TÊN gọi. Có nút **"Thêm học sinh"** (`EnrollStudentModal` gồm 2 tab: *Theo SĐT phụ huynh* để tìm con cũ / thêm anh chị em ruột giữ nguyên `parent_code`, hoặc *Tìm học sinh* theo tên/mã/SĐT) và nút **"Cho nghỉ"** (`DropEnrollmentDialog` chọn ngày nghỉ, cảnh báo nếu có điểm danh sau ngày nghỉ).
-  - **Tab Điểm danh (`ClassAttendance`):**
-    - Chọn ngày điểm danh (có nút chuyển nhanh giữa các ngày có lịch học của lớp).
-    - Thanh công cụ hàng loạt: **"Tất cả có mặt"**, **"Nghỉ (cả lớp có phép)"** (chỉ áp dụng cho các em chưa chấm trạng thái), nút **"Điểm danh giọng nói"** (Web Speech API `vi-VN`, đọc tên học sinh và hiện hộp xác nhận) và nút **"+ Học bù"** (`MakeupModal`: chọn học sinh từ lớp khác của cùng giáo viên và chọn buổi nghỉ gốc để bù).
-    - Mỗi dòng học sinh có 3 nút trạng thái rõ ràng: Có mặt (present), Vắng (absent - vẫn tính tiền), Có phép (absent_excused - không tính tiền) và nút xóa trạng thái nếu bấm nhầm. Khi bấm từng nút hoặc công cụ hàng loạt, hệ thống tự động gọi save_attendance và cập nhật giao diện tức thì (Optimistic UI), không cần bấm nút Lưu riêng..
+### 4.1. Bố cục chung
+- Nền xám sáng, thẻ trắng viền mảnh, màu nhấn xanh dương. Máy tính có `Sidebar`; điện thoại có `BottomNav` ở đáy. Quản lý: Tổng quan, Lớp học, Học sinh, Giáo viên, Tài khoản; Giáo viên: Lớp học, Học sinh, Tài khoản.
+- Danh sách: **bảng** từ `md:` trở lên, **thẻ** trên điện thoại. Tên học sinh/giáo viên/lớp là nút chữ xanh mở chi tiết ngay trong trang; "Quay lại" giữ nguyên bộ lọc và từ khóa.
+- Nút cao tối thiểu 44px; hộp thoại trượt từ đáy trên điện thoại, không đóng khi bấm ra ngoài.
 
-### 4.4. Màn hình Học sinh & Hồ sơ Đa môn (`StudentsPage`, `StudentProfile`)
-- **Danh sách Học sinh (`StudentsPage`):**
-  - Tìm kiếm không dấu theo tên, mã `HS...`, SĐT học sinh hoặc SĐT phụ huynh. Bộ lọc theo Khối và Môn học. Công tắc *"Hiện cả học sinh đã ẩn"*.
-  - Nút **"Nhập từ file"** (chỉ Quản lý): nhập hàng loạt từ CSV, xem kết quả kiểm tra (lỗi/lưu ý theo dòng) rồi mới bấm Nhập; có nút tải file mẫu và danh sách tên lớp.
-  - Nút **"Đăng ký học sinh mới"** (`RegisterStudentFlow`): bắt buộc chọn lớp đầu tiên, nhập thông tin học sinh và SĐT/họ tên phụ huynh.
-- **Hồ sơ Chi tiết Học sinh (`StudentProfile`):**
-  - Thông tin cá nhân, Mã HS, Khối hiện tại, Họ tên & SĐT Phụ huynh (kèm mã `PH...`).
-  - Mục **Các lớp đang học**: Hiển thị thẻ từng lớp kèm Giáo viên, Lịch học, Đơn giá. Trên đầu mục có nút **"+ Đăng ký thêm lớp"** (`AddClassModal` - chỉ cho chọn lớp cùng khối); trên mỗi thẻ lớp có nút 'Đổi lớp' (TransferClassModal - chọn lớp mới cùng khối và ngày chuyển); thao tác 'Cho nghỉ' (DropEnrollmentDialog) được thực hiện tại màn hình Chi tiết Lớp học (ClassRoster).
-  - Mục **Học phí & Lịch sử điểm danh theo tháng**: Có bộ chọn Tháng/Năm. Hiển thị Tổng học phí tính đến hiện tại (cộng dồn `price_snapshot` từ mọi lớp trong tháng), số buổi đã học / vắng / có phép / số buổi còn lại theo lịch, và danh sách ngày điểm danh chi tiết (buổi học bù được gom về lớp gốc kèm nhãn *"Học bù tại lớp X"*).
+### 4.2. Tổng quan (chỉ Quản lý)
+- Nút **Nhật ký thay đổi** và **Sao lưu & Năm học** (6 phần: 1. Sao lưu `.json`, 2. Xuất CSV, 3. Khóa sổ tháng, 4. Làm mới nhật ký, 5. Chuyển năm học, 6. Khôi phục từ file sao lưu).
+- Chọn tháng; 6 thẻ: Số lớp, Số giáo viên, Học sinh đang học (không trùng), Học sinh mới, Học sinh xin nghỉ, Doanh thu dự kiến (cộng `price_snapshot`, kèm số buổi tính phí).
+- **Lịch học trong ngày** (Hôm qua / Hôm nay / Ngày mai / chọn ngày): khung giờ, lớp, giáo viên, trạng thái điểm danh. Bấm một dòng để mở thẳng màn hình Điểm danh của lớp đó, đúng ngày đó.
 
-### 4.5. Màn hình Giáo viên & Hồ sơ Giáo viên (`TeachersPage`, `TeacherProfile`)
-- Chỉ Quản lý truy cập. Danh sách giáo viên (tìm kiếm, Thêm/Sửa/Ẩn/Khôi phục, công tắc hiện mục đã ẩn) kèm nhãn trạng thái tài khoản (`Chưa cấp tài khoản` / `Đang hoạt động` / `Đã khóa`).
-- **Hồ sơ Giáo viên (`TeacherProfile`):** Có khu vực **Tài khoản đăng nhập** với nút "Liên kết tài khoản đăng nhập" (nhập email đã tạo trong Supabase Authentication) và "Khóa / Mở khóa tài khoản". Hiển thị thông tin liên hệ, tổng số học sinh đang dạy (đếm không trùng), và danh sách các lớp đang phụ trách kèm lịch học, đơn giá, sĩ số từng lớp (không hiển thị lương hay doanh thu).
+### 4.3. Lớp học & Điểm danh
+- **Danh sách:** mặc định chỉ lớp có lịch hôm nay; công tắc "Hiện tất cả lớp", "Hiện cả lớp đã ẩn"; lọc theo ngày, khối, môn; tìm kiếm. Nút **Nhóm lớp** (Quản lý) và bảng cảnh báo nhóm lớp. Giáo viên có thanh thống kê riêng (`TeacherStatsBar`).
+- **Form lớp:** chọn môn, khối, giáo viên, STT (tùy chọn); tên lớp xem trước từ Database. Lịch: tích các thứ, mỗi thứ giờ bắt đầu/kết thúc riêng; khi sửa lịch chọn "Áp dụng lịch mới từ ngày".
+- **Chi tiết lớp (`ClassRoster`)**, 2 tab:
+  - **Học sinh:** đang học và đã nghỉ (kèm lý do), sắp theo tên gọi; "Thêm học sinh" (`EnrollStudentModal`: theo SĐT phụ huynh hoặc tìm học sinh), "Cho nghỉ" (`DropEnrollmentDialog`); nút "Lịch sử lớp" (Quản lý).
+  - **Điểm danh (`ClassAttendance`):** chọn ngày (nút nhảy giữa các ngày có lịch); "Tất cả có mặt", "Nghỉ (cả lớp có phép)" cho các em chưa chấm; điểm danh giọng nói; "+ Học bù"; mỗi em 3 nút Có mặt / Vắng / Có phép và nút xóa; "Hủy học bù" ở buổi bù. Tháng đã chốt sổ (và tháng trước với Giáo viên) chỉ xem.
+
+### 4.4. Học sinh & Hồ sơ
+- **Danh sách:** tìm không dấu theo tên, mã HS, SĐT học sinh/phụ huynh; lọc theo lớp, khối, môn; "Hiện cả học sinh đã ẩn". "Đăng ký học sinh" (`RegisterStudentFlow`, bắt buộc chọn lớp trước) và "Nhập từ file" (Quản lý).
+- **Hồ sơ (`StudentProfile`):** thông tin học sinh và phụ huynh; nút "Lịch sử thay đổi" (Quản lý). Tab **Lớp & học phí**: lớp đang học ("+ Đăng ký thêm lớp" cùng khối, "Đổi lớp" trên từng lớp), học phí theo tháng (tổng cộng dồn `price_snapshot`, số buổi Có mặt / Vắng / Có phép / còn lại theo lịch, chi tiết từng ngày; buổi bù gom về lớp gốc với nhãn "Học bù tại lớp X"; tên lớp theo ngày). Tab **Lịch sử làm bài tập**: điểm từ ScienceApp.
+
+### 4.5. Giáo viên (chỉ Quản lý)
+- Danh sách (tìm kiếm, Thêm/Sửa/Ẩn/Khôi phục, hiện mục đã ẩn) kèm nhãn tài khoản: Chưa cấp tài khoản / Đang hoạt động / Đã khóa.
+- **Hồ sơ:** liên kết tài khoản đăng nhập (email đã tạo trong Authentication), khóa/mở khóa; thông tin liên hệ, số học sinh đang dạy, các lớp phụ trách kèm lịch, đơn giá, sĩ số. Không hiển thị lương hay doanh thu.

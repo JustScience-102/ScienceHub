@@ -2,57 +2,57 @@
 
 > ĐỌC FILE NÀY CÙNG `ARCHITECTURE.md` VÀ `ROADMAP.md` Ở ĐẦU MỖI PHIÊN CHAT.
 
-> **Git:** chỉ dùng nhánh `main`; mọi thay đổi commit và push thẳng lên `main` (người dùng cho phép 24/11/2026).
-> Mỗi lần push, Vercel triển khai production ngay, nên chỉ push khi `npm test`, `npm run lint`, `npm run build` đều đạt.
-
-> **Đang chuyển sang V3 (project Supabase mới — xem mục 0 của `ROADMAP.md`).** SQL nằm ở
-> `supabase/v3/` (00 -> 09, mỗi hàm định nghĩa một lần, chạy lại an toàn); bộ V2 ở `supabase/legacy/` chỉ để tra cứu.
-> Quy tắc V3 thay cho mục 3b bên dưới: `authenticated` chỉ có SELECT, mọi thao tác ghi (kể cả Quản lý) qua RPC;
-> quyền chỉ cấp ở `09_grants.sql` (hàm tên không bắt đầu bằng `_` mới mở cho `authenticated`); tên lớp do Database
-> sinh; sửa SQL phải chạy `npm test` trước khi bàn giao. Bản viết lại đầy đủ của file này làm ở bước V3-5.
-
 ## 1. Công nghệ & Kiến trúc
-- **Nền tảng:** Web App Responsive (hiển thị dạng Bảng trên máy tính `hidden md:block`, dạng Thẻ trên điện thoại `md:hidden`; nút cao tối thiểu 40-44px; Modal trượt từ đáy trên mobile).
-- **Stack kỹ thuật:** React (Vite) + Tailwind CSS (`@tailwindcss/vite`) + `@supabase/supabase-js` + `lucide-react`.
-- **Điều hướng:** Không dùng thư viện router ngoài; điều hướng bằng state tại `App.jsx` và state con trong từng trang.
-- **Hạ tầng:** Frontend triển khai trên Vercel, kết nối trực tiếp tới Supabase (Database, Auth, RLS & RPC).
-- **Phong cách UI:** Đơn giản, rõ ràng, tông màu dịu mát (xanh dương nhạt / trắng / xám sáng) lấy cảm hứng từ Azota.
+- **Nền tảng:** Web App Responsive (bảng trên máy tính `hidden md:block`, thẻ trên điện thoại `md:hidden`; nút cao tối thiểu 40-44px; hộp thoại trượt từ đáy trên điện thoại).
+- **Stack:** React (Vite) + Tailwind CSS (`@tailwindcss/vite`) + `@supabase/supabase-js` + `lucide-react`. Kiểm thử Database bằng `@electric-sql/pglite` (chỉ lúc phát triển).
+- **Điều hướng:** không dùng thư viện router; điều hướng bằng state ở `App.jsx` và state con trong từng trang.
+- **Hạ tầng:** Vercel (frontend) nối thẳng Supabase (Database, Auth, RLS, RPC). Project Supabase `ScienceHub` là Database chính thức; project `ScienceApp` thuộc app giao bài tập (kho khác).
+- **Phong cách UI:** đơn giản, rõ ràng, tông xanh dương nhạt / trắng / xám sáng, lấy cảm hứng từ Azota. Dùng component sẵn có trước khi tự viết: `FormActions` (cặp nút Hủy / nút chính), `SearchInput`, `FormField`, `SelectField`, `Modal`, `ConfirmDialog`, `Notice`, `EmptyState`, `MonthNav`; kiểu nút ở `lib/buttonStyles.js`.
 
-## 2. Quy ước chung (Conventions)
-- **Ngôn ngữ hiển thị (UI) & Thông báo lỗi DB:** 100% Tiếng Việt rõ ràng, lịch sự, xưng **"Trung tâm"**.
-- **Định dạng chuẩn:**
-  - Tiền tệ: Số nguyên VNĐ có dấu chấm phân cách (`100.000đ`).
-  - Ngày tháng hiển thị: `DD/MM/YYYY` (Ví dụ: `27/10/2026`).
-  - Múi giờ chuẩn: Luôn tính "hôm nay" và "tháng hiện tại" theo múi giờ `Asia/Ho_Chi_Minh` (ở DB dùng `public.vn_today()` và `public.vn_month_start()`; ở Frontend dùng `todayISO()` trong `src/lib/schedule.js`, tuyệt đối không dùng `toISOString()`).
-  - Thứ trong tuần: `2` = Thứ 2 ... `7` = Thứ 7, `8` = Chủ nhật (`day_of_week = getDay() === 0 ? 8 : getDay() + 1`).
-  - Sắp xếp học sinh: Luôn sắp xếp theo **TÊN gọi** (từ cuối của họ tên, dùng `compareVietnameseNames`).
-- **Quy ước đặt tên Code & Database:** Tên bảng, cột, hàm SQL dùng tiếng Anh `snake_case`. Tham số hàm RPC bắt đầu bằng `p_`.
+## 2. Quy ước chung
+- **Ngôn ngữ hiển thị & thông báo lỗi:** 100% tiếng Việt rõ ràng, lịch sự, xưng **"Trung tâm"**.
+- **Định dạng:** tiền là số nguyên VNĐ có dấu chấm (`100.000đ`); ngày hiển thị `DD/MM/YYYY`.
+- **Múi giờ:** "hôm nay" và "tháng hiện tại" theo `Asia/Ho_Chi_Minh` (Database: `vn_today()`, `vn_month_start()`; frontend: `todayISO()` trong `src/lib/schedule.js`, tuyệt đối không dùng `toISOString()` cho ngày).
+- **Thứ trong tuần:** `2` = Thứ 2 … `7` = Thứ 7, `8` = Chủ nhật.
+- **Sắp xếp học sinh:** theo **tên gọi** (từ cuối của họ tên, `compareVietnameseNames`).
+- **Đặt tên:** bảng, cột, hàm SQL dùng tiếng Anh `snake_case`; tham số RPC bắt đầu bằng `p_`.
+- **Tải danh sách từ Supabase:** dùng `fetchAll` (Supabase cắt ngầm ở 1000 dòng mỗi truy vấn). Lỗi hiển thị qua `toVietnameseError`.
 
-## 3. Lệnh Cấm (Strict Prohibitions)
-1. **Cấm vượt phạm vi:** Tuyệt đối KHÔNG tự thêm chức năng quản lý thu học phí/công nợ, cổng thanh toán, tính lương giáo viên, hay tạo mã QR/gửi tin nhắn Zalo.
-2. **Cấm tự ý cài thư viện ngoài:** Chỉ dùng các thư viện đã có trong `package.json`. Muốn thêm thư viện phải hỏi và được duyệt trước.
-3. **Cấm sửa file đã khóa khi chưa xin phép:** Mọi file thuộc các lát cắt đã nghiệm thu đều đã khóa (V1, V2-1, V2-2, V2-3, V2-4, V2-5, V2-6 và V2-7; danh sách file khóa của V2-2 nằm ở mục V2-2 và của V2-3/V2-4 nằm ở mục V2-4 và V2-5 trong `ROADMAP.md`, gồm cả `supabase/05_v2_2_teacher_access.sql`, `06_v2_3_audit_log.sql`, `07_v2_4_backup.sql`, `08_v2_5_bulk_import.sql`; danh sách file khóa của V2-6 và V2-7 nằm ở mục 5 và 6 trong `ROADMAP.md`, gồm cả `09_v2_6_year_rollover.sql`, `10_v2_7_restore_backup.sql`). Nếu lát cắt mới bắt buộc phải chạm vào file đã khóa, phải liệt kê rõ tên file và nội dung sửa trong Kế hoạch Bước 1 để chờ duyệt.
-4. **Cấm Xóa trắng (Hard Delete) dữ liệu nghiệp vụ:**
-   - Giáo viên, Lớp học, Học sinh, Phụ huynh dùng xóa mềm qua cột `deleted_at`.
-   - Nghỉ học dùng xóa mềm trên `class_enrollments` (`status = 'dropped'` kèm `left_at`).
-5. **Cấm tính doanh thu/học phí theo giá động:** Mọi tính toán doanh thu và học phí bắt buộc chỉ cộng từ cột `attendance_records.price_snapshot` (đơn giá đã đóng băng lúc điểm danh), không bao giờ nhân với `classes.price_per_session`.
-6. **Nguyên tắc Bảo mật & Phân quyền (V2):**
-   - Bảo mật thật nằm ở Database (RLS + kiểm tra vai trò ở đầu hàm RPC). Ẩn nút trên giao diện chỉ để tiện dùng.
-   - Tuyệt đối KHÔNG đưa khóa `service_role` vào code frontend, `.env` hay biến môi trường `VITE_*`.
-   - Khi sửa `src/lib/errors.js`: chỉ thêm nhánh mới đặt TRƯỚC nhánh cũ, không làm thay đổi kết quả các mẫu lỗi cũ.
-   - Luôn nhắc người dùng: KHÔNG nhập dữ liệu học sinh/phụ huynh thật và KHÔNG triển khai công khai lên Vercel cho tới khi chạy xong và nghiệm thu file khóa quyền (`04_lockdown_rls.sql`) và phân quyền Giáo viên (`05_v2_2_teacher_access.sql`). Các file này đã nghiệm thu; việc còn lại trước khi nhập dữ liệu thật là hoàn tất các bước ở mục "Triển khai Vercel" trong `ROADMAP.md`.
-   - Giáo viên chỉ có quyền `SELECT` qua RLS; mọi thao tác ghi của Giáo viên đi qua RPC `SECURITY DEFINER` (không thêm policy INSERT/UPDATE/DELETE cho Giáo viên). Giáo viên không được đổi tên phụ huynh.
+## 3. Lệnh cấm
+1. **Không vượt phạm vi:** KHÔNG tự thêm chức năng thu học phí/công nợ, cổng thanh toán, tính lương giáo viên, tạo mã QR/gửi tin nhắn Zalo.
+2. **Không tự cài thư viện ngoài:** chỉ dùng thư viện đã có trong `package.json`; muốn thêm phải hỏi và được duyệt.
+3. **Không đổi quy tắc nghiệp vụ đã chốt khi chưa được duyệt:** các quy tắc ở mục 2 của `ARCHITECTURE.md` là hành vi đã nghiệm thu. Kế hoạch nào làm thay đổi một quy tắc trong đó phải nêu rõ ở Bước 1 và chờ duyệt.
+4. **Không xóa cứng dữ liệu nghiệp vụ:**
+   - Giáo viên, lớp, học sinh, phụ huynh dùng `deleted_at` (học sinh, phụ huynh do hệ thống tự ẩn/hiện).
+   - Nghỉ học là xóa mềm trên `class_enrollments` (`status = 'dropped'`, `left_at`, `left_reason`).
+   - Hai ngoại lệ có kiểm soát duy nhất: `clear_audit_logs_before` (xóa nhật ký cũ đã sao lưu, khớp số dòng, cụm `XOA NHAT KY`) và `restore_center_backup` (thay dữ liệu bằng file sao lưu, xem trước, cụm `KHOI PHUC`).
+5. **Không tính doanh thu/học phí theo giá động:** chỉ cộng `attendance_records.price_snapshot`, không bao giờ nhân với `classes.price_per_session`.
+6. **Bảo mật:**
+   - Bảo mật thật nằm ở Database (RLS + kiểm vai trò trong RPC). Ẩn nút trên giao diện chỉ để tiện dùng.
+   - `authenticated` chỉ có SELECT; mọi thao tác ghi, kể cả của Quản lý, đi qua RPC. Không thêm policy INSERT/UPDATE/DELETE và không ghi thẳng bảng từ trình duyệt.
+   - KHÔNG đưa khóa `service_role` vào code frontend, `.env` hay biến `VITE_*`.
+   - Giáo viên không được đổi tên phụ huynh.
+   - Sửa `src/lib/errors.js`: chỉ thêm nhánh mới đặt TRƯỚC nhánh chung, không làm đổi kết quả các mẫu lỗi cũ.
 
-## 3b. Quy ước SQL (`supabase/`)
-- Bộ SQL hiện hành: `01_schema.sql` -> `02_triggers.sql` -> `03_rpc_and_auth.sql` -> `04_lockdown_rls.sql` -> `05_v2_2_teacher_access.sql` -> `06_v2_3_audit_log.sql` -> `07_v2_4_backup.sql` -> `08_v2_5_bulk_import.sql` -> `09_v2_6_year_rollover.sql` -> `10_v2_7_restore_backup.sql` (+ `mock_data.sql`, `check_before_launch.sql`, `reset_mock_data.sql` tùy chọn). Không tạo lại các file `sliceN_migration.sql` cũ. Không chạy lại `03` sau `05` (sẽ ghi đè các hàm đã nâng cấp) không chạy lại `02` sau `09` (sẽ ghi đè bản nới của `check_class_grade_change`; file 02 tự từ chối) và không chạy lại `09` sau `10` (sẽ ghi đè `query_audit_logs`; file 09 tự từ chối).
-- Thay đổi mới là migration đánh số tiếp (`11_...`, `12_...`), viết an toàn khi chạy lại nhiều lần (`create or replace`, `if not exists`, `drop ... if exists`).
-- Đổi tên, khối, môn, STT hoặc giáo viên của lớp luôn đi qua `UPDATE classes` để trigger `trg_class_versions` tự lưu nhãn cũ vào `class_versions` (bảng chỉ thêm, cấm sửa/xóa). Hiển thị lịch sử điểm danh của tháng cũ phải dùng nhãn theo ngày (`class_label_on` / `lib/classVersions.js`), không dùng nhãn hiện tại. Việc chuyển khối cả loạt lớp chỉ đi qua `rollover_school_year`, không tự sửa tay hay nới trigger ở chỗ khác.
-- Bảng `audit_log` là bảng duy nhất được xóa dòng, và chỉ qua `clear_audit_logs_before` (đã sao lưu, khớp số dòng, có cụm xác nhận). Mọi dữ liệu nghiệp vụ khác vẫn cấm hard delete (mục 3.4); `restore_center_backup` (V2-7) là ngoại lệ có kiểm soát thứ hai: thay thế dữ liệu nghiệp vụ bằng nội dung file sao lưu, chỉ Quản lý, bắt buộc xem trước và cụm xác nhận `KHOI PHUC`, trong một giao dịch, giữ nguyên `audit_log` và tài khoản Quản lý; riêng `reset_mock_data.sql` chỉ dùng một lần để dọn dữ liệu thử trước khi vận hành thật. Trigger nhật ký mới trên bảng nghiệp vụ phải dùng `_write_audit_log` và không được tính lại giá theo `classes.price_per_session`.
-- Hàm RPC chỉ Quản lý gọi: đặt `perform public.assert_manager();` ở dòng đầu. Hàm RPC mở cho Giáo viên (từ V2-2) bắt buộc `SECURITY DEFINER` + `set search_path = public` và tự kiểm tra vai trò/phạm vi lớp/tháng hiện tại bên trong hàm. Hàm nội bộ (tiền tố `_`) phải thu quyền EXECUTE của `anon`, `authenticated`, `public`.
-- Thông báo `RAISE EXCEPTION` bằng tiếng Việt, xưng "Trung tâm".
-- `mock_data.sql` phải tuân thủ cấu trúc hiện hành (tên lớp `Môn_Khối_TênGV_STT`, lịch ở `class_schedules`, học sinh chỉ học lớp cùng khối, ghi danh `dropped` tạo bằng INSERT `active` rồi UPDATE).
+## 3b. Quy ước SQL (`supabase/v3/`)
+- Mỗi hàm định nghĩa ở **một** file theo chủ đề (bảng ở `01`, bảo mật `02`, tên lớp `03`, trigger `04`, RPC nghiệp vụ `05`, quản trị `06`, nhật ký `07`, vận hành `08`). Mảng tách biệt thì thêm file đánh số tiếp (như `10_sciencehub.sql`). Mọi file chạy lại an toàn (`create or replace`, `if not exists`, `drop ... if exists`).
+- Quyền chỉ cấp ở `09_grants.sql`; sau mỗi lần sửa SQL phải chạy lại file đã sửa rồi `09_grants.sql`.
+- RPC: `SECURITY DEFINER` + `set search_path = public`; dòng đầu `perform public.assert_manager();` (chỉ Quản lý) hoặc `public.assert_staff()` (cả Giáo viên), và tự kiểm phạm vi lớp + tháng hiện tại với Giáo viên. Hàm nội bộ đặt tên bắt đầu bằng `_`.
+- `RAISE EXCEPTION` bằng tiếng Việt, bắt đầu bằng `Trung tâm: `.
+- Đổi môn, khối, STT hoặc giáo viên của lớp luôn qua `UPDATE classes` để trigger lưu nhãn cũ vào `class_versions` (chỉ thêm, cấm sửa/xóa). Hiển thị lịch sử tháng cũ dùng nhãn theo ngày (`class_label_on` / `lib/classVersions.js`). Chuyển khối cả loạt lớp chỉ qua `rollover_school_year`.
+- Trigger mới trên bảng nghiệp vụ: bỏ qua khi `public._is_restoring()`; ghi nhật ký bằng `_write_audit_log`; không tính lại giá theo `classes.price_per_session`.
+- **Thêm bảng nghiệp vụ mới** thì phải đưa vào sao lưu và khôi phục: các danh sách bảng trong `08_ops.sql` (`export_center_backup`, `restore_stage_chunk`, `_restore_apply`, `restore_center_backup`), `STAGE_ORDER` và `TABLE_LABELS` trong `src/lib/restore.js`, `supabase/tests/lib/restore_helper.mjs`, và test khứ hồi trong `v3_restore.test.mjs`.
+- Mọi thay đổi SQL phải có test tương ứng trong `supabase/tests/*.test.mjs` (dựng dữ liệu bằng chính các RPC, xem `lib/v3_helpers.mjs`).
 
-## 4. Quy trình làm việc 3 bước (Workflow)
-- **Bước 1 - Lên kế hoạch:** Với mỗi yêu cầu hoặc lát cắt, chỉ nêu kế hoạch ngắn gọn dạng gạch đầu dòng (tạo/sửa file nào, giải quyết logic gì). Chờ người dùng duyệt mới viết code.
-- **Bước 2 - Không tự suy diễn:** Nếu có điểm nghiệp vụ hay trường hợp biên chưa rõ, phải hỏi lại kèm phương án đề xuất trước khi làm.
-- **Bước 3 - Bàn giao & Hướng dẫn nghiệm thu:** Sau khi viết code xong, chạy `npm run lint` và `npm run build` để đảm bảo sạch lỗi, sau đó cung cấp kịch bản nghiệm thu ngắn gọn (chạy SQL nào, bấm vào đâu, thấy kết quả gì trên màn hình).
+## 4. Quy trình làm việc 3 bước
+- **Bước 1 - Lên kế hoạch:** với mỗi yêu cầu, nêu kế hoạch ngắn gọn dạng gạch đầu dòng (tạo/sửa file nào, giải quyết logic gì). Chờ người dùng duyệt mới viết code.
+- **Bước 2 - Không tự suy diễn:** điểm nghiệp vụ hay trường hợp biên chưa rõ thì hỏi lại kèm phương án đề xuất trước khi làm.
+- **Bước 3 - Kiểm tra, đẩy lên & bàn giao:**
+  - Chạy `npm test`, `npm run lint`, `npm run build`. Lint phải **0 cảnh báo**: Oxlint vẫn trả mã thoát 0 khi chỉ có cảnh báo, nên đọc kết quả, không chỉ nhìn mã thoát.
+  - Tự làm mọi bước kiểm tra làm được; chỉ liệt kê cho người dùng những việc phải làm tay (chạy SQL trong Supabase SQL Editor, đăng nhập thử trên giao diện thật, cấu hình Supabase/Vercel).
+  - Đạt hết thì commit và push lên `main` (mục 5), rồi đưa kịch bản nghiệm thu ngắn gọn (chạy SQL nào, bấm vào đâu, thấy gì trên màn hình).
+
+## 5. Git & triển khai
+- Chỉ dùng nhánh `main`; mọi thay đổi commit và push thẳng lên `main` (người dùng cho phép 24/11/2026).
+- Mỗi lần push, Vercel triển khai production ngay (https://science-hub-iota.vercel.app). Chỉ push khi mục 4 Bước 3 đã đạt.
+- Thay đổi có SQL: frontend lên production ngay khi push, còn SQL chỉ có hiệu lực khi người dùng chạy trong SQL Editor. Hãy viết SQL và frontend sao cho thứ tự nào cũng không làm hỏng bản đang chạy, hoặc ghi rõ thứ tự trong kịch bản nghiệm thu.
