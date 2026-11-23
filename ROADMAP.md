@@ -8,7 +8,7 @@
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
 - **Kiểm thử:** `npm test` đạt 13 tình huống JS + 106 tình huống Database; lint 0 cảnh báo; build sạch.
-- **Người dùng cần làm sau đợt dọn mã 24/11/2026:** trong SQL Editor của project `ScienceHub`, chạy lại `supabase/v3/08_ops.sql` rồi `09_grants.sql` (khôi phục chỉ còn nhận file sao lưu V3).
+- **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Tồn đọng nhỏ (không chặn):**
   - Chưa có chức năng gỡ liên kết tài khoản giáo viên (muốn đổi thì liên kết lại bằng email mới; tài khoản cũ mất quyền).
   - `setup_initial_manager` chỉ chạy trong SQL Editor (muốn nhiều Quản lý thì làm hàm riêng).
