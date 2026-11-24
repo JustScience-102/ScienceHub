@@ -14,8 +14,8 @@ export const CENTER = {
   phoneShown: '0866 076 800',
 }
 
-// Sau khi gắn tên miền (mốc M0) đổi sang https://baitap.sciencehub.id.vn.
-export const HOMEWORK_APP_URL = 'https://science-app-six.vercel.app'
+// App giao bài (ScienceApp). Tab Tra cứu điểm vẫn chuyển tiếp tới địa chỉ .vercel.app (vercel.json), không phụ thuộc DNS.
+export const HOMEWORK_APP_URL = 'https://baitap.sciencehub.id.vn'
 
 // Các tab của web: thanh ngang trên máy tính, thanh tab đáy trên điện thoại.
 export const NAV_ITEMS = [
