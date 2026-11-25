@@ -33,9 +33,10 @@ export function createHandler({ query, configured }) {
       res.setHeader('Cache-Control', CACHE)
       return res.status(200).json(data)
     } catch (error) {
-      console.error('website.catalog lỗi:', error?.message ?? error)
+      console.error('website.catalog lỗi:', error?.code, error?.message ?? error)
       res.setHeader('Cache-Control', 'no-store')
-      return res.status(503).json({ error: ERROR })
+      // Chỉ trả mã lỗi kỹ thuật (vd. 28P01 sai mật khẩu, ERR_INVALID_URL chuỗi kết nối hỏng) để dò lỗi, không trả nội dung.
+      return res.status(503).json({ error: ERROR, code: String(error?.code ?? error?.name ?? 'UNKNOWN').slice(0, 40) })
     }
   }
 }

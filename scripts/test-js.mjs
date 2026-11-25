@@ -279,6 +279,7 @@ await test('Hàm máy chủ /api/lop-hoc: trả dữ liệu kèm bộ nhớ đ�
   assert.equal(r3.code, 503)
   assert.equal(r3.headers['Cache-Control'], 'no-store', 'lỗi không được lưu đệm')
   assert.ok(!JSON.stringify(r3.body).includes('mất kết nối'), 'không lộ chi tiết lỗi')
+  assert.equal(r3.body.code, 'Error', 'chỉ trả mã lỗi để dò')
   const r4 = fakeRes()
   await ok({ method: 'POST' }, r4)
   assert.equal(r4.code, 405)
