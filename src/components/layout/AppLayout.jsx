@@ -26,7 +26,7 @@ export default function AppLayout({
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
         <div className="flex items-center gap-3">
           <BrandLogo className="h-8 w-8 rounded-lg" />
-          <span className="font-bold text-slate-800">Trung tâm ScienceHub</span>
+          <span className="font-bold text-slate-800">Lớp học ScienceHub</span>
         </div>
         {userProfile && (
           <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">

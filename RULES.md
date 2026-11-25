@@ -1,4 +1,4 @@
-# Quy tắc dự án: Web App Quản lý Trung tâm ScienceHub
+# Quy tắc dự án: Web App Quản lý Lớp học ScienceHub
 
 > ĐỌC FILE NÀY CÙNG `ARCHITECTURE.md` VÀ `ROADMAP.md` Ở ĐẦU MỖI PHIÊN CHAT.
 

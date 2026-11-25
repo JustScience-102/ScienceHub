@@ -4,7 +4,8 @@ Web công khai cho phụ huynh và học sinh: trang chủ, Lớp học & học 
 Chính sách bảo mật. Kế hoạch và các mốc: `ROADMAP.md` ở thư mục gốc; kiến trúc: `ARCHITECTURE.md` mục 5.
 
 ## Cấu trúc
-- Astro 7 (trang HTML tĩnh) + React cho phần cần bấm (`client:load`) + Tailwind 4 + `lucide-react`, cùng phong cách
+- Astro 7 (trang HTML tĩnh) + React cho phần cần bấm (`client:load`) + Tailwind 4 + `lucide-react` (+ `postgres` cho
+  hàm máy chủ), cùng phong cách
   app quản lý (nền slate-100, thẻ trắng viền slate-200, màu nhấn sky; nút chính sky-600 như app giao bài).
 - `src/data/center.js`: thông tin Trung tâm (địa chỉ, giờ làm việc, SĐT, lời giới thiệu) và các tab. Ô để trống thì
   trang ghi "Đang cập nhật".
@@ -12,6 +13,15 @@ Chính sách bảo mật. Kế hoạch và các mốc: `ROADMAP.md` ở thư m�
 - `src/pages/*.astro`: mỗi file một trang; build ra `ten-trang.html`, Vercel bật `cleanUrls` nên địa chỉ là `/ten-trang`.
 - `src/components/ScoreLookup.jsx`: tab Tra cứu điểm (xem dưới).
 - `public/`: logo "chữ S và quỹ đạo" chép từ app giao bài (`ScienceApp/app/web/public`).
+
+## Lịch học các lớp (`/api/lop-hoc`)
+- `api/lop-hoc.js`: hàm máy chủ Vercel (thư mục `api/` của dự án), gọi `website.catalog()` trong CSDL app quản lý
+  bằng tài khoản `website_link` (`supabase/v3/11_website.sql`, `website_link.sql`). Biến môi trường
+  `WEBSITE_DATABASE_URL` (chuỗi Transaction pooler, cổng 6543, người dùng `website_link.<mã project>`) đặt trong
+  Settings → Environment Variables của dự án Vercel; thiếu biến thì trang báo "Chưa tải được lịch học".
+- Kết quả lưu đệm 5 phút ở Vercel. `npm run dev` không chạy hàm này (trang báo lỗi tải lịch là bình thường).
+- `src/lib/catalog.js` (gom theo môn + khối, theo phần của nhóm lớp, tách lịch đang áp dụng / lịch mới) và
+  `src/components/ClassSchedule.jsx`. Chỉ lấy các môn trong `CLASS_SUBJECTS` (`src/data/center.js`).
 
 ## Tra cứu điểm
 Giao diện viết lại từ trang `/phu-huynh` của app giao bài; dữ liệu và luật (mã HS + SĐT phụ huynh, khóa 15 phút

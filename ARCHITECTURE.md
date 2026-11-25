@@ -25,6 +25,7 @@ Supabase SQL Editor rồi chạy lại `09_grants.sql`.
 | `08_ops.sql` | Sao lưu, báo cáo tháng, nhập CSV, chuyển năm học, khôi phục. |
 | `09_grants.sql` | Cấp quyền (chạy cuối, chạy lại sau mỗi lần sửa SQL). |
 | `10_sciencehub.sql` | Nối app giao bài ScienceApp (mục 2.14). Chạy sau `09`, rồi chạy lại `09`. |
+| `11_website.sql` | Trang giới thiệu sciencehub.id.vn (mục 5.2). Chạy sau `website_link.sql` (tạo tài khoản, một lần), rồi chạy lại `09`. |
 | `bootstrap_manager.sql` | Tạo Quản lý đầu tiên (sửa email rồi chạy trong SQL Editor). |
 | `check_v3.sql` | Truy vấn chỉ đọc để đối chiếu cài đặt và quyền. |
 
@@ -213,14 +214,20 @@ Chi tiết kỹ thuật: `site/README.md`.
   tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc, lời giới thiệu ở `site/src/data/center.js`.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
   (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
-- **Lớp học & học phí**: bảng học phí đã có; phần lịch học các lớp chờ mốc M2. **Đăng ký học**: chờ mốc M3 (mục 5.2).
+- **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở
+  `site/src/data/center.js`) lấy tự động qua `/api/lop-hoc`, gom theo môn + khối; lớp thuộc nhóm lớp hiện theo phần
+  ("Phần 1 · chọn 1 trong 2 ca"); mỗi lớp ghi "Nhóm N" (như `classTitle` của app này), tên giáo viên, các buổi đang
+  áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới. Bảng học phí theo mục trên. **Đăng ký học**: chờ mốc M3.
 
-### 5.2. Nối CSDL Trung tâm (thiết kế đã chốt 24/11/2026, chưa làm)
+### 5.2. Nối CSDL Trung tâm
 - Theo cách của mục 2.14: file `supabase/v3/11_website.sql`, schema riêng `website`, tài khoản CSDL `website_link`
-  chỉ gọi được các hàm trong schema đó. Hàm máy chủ Vercel của `site/` (thư viện `postgres`) gọi các hàm này;
-  `anon` vẫn không có quyền gì (mục 1.3 giữ nguyên).
-- `website.catalog()`: lớp đang hiển thị (môn, khối, tên thân thiện, **tên giáo viên**), lịch đang áp dụng hôm nay,
-  nhóm lớp và số phần của từng lớp. Không trả đơn giá (học phí theo mục 5.1), học sinh, phụ huynh, điểm danh, doanh thu.
+  (tạo bằng `supabase/v3/website_link.sql`, mật khẩu không nằm trong kho) chỉ gọi được các hàm trong schema đó.
+  Hàm máy chủ Vercel `site/api/*.js` (thư viện `postgres`, biến `WEBSITE_DATABASE_URL` = chuỗi Transaction pooler
+  với người dùng `website_link.<mã project>`) gọi các hàm này; `anon` vẫn không có quyền gì (mục 1.3 giữ nguyên).
+- `website.catalog(p_subjects)` (xong 25/11/2026): lớp đang hiển thị của các môn được chọn (môn, khối, STT, **tên giáo
+  viên**, nhóm lớp + phần), mọi dòng lịch còn hiệu lực từ hôm nay kèm `from`/`to`. Không trả đơn giá (học phí theo
+  mục 5.1), học sinh, phụ huynh, điểm danh, doanh thu. `/api/lop-hoc` được Vercel lưu đệm 5 phút. Test:
+  `v3_website.test.mjs`; phần xử lý ở `site/src/lib/catalog.js` (test trong `scripts/test-js.mjs`).
 - `website.submit_registration(...)` ghi vào `website.registration_requests`. **Chọn lịch theo nhóm lớp:** lớp thuộc
   nhóm thì phụ huynh chọn **đúng một ca ở mỗi phần** đang mở của nhóm (không được hai ca cùng phần vì cùng nội dung,
   không được thiếu phần); kiểm tra ở cả form và SQL. Chống spam: ô bẫy, giới hạn theo IP và SĐT.

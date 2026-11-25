@@ -1,18 +1,25 @@
 ---
 // Học phí theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
 // table: bảng học phí (bảng từ md trở lên, thẻ trên điện thoại); rules: các quy định thu học phí.
-import { Handshake } from 'lucide-react'
+import { Handshake, Phone } from 'lucide-react'
 import { FEE_RULES, FEE_TABLE, PARTNER } from '../data/fees.js'
 
 const { table = true, rules = true } = Astro.props
 ---
 <div class="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
   <Handshake size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-sky-700" />
-  <p>
-    ScienceHub cộng tác với <b>{PARTNER.name}</b>. Mức học phí do Trung tâm quy định; phụ huynh đóng học phí
-    trực tiếp cho quản lý của Trung tâm (Zalo{' '}
-    <a href={`https://zalo.me/${PARTNER.phone}`} target="_blank" rel="noopener noreferrer" class="font-semibold text-sky-700 hover:underline">{PARTNER.phoneShown}</a>).
-  </p>
+  <div>
+    <p>
+      ScienceHub cộng tác với <b>{PARTNER.name}</b>. Mức học phí do Trung tâm quy định; phụ huynh đóng học phí
+      trực tiếp cho quản lý của Trung tâm.
+    </p>
+    <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <Phone size={16} aria-hidden="true" className="text-sky-700" />
+      <span>SĐT/Zalo quản lý Trung tâm:</span>
+      <a href={`tel:${PARTNER.managerPhone}`} class="font-semibold text-sky-700 hover:underline">{PARTNER.managerPhoneShown}</a>
+      <a href={`https://zalo.me/${PARTNER.managerPhone}`} target="_blank" rel="noopener noreferrer" class="font-medium text-sky-700 hover:underline">(nhắn Zalo)</a>
+    </p>
+  </div>
 </div>
 
 {table && (

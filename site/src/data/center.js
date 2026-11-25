@@ -24,6 +24,10 @@ export const CENTER = {
   phoneShown: '0866 076 800',
 }
 
+// Các môn của ScienceHub: trang "Lớp học & học phí" chỉ lấy lớp của các môn này từ app quản lý.
+// Viết đúng như danh sách môn của app quản lý (src/lib/subjects.js).
+export const CLASS_SUBJECTS = ['Vật Lí', 'Hóa học']
+
 // App giao bài (ScienceApp). Tab Tra cứu điểm vẫn chuyển tiếp tới địa chỉ .vercel.app (vercel.json), không phụ thuộc DNS.
 export const HOMEWORK_APP_URL = 'https://baitap.sciencehub.id.vn'
 

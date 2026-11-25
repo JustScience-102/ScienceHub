@@ -25,6 +25,9 @@ const homework = await import('../src/lib/homework.js')
 const { subjectColor } = await import('../src/lib/dashboard.js')
 const { SUBJECTS } = await import('../src/lib/subjects.js')
 const parentLookup = await import('../site/src/lib/parentLookup.js')
+const catalog = await import('../site/src/lib/catalog.js')
+const siteCenter = await import('../site/src/data/center.js')
+const lopHoc = await import('../site/api/lop-hoc.js')
 
 let passed = 0
 let failed = 0
@@ -201,6 +204,84 @@ await test('Điểm viết dấu phẩy, ngày theo giờ Việt Nam, tên môn 
   // 23/11 lúc 18:30 giờ UTC là 01:30 sáng 24/11 ở Việt Nam.
   assert.equal(parentLookup.vnDate('2026-11-23T18:30:00Z'), '24/11/2026')
   for (const name of Object.values(parentLookup.SUBJECT_NAMES)) assert.ok(SUBJECTS.includes(name), name)
+})
+
+console.log('\n▶ Trang giới thiệu: lịch học các lớp (site/src/lib/catalog.js, site/api/lop-hoc.js)')
+const TODAY = '2026-11-25'
+const cls = (id, subject, grade, classNo, group, schedules) => ({
+  id, subject, grade, class_no: classNo, teacher: 'Nguyễn Hải Nam', group, schedules,
+})
+const row = (day, start, end, from = null, to = null) => ({ day, start, end, from, to })
+const G = 'g-li12'
+const SAMPLE = [
+  cls('li4', 'Vật Lí', 12, 4, { id: G, name: 'Vật Lí 12', part: 2 }, [row(6, '18:00', '20:00')]),
+  cls('hoa', 'Hóa học', 11, 1, null, [row(7, '08:00', '10:00'), row(4, '17:30', '19:30')]),
+  cls('li1', 'Vật Lí', 12, 1, { id: G, name: 'Vật Lí 12', part: 1 }, [row(2, '18:00', '20:00')]),
+  cls('li3', 'Vật Lí', 12, 3, { id: G, name: 'Vật Lí 12', part: 2 }, [row(3, '18:00', '20:00')]),
+  cls('li2', 'Vật Lí', 12, 2, { id: G, name: 'Vật Lí 12', part: 1 }, [row(5, '18:00', '20:00')]),
+  cls('li10', 'Vật Lí', 10, 1, null, [row(3, '17:00', '19:00')]),
+]
+await test('Gom theo môn + khối (Vật Lí trước Hóa học, khối tăng dần); nhóm lớp chia theo phần', () => {
+  const sections = catalog.buildSections(SAMPLE, siteCenter.CLASS_SUBJECTS)
+  assert.deepEqual(sections.map((s) => `${s.subject} ${s.grade}`), ['Vật Lí 10', 'Vật Lí 12', 'Hóa học 11'])
+  const li12 = sections[1]
+  assert.equal(li12.singles.length, 0)
+  assert.equal(li12.groups.length, 1)
+  assert.deepEqual(li12.groups[0].parts.map((p) => [p.part, p.classes.map((c) => c.id)]), [
+    [1, ['li1', 'li2']],
+    [2, ['li3', 'li4']],
+  ])
+  assert.deepEqual(sections[2].singles.map((c) => c.id), ['hoa'])
+  assert.equal(catalog.classLabel(SAMPLE[0]), 'Nhóm 4')
+})
+await test('Lịch đang áp dụng hôm nay và lịch mới sắp áp dụng; chữ hiển thị', () => {
+  const rows = [
+    row(7, '08:00', '10:00', null, '2026-12-01'),
+    row(4, '17:30', '19:30', null, '2026-12-01'),
+    row(6, '18:00', '20:00', '2026-12-02'),
+    row(2, '18:00', '20:00', '2027-01-05'),
+  ]
+  const { current, upcoming } = catalog.splitSchedule(rows, TODAY)
+  assert.deepEqual(current.map((r) => r.day), [4, 7], 'xếp theo thứ trong tuần')
+  assert.equal(upcoming.from, '2026-12-02', 'chỉ lấy lịch mới gần nhất')
+  assert.deepEqual(upcoming.rows.map((r) => r.day), [6])
+  assert.equal(catalog.splitSchedule([row(2, '18:00', '20:00')], TODAY).upcoming, null)
+  assert.equal(catalog.sessionText(row(8, '07:30', '09:30')), 'Chủ nhật · 07:30 – 09:30')
+  assert.equal(catalog.vnDateText('2026-12-02'), '02/12/2026')
+  for (const subject of siteCenter.CLASS_SUBJECTS) assert.ok(SUBJECTS.includes(subject), `môn "${subject}" phải có trong app quản lý`)
+})
+await test('Hàm máy chủ /api/lop-hoc: trả dữ liệu kèm bộ nhớ đệm; lỗi CSDL hoặc chưa cấu hình thì 503', async () => {
+  const fakeRes = () => {
+    const res = { headers: {}, code: 0, body: null }
+    res.setHeader = (k, v) => { res.headers[k] = v }
+    res.status = (c) => { res.code = c; return res }
+    res.json = (b) => { res.body = b; return res }
+    return res
+  }
+  let asked = null
+  const ok = lopHoc.createHandler({ configured: () => true, query: async (subjects) => { asked = subjects; return { today: TODAY, classes: [] } } })
+  const r1 = fakeRes()
+  await ok({ method: 'GET' }, r1)
+  assert.equal(r1.code, 200)
+  assert.deepEqual(asked, siteCenter.CLASS_SUBJECTS)
+  assert.match(r1.headers['Cache-Control'], /s-maxage=300/)
+  const r2 = fakeRes()
+  await lopHoc.createHandler({ configured: () => false, query: async () => ({}) })({ method: 'GET' }, r2)
+  assert.equal(r2.code, 503)
+  const r3 = fakeRes()
+  const quiet = console.error
+  console.error = () => {}
+  try {
+    await lopHoc.createHandler({ configured: () => true, query: async () => { throw new Error('mất kết nối') } })({ method: 'GET' }, r3)
+  } finally {
+    console.error = quiet
+  }
+  assert.equal(r3.code, 503)
+  assert.equal(r3.headers['Cache-Control'], 'no-store', 'lỗi không được lưu đệm')
+  assert.ok(!JSON.stringify(r3.body).includes('mất kết nối'), 'không lộ chi tiết lỗi')
+  const r4 = fakeRes()
+  await ok({ method: 'POST' }, r4)
+  assert.equal(r4.code, 405)
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

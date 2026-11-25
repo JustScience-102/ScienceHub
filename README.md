@@ -1,10 +1,10 @@
 # ScienceHub
 
-Web app quản lý Trung tâm ScienceHub: lớp học, học sinh, phụ huynh, giáo viên, điểm danh và học phí theo tháng.
+Web app quản lý Lớp học ScienceHub (trước đây gọi là "Trung tâm ScienceHub"): lớp học, học sinh, phụ huynh, giáo viên, điểm danh và học phí theo tháng.
 
 Stack: React (Vite) + Tailwind CSS + Supabase (PostgreSQL, Auth, RLS, RPC).
 
-Thư mục `site/` là **trang giới thiệu công khai** của Trung tâm (sciencehub.id.vn: lớp học & học phí, quy định, đăng ký học, tra cứu điểm), một dự án Vercel riêng. Xem `site/README.md`.
+Thư mục `site/` là **trang giới thiệu công khai** của Lớp học ScienceHub (sciencehub.id.vn: lớp học & học phí, quy định, đăng ký học, tra cứu điểm), một dự án Vercel riêng. Xem `site/README.md`.
 
 ## Tài liệu dự án
 - `RULES.md`: quy tắc, quy ước và quy trình làm việc.
@@ -14,7 +14,7 @@ Thư mục `site/` là **trang giới thiệu công khai** của Trung tâm (sci
 ## Cài đặt
 1. `npm install`
 2. Sao chép `.env.example` thành `.env` và điền `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Không đưa khóa `service_role` vào frontend.
-3. Trên một project Supabase mới (trống), trong SQL Editor chạy lần lượt `supabase/v3/00_meta.sql` -> `09_grants.sql`. Bộ này chạy lại nhiều lần vẫn an toàn; sau mỗi lần sửa SQL phải chạy lại `09_grants.sql`. Nối app giao bài ScienceHub (kho `ScienceApp`): chạy thêm `supabase/v3/10_sciencehub.sql` rồi chạy lại `09_grants.sql`; tài khoản kết nối `sciencehub_link` do app giao bài tạo (`npm run dong-bo -- noi-trung-tam`, xem `app/README.md` của kho ScienceApp).
+3. Trên một project Supabase mới (trống), trong SQL Editor chạy lần lượt `supabase/v3/00_meta.sql` -> `09_grants.sql`. Bộ này chạy lại nhiều lần vẫn an toàn; sau mỗi lần sửa SQL phải chạy lại `09_grants.sql`. Nối app giao bài ScienceHub (kho `ScienceApp`): chạy thêm `supabase/v3/10_sciencehub.sql` rồi chạy lại `09_grants.sql`; tài khoản kết nối `sciencehub_link` do app giao bài tạo (`npm run dong-bo -- noi-trung-tam`, xem `app/README.md` của kho ScienceApp). Nối trang giới thiệu `site/`: chạy `supabase/v3/website_link.sql` (đã thay mật khẩu) -> `11_website.sql` -> `09_grants.sql`, rồi đặt `WEBSITE_DATABASE_URL` cho dự án Vercel "site" (xem `site/README.md`).
 4. Supabase Authentication > Users: tạo user Quản lý (bật Auto Confirm), sửa email trong `supabase/v3/bootstrap_manager.sql` rồi chạy file đó.
 5. Chạy `supabase/v3/check_v3.sql` và đối chiếu kết quả mong đợi ghi trong từng truy vấn.
 6. (Tùy chọn) Đưa dữ liệu từ một bản sao lưu `.json` của hệ thống này vào: đăng nhập Quản lý, vào Tổng quan -> Sao lưu & Năm học -> Khôi phục từ file sao lưu, xem trước rồi gõ `KHOI PHUC`.

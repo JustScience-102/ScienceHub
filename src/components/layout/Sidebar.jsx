@@ -19,7 +19,7 @@ export default function Sidebar({
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-slate-200">
       <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-200">
         <BrandLogo />
-        <span className="text-lg font-bold text-slate-800">Trung tâm ScienceHub</span>
+        <span className="text-lg font-bold text-slate-800">Lớp học ScienceHub</span>
       </div>
 
       <nav aria-label="Điều hướng chính" className="flex-1 p-4 space-y-1">

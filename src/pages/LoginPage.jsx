@@ -75,7 +75,7 @@ export default function LoginPage({ notice }) {
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <BrandLogo className="h-12 w-12 rounded-xl" />
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Trung tâm ScienceHub</h1>
+            <h1 className="text-xl font-bold text-slate-800">Lớp học ScienceHub</h1>
             <p className="mt-1 text-sm text-slate-500">
               {mode === 'login'
                 ? 'Đăng nhập để tiếp tục'
