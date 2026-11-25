@@ -16,8 +16,29 @@ function connect() {
     idle_timeout: 20,
     connect_timeout: 15,
     onnotice: () => undefined,
+    connection: { application_name: 'sciencehub-site' },
   })
   return sql
+}
+
+async function resetConnection() {
+  const old = sql
+  sql = null
+  if (old) await old.end({ timeout: 0 }).catch(() => undefined)
+}
+
+// Vercel cho hàm "ngủ" giữa các lần gọi; kết nối giữ sẵn có thể đã bị máy chủ CSDL đóng mà hàm không biết, lần gọi
+// đầu sau một lúc nghỉ sẽ lỗi. Truy vấn chỉ đọc nên an toàn: lỗi thì bỏ kết nối cũ và thử lại một lần bằng kết nối mới.
+export function withRetry(run, reset) {
+  return async (...args) => {
+    try {
+      return await run(...args)
+    } catch (error) {
+      console.warn('website.catalog thử lại bằng kết nối mới:', error?.code ?? error?.message)
+      await reset()
+      return run(...args)
+    }
+  }
 }
 
 // Tách phần xử lý để kiểm thử được mà không cần CSDL thật (scripts/test-js.mjs truyền hàm truy vấn giả).
@@ -43,9 +64,12 @@ export function createHandler({ query, configured }) {
 
 export default createHandler({
   configured: () => Boolean(process.env.WEBSITE_DATABASE_URL),
-  async query(subjects) {
+  query: withRetry(async (subjects) => {
     const db = connect()
-    const [row] = await db`select website.catalog(${db.array(subjects)}::text[]) as data`
+    // Gửi danh sách môn là một chuỗi thường "Vật Lí|Hóa học", CSDL tự tách thành text[]. Không dùng db.array():
+    // trên kết nối mới (chưa nạp kiểu mảng) nó gửi sai định dạng ("malformed array literal", lỗi 22P02 ở lần gọi đầu
+    // của mỗi lần Vercel khởi động hàm); cũng không dùng ::jsonb vì thư viện tự JSON.stringify thêm một lần.
+    const [row] = await db`select website.catalog(string_to_array(${subjects.join('|')}::text, '|')) as data`
     return row.data
-  },
+  }, resetConnection),
 })

@@ -248,7 +248,10 @@ await test('Lịch đang áp dụng hôm nay và lịch mới sắp áp dụng; 
   assert.equal(catalog.splitSchedule([row(2, '18:00', '20:00')], TODAY).upcoming, null)
   assert.equal(catalog.sessionText(row(8, '07:30', '09:30')), 'Chủ nhật · 07:30 – 09:30')
   assert.equal(catalog.vnDateText('2026-12-02'), '02/12/2026')
-  for (const subject of siteCenter.CLASS_SUBJECTS) assert.ok(SUBJECTS.includes(subject), `môn "${subject}" phải có trong app quản lý`)
+  for (const subject of siteCenter.CLASS_SUBJECTS) {
+    assert.ok(SUBJECTS.includes(subject), `môn "${subject}" phải có trong app quản lý`)
+    assert.ok(!subject.includes('|'), 'api/lop-hoc.js gửi danh sách môn ngăn cách bằng "|"')
+  }
 })
 await test('Ví dụ cách chọn lịch theo phần (lịch Vật Lí 10 thật): đủ 4 cách đúng, 1 cách sai cùng phần', () => {
   const G10 = { id: 'g10', name: 'Vật Lí 10' }
@@ -316,6 +319,25 @@ await test('Hàm máy chủ /api/lop-hoc: trả dữ liệu kèm bộ nhớ đ�
   const r4 = fakeRes()
   await ok({ method: 'POST' }, r4)
   assert.equal(r4.code, 405)
+})
+await test('Kết nối CSDL bị đứt sau lúc nghỉ: bỏ kết nối cũ, thử lại một lần; lỗi lần hai thì báo lỗi', async () => {
+  const quiet = console.warn
+  console.warn = () => {}
+  try {
+    let calls = 0
+    let resets = 0
+    const flaky = lopHoc.withRetry(async (x) => {
+      calls += 1
+      if (calls === 1) throw Object.assign(new Error('write CONNECTION_CLOSED'), { code: 'CONNECTION_CLOSED' })
+      return `ok ${x}`
+    }, async () => { resets += 1 })
+    assert.equal(await flaky('a'), 'ok a')
+    assert.deepEqual([calls, resets], [2, 1])
+    const broken = lopHoc.withRetry(async () => { throw new Error('sai mật khẩu') }, async () => {})
+    await assert.rejects(broken(), /sai mật khẩu/)
+  } finally {
+    console.warn = quiet
+  }
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)
