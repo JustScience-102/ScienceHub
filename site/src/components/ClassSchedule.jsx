@@ -1,9 +1,19 @@
 // Lịch học các lớp đang mở (trang Lớp học & học phí), lấy từ app quản lý qua /api/lop-hoc (site/api/lop-hoc.js).
-// Lớp thuộc nhóm lớp hiện theo phần: mỗi phần là một nội dung, phụ huynh chọn một ca cho mỗi phần.
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarClock, Loader2, Phone } from 'lucide-react'
+// Lớp thuộc nhóm lớp hiện theo phần (khung riêng từng phần, nối bằng dấu +): mỗi phần là một nội dung, phụ huynh
+// chọn một ca cho mỗi phần; kèm ví dụ các cách chọn đúng (✓) và một cách sai (✕) tính từ lịch thật.
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
 import { api } from '../lib/api.js'
-import { buildSections, classLabel, sessionText, splitSchedule, subjectStyle, vnDateText } from '../lib/catalog.js'
+import {
+  buildSections,
+  classLabel,
+  partCombos,
+  sessionText,
+  sharedTeacher,
+  splitSchedule,
+  subjectStyle,
+  vnDateText,
+} from '../lib/catalog.js'
 
 function chipClass(on) {
   return `inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
@@ -118,34 +128,21 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
 
 function Section({ section, today }) {
   const style = subjectStyle(section.subject)
+  const teacher = sharedTeacher(section)
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className={`h-1.5 ${style.bar}`} aria-hidden="true" />
-      <div className="p-5">
-        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-          <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
-          Lớp {section.grade}
-        </h3>
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+            <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
+            Lớp {section.grade}
+          </h3>
+          {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
+        </div>
 
         {section.groups.map((group) => (
-          <div key={group.id} className="mt-4">
-            <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900">
-              Mỗi tuần học {group.parts.length} buổi, mỗi buổi một phần nội dung. Con chọn <b>1 ca cho mỗi phần</b>, không
-              học 2 ca của cùng một phần.
-            </p>
-            {group.parts.map((part) => (
-              <div key={part.part} className="mt-3">
-                <p className="mb-2 text-sm font-semibold text-slate-700">
-                  Phần {part.part} · {part.classes.length > 1 ? `chọn 1 trong ${part.classes.length} ca` : '1 ca'}
-                </p>
-                <ul className="space-y-2">
-                  {part.classes.map((cls) => (
-                    <ClassRow key={cls.id} cls={cls} today={today} />
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <GroupBlock key={group.id} group={group} today={today} showTeacher={!teacher} />
         ))}
 
         {section.singles.length > 0 && (
@@ -153,7 +150,9 @@ function Section({ section, today }) {
             {section.groups.length > 0 && <p className="mb-2 text-sm font-semibold text-slate-700">Các lớp khác</p>}
             <ul className="space-y-2">
               {section.singles.map((cls) => (
-                <ClassRow key={cls.id} cls={cls} today={today} />
+                <li key={cls.id} className="rounded-lg border border-slate-200 p-3">
+                  <ClassLine cls={cls} today={today} showTeacher={!teacher} />
+                </li>
               ))}
             </ul>
           </div>
@@ -163,37 +162,106 @@ function Section({ section, today }) {
   )
 }
 
-function ClassRow({ cls, today }) {
+function GroupBlock({ group, today, showTeacher }) {
+  const { combos, total, wrongExample } = partCombos(group, today)
+  const perWeek = group.parts.map((p) => `1 buổi Phần ${p.part}`).join(' + ')
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900">
+        <p className="text-base font-semibold">
+          Mỗi tuần con học {group.parts.length} buổi: {perWeek}.
+        </p>
+        <p className="mt-1 text-sm">
+          Mỗi phần là một nội dung riêng và mở nhiều ca. Phụ huynh <b>chọn 1 ca trong mỗi phần</b>; không chọn 2 ca của
+          cùng một phần vì hai ca đó học cùng nội dung.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
+        {group.parts.map((part, index) => (
+          <Fragment key={part.part}>
+            {index > 0 && (
+              <div className="flex items-center justify-center" aria-hidden="true">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-xl font-bold text-white">
+                  +
+                </span>
+              </div>
+            )}
+            <div className="flex-1 overflow-hidden rounded-xl border-2 border-sky-300">
+              <div className="flex items-center justify-between gap-2 bg-sky-600 px-4 py-2 text-white">
+                <span className="text-base font-bold">Phần {part.part}</span>
+                <span className="text-sm">
+                  {part.classes.length > 1 ? `Chọn 1 trong ${part.classes.length} ca` : 'Có 1 ca'}
+                </span>
+              </div>
+              <ul className="divide-y divide-slate-100 bg-white">
+                {part.classes.map((cls) => (
+                  <li key={cls.id} className="px-4 py-3">
+                    <ClassLine cls={cls} today={today} showTeacher={showTeacher} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Fragment>
+        ))}
+      </div>
+
+      {combos.length > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-700">Ví dụ cách chọn lịch</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {combos.map((combo) => (
+              <li
+                key={combo}
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800 ring-1 ring-emerald-200"
+              >
+                <Check size={14} aria-hidden="true" />
+                <span>
+                  {combo}
+                  <span className="sr-only">: được</span>
+                </span>
+              </li>
+            ))}
+            {total > combos.length && (
+              <li className="inline-flex items-center px-1 text-sm text-slate-500">và {total - combos.length} cách khác</li>
+            )}
+          </ul>
+          {wrongExample && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700 ring-1 ring-red-200">
+              <X size={14} aria-hidden="true" />
+              {wrongExample.label}: không được, vì cùng Phần {wrongExample.part}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ClassLine({ cls, today, showTeacher }) {
   const { current, upcoming } = splitSchedule(cls.schedules ?? [], today)
   return (
-    <li className="rounded-lg border border-slate-200 p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <b className="text-slate-800">{classLabel(cls)}</b>
-        {cls.teacher && <span className="text-sm text-slate-500">Giáo viên: {cls.teacher}</span>}
-      </div>
-      {current.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-2">
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <b className="text-slate-800">{classLabel(cls)}</b>
           {current.map((row) => (
-            <span
-              key={`${row.day}-${row.start}`}
-              className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-700"
-            >
+            <span key={`${row.day}-${row.start}`} className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-700">
               {sessionText(row)}
             </span>
           ))}
+          {current.length === 0 && !upcoming && <span className="text-sm text-slate-400">Chưa có lịch</span>}
         </div>
-      ) : (
-        !upcoming && <p className="mt-2 text-sm text-slate-400">Chưa có lịch</p>
-      )}
+        {showTeacher && cls.teacher && <span className="text-sm text-slate-500">Giáo viên: {cls.teacher}</span>}
+      </div>
       {upcoming && (
         <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
           <CalendarClock size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
           <span>
-            {current.length > 0 ? 'Lịch mới' : 'Bắt đầu'} từ {vnDateText(upcoming.from)}:{' '}
-            {upcoming.rows.map(sessionText).join(', ')}
+            {current.length > 0 ? 'Lịch mới' : 'Bắt đầu'} từ {vnDateText(upcoming.from)}: {upcoming.rows.map(sessionText).join(', ')}
           </span>
         </p>
       )}
-    </li>
+    </div>
   )
 }

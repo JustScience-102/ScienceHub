@@ -215,9 +215,12 @@ Chi tiết kỹ thuật: `site/README.md`.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
   (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
 - **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở
-  `site/src/data/center.js`) lấy tự động qua `/api/lop-hoc`, gom theo môn + khối; lớp thuộc nhóm lớp hiện theo phần
-  ("Phần 1 · chọn 1 trong 2 ca"); mỗi lớp ghi "Nhóm N" (như `classTitle` của app này), tên giáo viên, các buổi đang
-  áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới. Bảng học phí theo mục trên. **Đăng ký học**: chờ mốc M3.
+  `site/src/data/center.js`) lấy tự động qua `/api/lop-hoc`, gom theo môn + khối. Học phí đặt **trước** lịch học
+  (người dùng chốt 25/11/2026). Lớp thuộc nhóm lớp hiện mỗi phần một khung màu nối bằng dấu "+", câu "Mỗi tuần con
+  học 2 buổi: 1 buổi Phần 1 + 1 buổi Phần 2", và "Ví dụ cách chọn lịch" tính từ lịch thật (`partCombos`: mỗi phần một
+  ca, bỏ cách trùng giờ; ✓ các cách đúng, ✕ một cách sai cùng phần). Mỗi lớp ghi "Nhóm N" (như `classTitle` của app
+  này), các buổi đang áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới; tên giáo viên ghi một lần ở đầu mục
+  nếu cả mục cùng giáo viên. **Đăng ký học**: chờ mốc M3 (dùng lại `partCombos` để kiểm tra lựa chọn).
 
 ### 5.2. Nối CSDL Trung tâm
 - Theo cách của mục 2.14: file `supabase/v3/11_website.sql`, schema riêng `website`, tài khoản CSDL `website_link`

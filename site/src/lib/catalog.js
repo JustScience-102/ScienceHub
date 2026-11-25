@@ -42,6 +42,54 @@ export function splitSchedule(rows, today) {
   return { current, upcoming: { from, rows: future.filter((r) => r.from === from).sort(bySession) } }
 }
 
+const overlaps = (a, b) => a.day === b.day && a.start < b.end && b.start < a.end
+
+// Các cách chọn lịch hợp lệ của một nhóm lớp: mỗi phần đúng một ca (ca = một lớp, theo lịch đang áp dụng),
+// bỏ các cách có hai buổi trùng giờ. Tên ca là thứ học ("Thứ 2"); hai ca cùng phần trùng thứ thì thêm giờ.
+// Trả { combos: ['Thứ 2 + Thứ 5', ...], total, wrongExample: { label: 'Thứ 2 + Thứ 3', part: 1 } | null }
+// (ví dụ sai: 2 ca của cùng một phần).
+export function partCombos(group, today, limit = 8) {
+  const parts = group.parts.map((part) => {
+    const options = part.classes
+      .map((cls) => ({ cls, rows: splitSchedule(cls.schedules ?? [], today).current }))
+      .filter((option) => option.rows.length > 0)
+    const dayText = (rows) => rows.map((r) => DAY_LABELS[r.day] ?? `Thứ ${r.day}`).join(', ')
+    const counts = new Map()
+    for (const option of options) counts.set(dayText(option.rows), (counts.get(dayText(option.rows)) ?? 0) + 1)
+    for (const option of options) {
+      const plain = dayText(option.rows)
+      option.label = counts.get(plain) > 1 ? option.rows.map((r) => `${DAY_LABELS[r.day]} (${r.start})`).join(', ') : plain
+    }
+    return options
+  })
+  if (parts.some((options) => options.length === 0)) return { combos: [], total: 0, wrongExample: null }
+
+  let picks = [[]]
+  for (const options of parts) {
+    picks = picks.flatMap((chosen) =>
+      options
+        .filter((option) => !chosen.some((c) => c.rows.some((r) => option.rows.some((o) => overlaps(r, o)))))
+        .map((option) => [...chosen, option]),
+    )
+  }
+  const crowded = parts.findIndex((options) => options.length >= 2)
+  return {
+    combos: picks.slice(0, limit).map((chosen) => chosen.map((c) => c.label).join(' + ')),
+    total: picks.length,
+    wrongExample:
+      crowded === -1
+        ? null
+        : { label: `${parts[crowded][0].label} + ${parts[crowded][1].label}`, part: group.parts[crowded].part },
+  }
+}
+
+// Mọi lớp trong mục cùng một giáo viên thì trả tên đó (hiện một lần ở đầu mục), khác nhau thì null.
+export function sharedTeacher(section) {
+  const all = [...section.singles, ...section.groups.flatMap((g) => g.parts.flatMap((p) => p.classes))]
+  const names = new Set(all.map((c) => c.teacher ?? ''))
+  return names.size === 1 && all[0]?.teacher ? all[0].teacher : null
+}
+
 const byClassNo = (a, b) => (a.class_no ?? 999) - (b.class_no ?? 999)
 
 // Gom lớp theo môn + khối. Mỗi mục: các nhóm lớp (mỗi nhóm chia theo phần, mỗi phần các ca để chọn một)

@@ -7,7 +7,7 @@
 
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
-- **Kiểm thử:** `npm test` đạt 17 tình huống JS + 113 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
+- **Kiểm thử:** `npm test` đạt 19 tình huống JS + 113 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
   - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về (25/11/2026). Còn lại (người dùng làm tay): thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
@@ -30,6 +30,7 @@
 - Bảng học phí trên web chỉ còn lớp Vật Lí, Hóa học; ghi rõ "SĐT/Zalo quản lý Trung tâm: 0973 765 752".
 - App quản lý hiện tên "Lớp học ScienceHub" (tiêu đề trình duyệt, thanh bên, thanh tiêu đề điện thoại, trang Đăng nhập). Mã nhận diện file sao lưu `'Trung tâm ScienceHub'` (`08_ops.sql`, `lib/restore.js`) **giữ nguyên** để file sao lưu cũ vẫn khôi phục được.
 - `supabase/v3/11_website.sql` + `website_link.sql` (mẫu), test `v3_website.test.mjs` (7 tình huống); `site/api/lop-hoc.js`, `site/src/lib/catalog.js`, `ClassSchedule.jsx`; thư viện `postgres` 3.4.9 cho `site/`.
+- Trang Lớp học & học phí: học phí đặt trước lịch học; nhóm lớp hiện từng phần trong khung riêng nối bằng "+", kèm ví dụ cách chọn lịch đúng/sai tính từ lịch thật (`partCombos`).
 
 ### 25/11/2026 — Trang giới thiệu: nội dung thật
 - Danh xưng "Lớp học ScienceHub"; ScienceHub cộng tác với Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy (Trung tâm quy định và thu học phí). Bảng và quy định học phí chép từ tờ quy định của Trung tâm (`site/src/data/fees.js`); trang Quy định viết lại (nội quy "Tôn sư trọng đạo · Tiên học lễ, hậu học văn", xin nghỉ báo trước cho thầy, học bù); lời giới thiệu và lưu ý "không phù hợp với học sinh quá lười" ở trang chủ và trang Đăng ký; Chính sách bảo mật ghi rõ thông tin chuyển cho Trung tâm để thu học phí.
