@@ -5,6 +5,7 @@ import '../styles/global.css'
 import { CalendarDays, ClipboardPen, GraduationCap, House, Phone, ScrollText } from 'lucide-react'
 import ContactList from '../components/ContactList.astro'
 import { CENTER, HOMEWORK_APP_URL, NAV_ITEMS } from '../data/center.js'
+import { PARTNER } from '../data/fees.js'
 
 const { title, description } = Astro.props
 const ICONS = { home: House, classes: CalendarDays, rules: ScrollText, register: ClipboardPen, scores: GraduationCap }
@@ -17,7 +18,8 @@ const path =
     .replace(/\/+$/, '') || '/'
 const fullTitle = title ? `${title} – ${CENTER.name}` : `${CENTER.name} – ${CENTER.slogan}`
 const desc =
-  description ?? 'Lịch học, học phí, quy định, đăng ký học và tra cứu điểm của Trung tâm ScienceHub.'
+  description ??
+  'Lớp học Vật Lí, Hóa học ScienceHub tại Bãi Cháy, Quảng Ninh: lịch học, học phí, quy định, đăng ký học và tra cứu điểm.'
 const canonical = new URL(path, Astro.site).href
 const ogImage = new URL('/icon-512.png', Astro.site).href
 const year = new Date().getFullYear()
@@ -124,7 +126,7 @@ const year = new Date().getFullYear()
         </nav>
       </div>
       <p class="border-t border-slate-100 px-4 py-4 text-center text-xs text-slate-500">
-        © {year} {CENTER.name}
+        © {year} {CENTER.name} · Cộng tác với {PARTNER.name}
       </p>
     </footer>
 

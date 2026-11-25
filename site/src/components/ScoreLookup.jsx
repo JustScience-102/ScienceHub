@@ -89,7 +89,7 @@ function LoginForm({ onDone, initialError }) {
     >
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Tra cứu điểm</h1>
-        <p className="mt-1 text-sm text-slate-500">Dành cho phụ huynh học sinh Trung tâm ScienceHub.</p>
+        <p className="mt-1 text-sm text-slate-500">Dành cho phụ huynh học sinh Lớp học ScienceHub.</p>
       </div>
 
       <div>
@@ -126,7 +126,7 @@ function LoginForm({ onDone, initialError }) {
           autoComplete="tel"
           required
         />
-        <p className="mt-1 text-xs text-slate-500">Số đã đăng ký với Trung tâm khi con nhập học.</p>
+        <p className="mt-1 text-xs text-slate-500">Số phụ huynh đã đăng ký khi con nhập học.</p>
       </div>
 
       {error && (
@@ -215,7 +215,7 @@ function Results({ view, onLogout }) {
 
       {child && childItems.length === 0 && (
         <p className="rounded-xl border border-slate-200 bg-white p-5 text-base text-slate-600 shadow-sm">
-          Con chưa có bài kiểm tra nào. Khi con làm bài kiểm tra ở Trung tâm, điểm sẽ hiện ở đây.
+          Con chưa có bài kiểm tra nào. Khi con làm bài kiểm tra, điểm sẽ hiện ở đây.
         </p>
       )}
 

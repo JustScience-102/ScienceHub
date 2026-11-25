@@ -1,26 +1,33 @@
 ---
-// Mốc M2 sẽ thay phần "Đang cập nhật" bằng danh sách lớp lấy tự động từ app quản lý trung tâm.
+// Học phí: theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
+// Mốc M2 sẽ thay phần "Lịch học" bằng danh sách lớp lấy tự động từ app quản lý (lịch, giáo viên, nhóm lớp).
 import { Info } from 'lucide-react'
 import Base from '../layouts/Base.astro'
-import ContactList from '../components/ContactList.astro'
+import FeeInfo from '../components/FeeInfo.astro'
 import PageHeading from '../components/PageHeading.astro'
 ---
 <Base
   title="Lớp học & học phí"
-  description="Các lớp đang mở, giáo viên, lịch học trong tuần và học phí mỗi buổi của Trung tâm ScienceHub."
+  description="Các lớp Vật Lí, Hóa học đang mở của ScienceHub, lịch học trong tuần và mức học phí."
 >
-  <PageHeading title="Lớp học & học phí" subtitle="Các lớp đang mở, giáo viên, lịch học trong tuần và học phí mỗi buổi." />
+  <PageHeading title="Lớp học & học phí" subtitle="Các lớp đang mở, giáo viên, lịch học trong tuần và mức học phí." />
 
-  <div class="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
-    <Info size={18} aria-hidden="true" className="mt-0.5 shrink-0" />
-    <p>
-      Lịch học và học phí đang được cập nhật và sẽ hiện ở đây, khớp với lịch của Trung tâm. Trong lúc chờ, phụ huynh
-      vui lòng liên hệ Trung tâm để được tư vấn.
+  <section>
+    <h2 class="mb-3 text-lg font-semibold text-slate-800">Học phí</h2>
+    <FeeInfo rules={false} />
+    <p class="mt-3 text-sm text-slate-500">
+      Quy định khi học sinh nghỉ học xem ở trang <a href="/quy-dinh#hoc-phi" class="font-medium text-sky-700 hover:underline">Quy định</a>.
     </p>
-  </div>
+  </section>
 
-  <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <h2 class="mb-4 text-lg font-semibold text-slate-800">Liên hệ</h2>
-    <ContactList />
+  <section class="mt-8">
+    <h2 class="mb-3 text-lg font-semibold text-slate-800">Lịch học các lớp</h2>
+    <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
+      <Info size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-sky-700" />
+      <p>
+        Lịch học các lớp đang được cập nhật và sẽ hiện ở đây. Trong lúc chờ, phụ huynh vui lòng gọi điện hoặc nhắn
+        Zalo cho thầy để được tư vấn lịch phù hợp.
+      </p>
+    </div>
   </section>
 </Base>

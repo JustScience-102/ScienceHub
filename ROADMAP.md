@@ -10,9 +10,9 @@
 - **Kiểm thử:** `npm test` đạt 14 tình huống JS + 106 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
-  - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. Còn lại (người dùng làm tay): trong dự án Vercel của `site/`, đặt `sciencehub.id.vn` là địa chỉ chính và `www` chuyển về nó (hiện đang ngược lại, lệch thẻ canonical); thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
-  - **M1 – Khung web: xong 24/11/2026.** Đủ 5 tab, logo chung, tab Tra cứu điểm chạy thật (qua ScienceApp). Chờ người dùng gửi: địa chỉ, link Google Maps, giờ làm việc, lời giới thiệu, nội quy/xin nghỉ, cách đóng học phí; duyệt câu chữ trang Quy định và Chính sách bảo mật.
-  - **M2 – Lớp học & học phí tự động** từ app này (`11_website.sql`, `website.catalog()`, tên giáo viên).
+  - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về (25/11/2026). Còn lại (người dùng làm tay): thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
+  - **M1 – Khung web: xong 24/11/2026; nội dung xong 25/11/2026** (địa chỉ, bản đồ, giờ làm việc, lời giới thiệu, nội quy, xin nghỉ, bảng và quy định học phí của Trung tâm Chìa Khóa Vàng; đổi danh xưng thành "Lớp học ScienceHub", `ARCHITECTURE.md` mục 5.1). Chờ người dùng duyệt câu chữ.
+  - **M2 – Lịch học các lớp tự động** từ app này (`11_website.sql`, `website.catalog()`: lịch, tên giáo viên, nhóm lớp; học phí không lấy từ app mà theo `site/src/data/fees.js`).
   - **M3 – Form đăng ký** (chọn lịch theo nhóm lớp: mỗi phần đúng một ca) + màn hình "Đơn đăng ký" cho Quản lý.
   - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem`, thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
   - Lưu ý chi phí: gói Hobby của Vercel chỉ cho dùng phi thương mại; nên gom các dự án vào một nhóm Vercel Pro.
@@ -25,6 +25,10 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 25/11/2026 — Trang giới thiệu: nội dung thật
+- Danh xưng "Lớp học ScienceHub"; ScienceHub cộng tác với Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy (Trung tâm quy định và thu học phí). Bảng và quy định học phí chép từ tờ quy định của Trung tâm (`site/src/data/fees.js`); trang Quy định viết lại (nội quy "Tôn sư trọng đạo · Tiên học lễ, hậu học văn", xin nghỉ báo trước cho thầy, học bù); lời giới thiệu và lưu ý "không phù hợp với học sinh quá lười" ở trang chủ và trang Đăng ký; Chính sách bảo mật ghi rõ thông tin chuyển cho Trung tâm để thu học phí.
+- Tên miền: `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về.
 
 ### 24/11/2026 — Trang giới thiệu sciencehub.id.vn: mốc M1
 - Người dùng chốt: lịch và học phí lấy từ app trung tâm, có tên giáo viên; form chọn lịch theo nhóm lớp (mỗi phần đúng một ca); tra cứu điểm là một tab của web; đơn đăng ký chỉ Quản lý xem, không vào file sao lưu; duyệt thư viện `astro`, `@astrojs/react`, `postgres` cho `site/`; tên miền con `quanly.`, `baitap.`.

@@ -2,10 +2,11 @@
 import Base from '../layouts/Base.astro'
 import PageHeading from '../components/PageHeading.astro'
 import { CENTER } from '../data/center.js'
+import { PARTNER } from '../data/fees.js'
 
 const SECTIONS = [
   {
-    title: 'Trung tâm thu những thông tin nào',
+    title: 'ScienceHub thu những thông tin nào',
     items: [
       'Form đăng ký học: họ tên, khối lớp và trường của học sinh, môn và lịch muốn học, họ tên và số điện thoại phụ huynh, số điện thoại học sinh (nếu có), ghi chú của phụ huynh.',
       'Tra cứu điểm: mã học sinh và số điện thoại phụ huynh, chỉ dùng để kiểm tra đúng phụ huynh của học sinh.',
@@ -16,13 +17,14 @@ const SECTIONS = [
     items: [
       'Liên hệ tư vấn và xếp lớp cho học sinh.',
       'Cho phụ huynh xem điểm các bài kiểm tra của con.',
-      'Trung tâm không bán, không chia sẻ thông tin cho bên khác và không dùng để quảng cáo.',
+      `Khi học sinh vào học, ScienceHub chuyển họ tên học sinh, lớp học và số điện thoại phụ huynh cho ${PARTNER.name} để Trung tâm thu học phí.`,
+      'ScienceHub không bán thông tin, không chia sẻ cho bên nào khác và không dùng để quảng cáo.',
     ],
   },
   {
     title: 'Ai được xem',
     items: [
-      'Chỉ người quản lý của Trung tâm xem được đơn đăng ký.',
+      'Chỉ thầy phụ trách ScienceHub xem được đơn đăng ký.',
       'Kết quả tra cứu điểm chỉ hiện cho người nhập đúng mã học sinh và số điện thoại phụ huynh đã đăng ký.',
     ],
   },
@@ -41,8 +43,8 @@ const SECTIONS = [
   },
 ]
 ---
-<Base title="Chính sách bảo mật" description="Trung tâm ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào.">
-  <PageHeading title="Chính sách bảo mật" subtitle="Trung tâm thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào." />
+<Base title="Chính sách bảo mật" description="Lớp học ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào.">
+  <PageHeading title="Chính sách bảo mật" subtitle="ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào." />
 
   <div class="space-y-4">
     {SECTIONS.map((section) => (

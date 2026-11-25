@@ -14,7 +14,7 @@ export async function api(url, { method = 'GET', body } = {}) {
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     throw new Error(
-      data?.error ?? `Trung tâm chưa tải được dữ liệu (lỗi ${res.status}). Phụ huynh vui lòng thử lại sau ít phút.`,
+      data?.error ?? `Chưa tải được dữ liệu (lỗi ${res.status}). Phụ huynh vui lòng thử lại sau ít phút.`,
     )
   }
   return data

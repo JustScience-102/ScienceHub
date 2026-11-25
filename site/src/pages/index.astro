@@ -2,6 +2,7 @@
 import { ArrowRight, CalendarDays, ClipboardPen, GraduationCap, ScrollText } from 'lucide-react'
 import Base from '../layouts/Base.astro'
 import ContactList from '../components/ContactList.astro'
+import FitNote from '../components/FitNote.astro'
 import { CENTER } from '../data/center.js'
 
 const CARDS = [
@@ -9,19 +10,19 @@ const CARDS = [
     href: '/lop-hoc',
     icon: CalendarDays,
     title: 'Lớp học & học phí',
-    text: 'Các lớp đang mở, giáo viên, lịch học trong tuần và học phí mỗi buổi.',
+    text: 'Các lớp đang mở, giáo viên, lịch học trong tuần và mức học phí.',
   },
   {
     href: '/quy-dinh',
     icon: ScrollText,
     title: 'Quy định',
-    text: 'Cách tính học phí, học bù và nội quy lớp học.',
+    text: 'Nội quy lớp học, xin nghỉ, học bù và quy định thu học phí.',
   },
   {
     href: '/dang-ky',
     icon: ClipboardPen,
     title: 'Đăng ký học',
-    text: 'Điền thông tin và chọn lịch học, Trung tâm sẽ gọi lại cho phụ huynh.',
+    text: 'Điền thông tin và chọn lịch học, ScienceHub sẽ liên hệ lại với phụ huynh.',
   },
   {
     href: '/tra-cuu-diem',
@@ -33,12 +34,12 @@ const CARDS = [
 ---
 <Base>
   <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-    <div class="flex flex-col-reverse gap-6 sm:flex-row sm:items-center">
+    <div class="flex flex-col-reverse gap-6 sm:flex-row sm:items-start">
       <div class="min-w-0 flex-1">
         <h1 class="text-3xl font-bold text-slate-800 sm:text-4xl">{CENTER.name}</h1>
         <p class="mt-2 text-lg font-medium text-sky-700">{CENTER.slogan}</p>
         {CENTER.intro.length > 0 ? (
-          <div class="mt-4 space-y-3 text-base text-slate-600">
+          <div class="mt-4 space-y-3 text-base leading-relaxed text-slate-600">
             {CENTER.intro.map((paragraph) => <p>{paragraph}</p>)}
           </div>
         ) : (
@@ -46,6 +47,9 @@ const CARDS = [
             Thông tin lớp học, lịch học, học phí và đăng ký học dành cho phụ huynh và học sinh.
           </p>
         )}
+        <div class="mt-5">
+          <FitNote />
+        </div>
         <div class="mt-6 flex flex-wrap gap-3">
           <a
             href="/dang-ky"
@@ -59,7 +63,7 @@ const CARDS = [
             class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-base font-medium text-slate-700 hover:bg-slate-50"
           >
             <CalendarDays size={18} aria-hidden="true" />
-            Xem lịch học
+            Xem lịch học & học phí
           </a>
         </div>
       </div>

@@ -1,5 +1,5 @@
 ---
-// Thông tin liên hệ của Trung tâm (trang chủ, chân trang, trang Đăng ký). Nội dung ở src/data/center.js.
+// Thông tin liên hệ của Lớp học ScienceHub (trang chủ, chân trang, trang Đăng ký). Nội dung ở src/data/center.js.
 import { Clock, MapPin, MessageCircle, Navigation, Phone } from 'lucide-react'
 import Pending from './Pending.astro'
 import { CENTER } from '../data/center.js'
@@ -19,11 +19,27 @@ const icon = 'mt-0.5 shrink-0 text-sky-700'
   </li>
   <li class={row}>
     <MapPin size={18} aria-hidden="true" className={icon} />
-    <span>{CENTER.address || <Pending />}</span>
+    <span>
+      {CENTER.address || <Pending />}
+      {compact && CENTER.mapUrl && (
+        <>
+          {' '}·{' '}
+          <a href={CENTER.mapUrl} target="_blank" rel="noopener noreferrer" class="font-medium text-sky-700 hover:underline">
+            Xem bản đồ
+          </a>
+        </>
+      )}
+    </span>
   </li>
   <li class={row}>
     <Clock size={18} aria-hidden="true" className={icon} />
-    <span>{CENTER.hours || <Pending />}</span>
+    {CENTER.hours.length > 0 ? (
+      <span>
+        {CENTER.hours.map((line) => <span class="block">{line}</span>)}
+      </span>
+    ) : (
+      <span><Pending /></span>
+    )}
   </li>
 </ul>
 {!compact && (

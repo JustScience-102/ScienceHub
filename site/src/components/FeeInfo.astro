@@ -1,0 +1,65 @@
+---
+// Học phí theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
+// table: bảng học phí (bảng từ md trở lên, thẻ trên điện thoại); rules: các quy định thu học phí.
+import { Handshake } from 'lucide-react'
+import { FEE_RULES, FEE_TABLE, PARTNER } from '../data/fees.js'
+
+const { table = true, rules = true } = Astro.props
+---
+<div class="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+  <Handshake size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-sky-700" />
+  <p>
+    ScienceHub cộng tác với <b>{PARTNER.name}</b>. Mức học phí do Trung tâm quy định; phụ huynh đóng học phí
+    trực tiếp cho quản lý của Trung tâm (Zalo{' '}
+    <a href={`https://zalo.me/${PARTNER.phone}`} target="_blank" rel="noopener noreferrer" class="font-semibold text-sky-700 hover:underline">{PARTNER.phoneShown}</a>).
+  </p>
+</div>
+
+{table && (
+  <>
+    <div class="mt-4 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-50 text-slate-600">
+          <tr>
+            <th scope="col" class="px-4 py-3 font-semibold">Lớp học</th>
+            <th scope="col" class="px-4 py-3 font-semibold">Lịch học</th>
+            <th scope="col" class="px-4 py-3 font-semibold">Tổng số buổi</th>
+            <th scope="col" class="px-4 py-3 text-right font-semibold">Học phí</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {FEE_TABLE.map((row) => (
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-800">{row.classes}</td>
+              <td class="px-4 py-3 text-slate-700">{row.schedule}</td>
+              <td class="px-4 py-3 text-slate-700">{row.sessions}</td>
+              <td class="px-4 py-3 text-right text-base font-bold text-sky-700">{row.fee}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <ul class="mt-4 space-y-3 md:hidden">
+      {FEE_TABLE.map((row) => (
+        <li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="font-semibold text-slate-800">{row.classes}</p>
+          <p class="mt-1 text-sm text-slate-600">{row.schedule} · {row.sessions}</p>
+          <p class="mt-2 text-xl font-bold text-sky-700">{row.fee}</p>
+        </li>
+      ))}
+    </ul>
+  </>
+)}
+
+{rules && (
+  <ol class="mt-4 space-y-2">
+    {FEE_RULES.map((rule, index) => (
+      <li class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-base text-slate-700 shadow-sm">
+        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-sky-700">
+          {index + 1}
+        </span>
+        <span>{rule}</span>
+      </li>
+    ))}
+  </ol>
+)}

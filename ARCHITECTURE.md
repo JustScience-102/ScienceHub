@@ -203,19 +203,24 @@ Web công khai cho phụ huynh và học sinh, dự án Vercel riêng trong cùn
 HTML tĩnh; phần cần bấm là component React; cùng Tailwind, `lucide-react`, logo và bảng màu với app này và app giao bài.
 Chi tiết kỹ thuật: `site/README.md`.
 
-### 5.1. Các tab
-- **Trang chủ**, **Quy định** (nội dung theo mục 2.5 và 2.7: học phí theo buổi, Có phép không tính, giá đóng băng,
-  học bù, lịch chia theo phần), **Chính sách bảo mật**: nội dung tĩnh; thông tin liên hệ ở `site/src/data/center.js`.
+### 5.1. Danh xưng, học phí và các tab
+- **Danh xưng trên web** (người dùng chốt 25/11/2026): "Lớp học ScienceHub", trong câu gọi tắt "ScienceHub". Chữ
+  "Trung tâm" trên web chỉ dùng cho **Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy**: ScienceHub cộng tác với Trung tâm,
+  mức học phí do Trung tâm quy định, phụ huynh đóng học phí cho quản lý của Trung tâm. App quản lý này vẫn giữ tên cũ.
+- **Học phí trên web** chép theo tờ "Quy định thu học phí" của Trung tâm (`site/src/data/fees.js`: bảng 600.000đ/tháng
+  cho lớp 2 buổi/tuần, 75.000đ/buổi cho KHTN cấp 2, 4 quy định khi nghỉ), **không** lấy `price_per_session` của app này.
+- **Trang chủ**, **Quy định** (nội quy, xin nghỉ và học bù, học phí, lịch chia theo phần), **Chính sách bảo mật**: nội dung
+  tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc, lời giới thiệu ở `site/src/data/center.js`.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
   (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
-- **Lớp học & học phí** (mốc M2) và **Đăng ký học** (mốc M3): đang ghi "đang cập nhật", thiết kế đã chốt ở mục 5.2.
+- **Lớp học & học phí**: bảng học phí đã có; phần lịch học các lớp chờ mốc M2. **Đăng ký học**: chờ mốc M3 (mục 5.2).
 
 ### 5.2. Nối CSDL Trung tâm (thiết kế đã chốt 24/11/2026, chưa làm)
 - Theo cách của mục 2.14: file `supabase/v3/11_website.sql`, schema riêng `website`, tài khoản CSDL `website_link`
   chỉ gọi được các hàm trong schema đó. Hàm máy chủ Vercel của `site/` (thư viện `postgres`) gọi các hàm này;
   `anon` vẫn không có quyền gì (mục 1.3 giữ nguyên).
 - `website.catalog()`: lớp đang hiển thị (môn, khối, tên thân thiện, **tên giáo viên**), lịch đang áp dụng hôm nay,
-  đơn giá/buổi, nhóm lớp và số phần của từng lớp. Không trả học sinh, phụ huynh, điểm danh, doanh thu.
+  nhóm lớp và số phần của từng lớp. Không trả đơn giá (học phí theo mục 5.1), học sinh, phụ huynh, điểm danh, doanh thu.
 - `website.submit_registration(...)` ghi vào `website.registration_requests`. **Chọn lịch theo nhóm lớp:** lớp thuộc
   nhóm thì phụ huynh chọn **đúng một ca ở mỗi phần** đang mở của nhóm (không được hai ca cùng phần vì cùng nội dung,
   không được thiếu phần); kiểm tra ở cả form và SQL. Chống spam: ô bẫy, giới hạn theo IP và SĐT.
