@@ -1,12 +1,16 @@
 ---
+// Bố cục cùng kiểu trang chủ: PageHero, các mục là thẻ có biểu tượng trên nền xanh rất nhạt.
+import { ClipboardList, Eye, KeyRound, Target, UserPen } from 'lucide-react'
 import Base from '../layouts/Base.astro'
-import PageHeading from '../components/PageHeading.astro'
+import PageHero from '../components/PageHero.astro'
+import PageSection from '../components/PageSection.astro'
 import { CENTER } from '../data/center.js'
 import { PARTNER } from '../data/fees.js'
 
 const SECTIONS = [
   {
     title: 'ScienceHub thu những thông tin nào',
+    icon: ClipboardList,
     items: [
       'Form đăng ký học: họ tên, khối lớp và trường của học sinh, môn và lịch muốn học, họ tên và số điện thoại phụ huynh, số điện thoại học sinh (nếu có), mã học sinh giới thiệu (nếu có), ghi chú của phụ huynh.',
       'Để chống gửi đơn rác, máy chủ lưu một mã được mã hóa một chiều từ địa chỉ mạng (IP) của máy gửi đơn, không lưu địa chỉ IP thật.',
@@ -15,6 +19,7 @@ const SECTIONS = [
   },
   {
     title: 'Dùng để làm gì',
+    icon: Target,
     items: [
       'Liên hệ tư vấn và xếp lớp cho học sinh.',
       'Cho phụ huynh xem điểm các bài kiểm tra của con.',
@@ -24,6 +29,7 @@ const SECTIONS = [
   },
   {
     title: 'Ai được xem',
+    icon: Eye,
     items: [
       'Chỉ thầy phụ trách ScienceHub xem được đơn đăng ký.',
       'Kết quả tra cứu điểm chỉ hiện cho người nhập đúng mã học sinh và số điện thoại phụ huynh đã đăng ký.',
@@ -31,6 +37,7 @@ const SECTIONS = [
   },
   {
     title: 'Ghi nhớ đăng nhập',
+    icon: KeyRound,
     items: [
       'Trang Tra cứu điểm lưu một mã đăng nhập trên trình duyệt để máy nhớ phụ huynh trong 90 ngày. Bấm “Thoát” để xóa trên máy đó.',
       'Web không dùng công cụ theo dõi hay quảng cáo.',
@@ -38,23 +45,44 @@ const SECTIONS = [
   },
   {
     title: 'Xem, sửa hoặc xóa thông tin',
+    icon: UserPen,
     items: [
       `Phụ huynh muốn xem, sửa hoặc xóa thông tin đã gửi, vui lòng liên hệ ${CENTER.contactName}: ${CENTER.phoneShown}.`,
     ],
   },
 ]
 ---
-<Base title="Chính sách bảo mật" description="Lớp học ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào.">
-  <PageHeading title="Chính sách bảo mật" subtitle="ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào." />
+<Base wide title="Chính sách bảo mật" description="Lớp học ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào.">
+  <PageHero
+    eyebrow="Thông tin của phụ huynh, học sinh"
+    title="Chính sách bảo mật"
+    subtitle="ScienceHub thu thập và sử dụng thông tin của phụ huynh, học sinh như thế nào."
+  />
 
-  <div class="space-y-4">
-    {SECTIONS.map((section) => (
-      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 class="text-lg font-semibold text-slate-800">{section.title}</h2>
-        <ul class="mt-3 list-disc space-y-2 pl-6 text-base text-slate-700 marker:text-brand-600">
-          {section.items.map((item) => <li>{item}</li>)}
-        </ul>
-      </section>
-    ))}
-  </div>
+  <PageSection id="noi-dung-bao-mat" tone="tint" compact>
+    <h2 id="noi-dung-bao-mat-tieu-de" class="sr-only">Nội dung chính sách</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      {SECTIONS.map((section) => {
+        const Icon = section.icon
+        return (
+          <section class="reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h3 class="flex items-center gap-3 text-lg font-bold text-slate-900">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+                <Icon size={20} aria-hidden="true" />
+              </span>
+              {section.title}
+            </h3>
+            <ul class="mt-4 space-y-2.5">
+              {section.items.map((item) => (
+                <li class="flex items-start gap-3 text-base text-slate-700">
+                  <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true"></span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+    </div>
+  </PageSection>
 </Base>

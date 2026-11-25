@@ -7,9 +7,6 @@ export const CENTER = {
   name: 'Lớp học ScienceHub',
   shortName: 'ScienceHub',
   slogan: 'Always ask why?',
-  // Lưu ý nổi bật ở trang Đăng ký học (trang chủ dùng phần "ScienceHub phù hợp với ai?" ở src/data/trang-chu.js).
-  fitNote:
-    'ScienceHub dành cho học sinh sẵn sàng cố gắng. Lớp học không phù hợp với học sinh quá lười: không làm bài tập, không chịu nghe giảng và không có ý thức tự học.',
   address: 'Số 10 Nguyễn Công Trứ, phường Bãi Cháy, thành phố Quảng Ninh',
   // Liên kết Google Maps (mở Google Maps, tìm địa chỉ, bấm Chia sẻ > Sao chép đường liên kết).
   mapUrl: 'https://maps.app.goo.gl/HGQPkzM1YHZHNr2h6',

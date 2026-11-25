@@ -1,13 +1,13 @@
 ---
 // "ScienceHub phù hợp với ai?" (FIT ở src/data/trang-chu.js), đặt ngay trước phần Đăng ký ở cuối trang chủ.
-// Thay khung lưu ý màu vàng cũ của trang chủ (trang Đăng ký học vẫn dùng FitNote).
+// Thay khung lưu ý màu vàng cũ. Trang Đăng ký học dùng bản gọn (src/components/FitCompact.astro), cùng dữ liệu FIT.
 import { Check, X } from 'lucide-react'
-import HomeSection from './HomeSection.astro'
+import PageSection from '../PageSection.astro'
 import { FIT } from '../../data/trang-chu.js'
 
 const { tone } = Astro.props
 ---
-<HomeSection
+<PageSection
   id="phu-hop"
   tone={tone}
   eyebrow="Trước khi đăng ký"
@@ -52,4 +52,4 @@ const { tone } = Astro.props
   <p class="reveal mt-5 text-base text-slate-600">
     Phụ huynh còn băn khoăn, hãy gọi hoặc nhắn Zalo để thầy tư vấn trước khi đăng ký.
   </p>
-</HomeSection>
+</PageSection>

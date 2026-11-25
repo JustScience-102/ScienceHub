@@ -5,11 +5,12 @@
 export const DAY_LABELS = { 2: 'Thứ 2', 3: 'Thứ 3', 4: 'Thứ 4', 5: 'Thứ 5', 6: 'Thứ 6', 7: 'Thứ 7', 8: 'Chủ nhật' }
 
 // Màu môn trên web (biến physics/chem ở src/styles/global.css), dùng chung với tab Tra cứu điểm và trang chủ.
+// chip: nút lọc môn đang chọn (nền đậm 700 để chữ trắng đủ tương phản).
 const SUBJECT_STYLES = {
-  'vật lí': { tag: 'bg-physics-100 text-physics-800', bar: 'bg-physics-500' },
-  'hóa học': { tag: 'bg-chem-100 text-chem-800', bar: 'bg-chem-500' },
+  'vật lí': { tag: 'bg-physics-100 text-physics-800', bar: 'bg-physics-500', chip: 'border-physics-700 bg-physics-700 text-white' },
+  'hóa học': { tag: 'bg-chem-100 text-chem-800', bar: 'bg-chem-500', chip: 'border-chem-700 bg-chem-700 text-white' },
 }
-const DEFAULT_STYLE = { tag: 'bg-slate-100 text-slate-700', bar: 'bg-slate-400' }
+const DEFAULT_STYLE = { tag: 'bg-slate-100 text-slate-700', bar: 'bg-slate-400', chip: 'border-brand-600 bg-brand-600 text-white' }
 
 export function subjectStyle(subject) {
   return SUBJECT_STYLES[String(subject ?? '').normalize('NFC').toLowerCase()] ?? DEFAULT_STYLE

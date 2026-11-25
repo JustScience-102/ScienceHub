@@ -2,8 +2,8 @@
 // Khung "Câu hỏi vì sao hôm nay" (dữ liệu: src/data/cau-hoi-vi-sao.js). Trang dựng sẵn mọi câu, câu đầu hiện khi
 // chưa chạy JavaScript; script trang chủ (src/scripts/home.js, setupWhy) chọn ngẫu nhiên 1 câu, mở/ẩn lời giải, đổi câu.
 import { Eye, EyeOff, Lightbulb, Shuffle } from 'lucide-react'
-import HomeSection from './HomeSection.astro'
-import SectionHeader from './SectionHeader.astro'
+import PageSection from '../PageSection.astro'
+import SectionHeader from '../SectionHeader.astro'
 import { WHY_QUESTIONS } from '../../data/cau-hoi-vi-sao.js'
 import { subjectStyle } from '../../lib/catalog.js'
 
@@ -11,7 +11,7 @@ const { tone } = Astro.props
 const questions = WHY_QUESTIONS.filter((q) => q?.cauHoi && q?.loiGiai)
 ---
 {questions.length > 0 && (
-  <HomeSection id="cau-hoi-vi-sao" tone={tone}>
+  <PageSection id="cau-hoi-vi-sao" tone={tone}>
     <div class="grid items-center gap-8 lg:grid-cols-5 lg:gap-12">
       <SectionHeader
         id="cau-hoi-vi-sao-tieu-de"
@@ -84,5 +84,5 @@ const questions = WHY_QUESTIONS.filter((q) => q?.cauHoi && q?.loiGiai)
         </div>
       </div>
     </div>
-  </HomeSection>
+  </PageSection>
 )}

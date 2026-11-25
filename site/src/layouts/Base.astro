@@ -24,6 +24,7 @@ const desc =
 const canonical = new URL(path, Astro.site).href
 const ogImage = new URL('/icon-512.png', Astro.site).href
 const year = new Date().getFullYear()
+const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-brand-700 hover:underline'
 ---
 <!doctype html>
 <html lang="vi">
@@ -113,16 +114,12 @@ const year = new Date().getFullYear()
           </div>
         </div>
         <nav aria-label="Liên kết cuối trang">
-          <ul class="grid gap-2 text-sm">
+          <ul class="grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-1">
             {NAV_ITEMS.slice(1).map((item) => (
-              <li><a href={item.href} class="text-slate-600 hover:text-brand-700 hover:underline">{item.label}</a></li>
+              <li><a href={item.href} class={footerLink}>{item.label}</a></li>
             ))}
-            <li>
-              <a href={HOMEWORK_APP_URL} class="text-slate-600 hover:text-brand-700 hover:underline">
-                Học sinh: vào app làm bài tập
-              </a>
-            </li>
-            <li><a href="/bao-mat" class="text-slate-600 hover:text-brand-700 hover:underline">Chính sách bảo mật</a></li>
+            <li><a href={HOMEWORK_APP_URL} class={footerLink}>App làm bài tập</a></li>
+            <li><a href="/bao-mat" class={footerLink}>Chính sách bảo mật</a></li>
           </ul>
         </nav>
       </div>
@@ -159,6 +156,9 @@ const year = new Date().getFullYear()
     </nav>
 
     <script>
+      // Hiện dần khi cuộn tới (.reveal) và nút liên hệ nổi (FloatingContact) của các trang.
+      import '../scripts/page-effects.js'
+
       // Ô nhập làm bật bàn phím ảo thì ẩn thanh tab đáy (CSS body[data-typing] .bottom-nav).
       const KEYBOARD_TYPES = new Set(['text', 'search', 'email', 'password', 'tel', 'url', 'number', 'date', 'time', 'month'])
       function opensKeyboard(element) {

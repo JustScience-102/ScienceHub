@@ -3,8 +3,8 @@
 // (APP_SCREENSHOT ở src/data/trang-chu.js; chưa có file thì khung điện thoại không hiện).
 import { Picture } from 'astro:assets'
 import { ArrowRight, BadgeCheck, NotebookPen, Smartphone } from 'lucide-react'
-import HomeSection from './HomeSection.astro'
-import SectionHeader from './SectionHeader.astro'
+import PageSection from '../PageSection.astro'
+import SectionHeader from '../SectionHeader.astro'
 import { homeImage } from './images.js'
 import { HOMEWORK_APP_URL } from '../../data/center.js'
 import { APP_SCREENSHOT } from '../../data/trang-chu.js'
@@ -30,7 +30,7 @@ const FEATURES = [
   },
 ]
 ---
-<HomeSection id="cong-nghe" tone={tone}>
+<PageSection id="cong-nghe" tone={tone}>
   <div class:list={['grid items-center gap-10', screenshot && 'lg:grid-cols-[1fr_auto] lg:gap-16']}>
     <div>
       <SectionHeader
@@ -87,4 +87,4 @@ const FEATURES = [
       </figure>
     )}
   </div>
-</HomeSection>
+</PageSection>

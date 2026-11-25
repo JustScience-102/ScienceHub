@@ -2,8 +2,8 @@
 // Con số và nhận xét (STATS, REVIEWS ở src/data/trang-chu.js). Chỉ hiện mục đã điền dữ liệu thật; không có gì thì
 // cả phần ẩn. Số đã có sẵn trong HTML; script trang chủ (setupCountUp) cho số chạy dần lên khi cuộn tới.
 import { Quote } from 'lucide-react'
-import HomeSection from './HomeSection.astro'
-import SectionHeader from './SectionHeader.astro'
+import PageSection from '../PageSection.astro'
+import SectionHeader from '../SectionHeader.astro'
 import { filledReviews, filledStats } from '../../data/trang-chu.js'
 
 const { tone } = Astro.props
@@ -13,7 +13,7 @@ const statCols = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3'
 const formatNumber = (n) => n.toLocaleString('vi-VN')
 ---
 {(stats.length > 0 || reviews.length > 0) && (
-  <HomeSection id="con-so" tone={tone}>
+  <PageSection id="con-so" tone={tone}>
     {stats.length > 0 && (
       <>
         <SectionHeader id="con-so-tieu-de" eyebrow="Con số" title="ScienceHub qua những con số" class="mb-8" />
@@ -52,5 +52,5 @@ const formatNumber = (n) => n.toLocaleString('vi-VN')
         </ul>
       </div>
     )}
-  </HomeSection>
+  </PageSection>
 )}

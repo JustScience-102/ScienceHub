@@ -1,4 +1,5 @@
-// Script của trang chủ (src/pages/index.astro). JavaScript thuần, không thư viện.
+// Script riêng của trang chủ (src/pages/index.astro). JavaScript thuần, không thư viện. Hiện dần khi cuộn và nút liên
+// hệ nổi dùng chung cho mọi trang: src/scripts/page-effects.js (nạp ở layouts/Base.astro).
 // Mọi phần đều chạy được khi thiếu JavaScript: nội dung đã có sẵn trong HTML, script chỉ thêm tương tác.
 import { api } from '../lib/api.js'
 import { buildSections, daysText, sectionDays, sharedTeacher, subjectStyle } from '../lib/catalog.js'
@@ -54,28 +55,6 @@ function setupWhy() {
 
   toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'))
   next?.addEventListener('click', () => show(nextIndex()))
-}
-
-// ===== Hiện dần khi cuộn tới =====
-// Chỉ ẩn những phần đang nằm dưới màn hình lúc tải trang (phần đang thấy không bị nháy).
-function setupReveal() {
-  const elements = [...document.querySelectorAll('.reveal')]
-  if (reduceMotion || !('IntersectionObserver' in window)) return
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue
-        entry.target.classList.remove('is-hidden')
-        observer.unobserve(entry.target)
-      }
-    },
-    { rootMargin: '0px 0px -8% 0px' },
-  )
-  for (const element of elements) {
-    if (element.getBoundingClientRect().top < window.innerHeight) continue
-    element.classList.add('is-hidden')
-    observer.observe(element)
-  }
 }
 
 // ===== Con số chạy dần lên khi cuộn tới =====
@@ -172,69 +151,9 @@ async function setupSchedulePreview() {
   }
   box.replaceChildren(...cards)
   box.removeAttribute('aria-busy')
-  document.dispatchEvent(new Event('schedule-preview-ready'))
-}
-
-// ===== Nút liên hệ nổi (điện thoại) =====
-// Hiện khi đã cuộn qua phần đầu trang; ẩn khi phần Liên hệ hoặc chân trang đang hiện (ở đó đã có nút gọi/Zalo),
-// và tạm ẩn mỗi khi nằm đè lên một nút hay liên kết khác của trang để không che nút đó.
-function setupFloatingContact() {
-  const floating = document.querySelector('[data-floating-contact]')
-  if (!floating) return
-  const setShown = (show) => {
-    floating.classList.toggle('invisible', !show)
-    floating.classList.toggle('opacity-0', !show)
-    floating.classList.toggle('translate-y-3', !show)
-  }
-  const hero = document.querySelector('#tieu-de-trang')?.closest('section')
-  const watched = [hero, document.querySelector('#lien-he'), document.querySelector('footer')].filter(Boolean)
-  if (!('IntersectionObserver' in window) || watched.length === 0) {
-    setShown(true)
-    return
-  }
-
-  const visible = new Map()
-  const GAP = 8
-  function coversClickable() {
-    const box = floating.getBoundingClientRect()
-    if (box.width === 0) return false
-    const targets = document.querySelectorAll('main a[href], main button, main summary, main input, main select')
-    for (const element of targets) {
-      if (floating.contains(element)) continue
-      const r = element.getBoundingClientRect()
-      if (r.width === 0 || r.height === 0) continue
-      if (r.right > box.left - GAP && r.left < box.right + GAP && r.bottom > box.top - GAP && r.top < box.bottom + GAP) {
-        return true
-      }
-    }
-    return false
-  }
-  let queued = false
-  function update() {
-    queued = false
-    // Ở máy tính nút bị ẩn hẳn (lg:hidden), không cần tính.
-    if (getComputedStyle(floating).display === 'none') return
-    setShown(watched.every((element) => !visible.get(element)) && !coversClickable())
-  }
-  const schedule = () => {
-    if (queued) return
-    queued = true
-    requestAnimationFrame(update)
-  }
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) visible.set(entry.target, entry.isIntersecting)
-    schedule()
-  })
-  for (const element of watched) observer.observe(element)
-  window.addEventListener('scroll', schedule, { passive: true })
-  window.addEventListener('resize', schedule)
-  // Phần tử vừa hiện dần xong (đã trượt vào chỗ) hoặc lịch học vừa tải xong cũng có thể nằm dưới nút.
-  document.addEventListener('transitionend', schedule)
-  document.addEventListener('schedule-preview-ready', schedule)
+  document.dispatchEvent(new Event('layout-changed'))
 }
 
 setupWhy()
-setupReveal()
 setupCountUp()
-setupFloatingContact()
 setupSchedulePreview()

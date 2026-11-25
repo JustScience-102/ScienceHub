@@ -3,7 +3,7 @@
 // sẵn bản WebP nhiều cỡ để điện thoại chỉ tải bản vừa màn hình. Không có ảnh nào thì cả phần ẩn.
 // Bố cục theo số ảnh: 4 ảnh trên máy tính là 1 ảnh lớn + 1 ảnh ngang + 2 ảnh nhỏ; điện thoại 2 cột.
 import { Picture } from 'astro:assets'
-import HomeSection from './HomeSection.astro'
+import PageSection from '../PageSection.astro'
 import { homeImage } from './images.js'
 import { PHOTOS } from '../../data/trang-chu.js'
 
@@ -37,7 +37,7 @@ const gridClass =
 const fixedRows = count === 3 || count === 4
 ---
 {count > 0 && (
-  <HomeSection
+  <PageSection
     id="anh-lop-hoc"
     tone={tone}
     eyebrow="Không gian lớp học"
@@ -68,5 +68,5 @@ const fixedRows = count === 3 || count === 4
         )
       })}
     </ul>
-  </HomeSection>
+  </PageSection>
 )}

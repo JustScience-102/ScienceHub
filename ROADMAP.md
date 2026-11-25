@@ -27,6 +27,17 @@
 
 ## 1. Thay đổi gần đây
 
+### 26/11/2026 — Trang giới thiệu: các tab khác cùng kiểu trang chủ, tối ưu điện thoại
+- Khối dùng chung ở `site/src/components/`: `PageHero` (phần đầu trang), `JumpLinks` (mục lục nhanh cuộn ngang),
+  `PageSection` + `SectionHeader` (chuyển từ `home/`), `FloatingContact` (dùng ở trang chủ, Lớp học, Quy định),
+  `FitCompact`. Hiện dần khi cuộn và nút nổi tách sang `site/src/scripts/page-effects.js`, nạp ở `Base.astro`. Bỏ
+  `PageHeading.astro`, `FitNote.astro`, `CENTER.fitNote`.
+- Lớp học & học phí: thẻ giá to; thanh lọc môn/khối dính dưới thanh tiêu đề, một hàng cuộn ngang, nút môn mang màu môn;
+  đổi bộ lọc thì đưa đầu danh sách về dưới thanh lọc. Quy định: mỗi mục một dải có biểu tượng, câu "Tôn sư trọng đạo"
+  nổi bật, nút nhắn Zalo báo nghỉ, quy định học phí thành danh sách gọn (bỏ thẻ lồng thẻ). Đăng ký học: khung gọn "phù
+  hợp với ai?" thay khung vàng. Tra cứu điểm: nền giấy kẻ ô + dòng hỗ trợ. Chân trang: liên kết 2 cột trên điện thoại.
+- `RegistrationForm.jsx`, `ScoreLookup.jsx` và các API không đổi.
+
 ### 25/11/2026 — Trang giới thiệu: làm mới trang chủ
 - Trang chủ chia thành các dải nền xen kẽ (trắng / xanh rất nhạt / giấy kẻ ô), mỗi phần một component ở `site/src/components/home/`: phần đầu có họa tiết khoa học SVG trôi chậm; khung "Câu hỏi vì sao hôm nay" (20 câu, ngẫu nhiên, "Xem lời giải", "Câu khác"); công nghệ (3 ô + khung điện thoại); "Các lớp đang mở" lấy từ `/api/lop-hoc` (thay 4 thẻ lặp menu); ảnh lớp học; con số + nhận xét (tự ẩn khi chưa có dữ liệu thật); "ScienceHub phù hợp với ai?" (thay khung lưu ý vàng của trang chủ, trang Đăng ký giữ nguyên); dải Đăng ký + Liên hệ; nút Zalo/Gọi nổi trên điện thoại (tự ẩn ở đầu trang, ở phần Liên hệ và khi đè lên nút khác). Script JS thuần `site/src/scripts/home.js`; tôn trọng `prefers-reduced-motion`.
 - Màu của cả web gom thành biến trong `site/src/styles/global.css`: `brand` (xanh dương chính, đổi tên từ `sky`, cùng giá trị), `mint` (xanh lá của logo), `physics` (Vật Lí, xanh dương), `chem` (Hóa học, **đổi sang cam**). Các trang khác không đổi giao diện (so ảnh chụp từng điểm ảnh), trừ nhãn Hóa học ở trang Lớp học/Đăng ký/Tra cứu điểm thành màu cam. App quản lý vẫn để Hóa học màu xanh lá.

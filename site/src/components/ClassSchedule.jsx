@@ -1,7 +1,7 @@
 // Lịch học các lớp đang mở (trang Lớp học & học phí), lấy từ app quản lý qua /api/lop-hoc (site/api/lop-hoc.js).
 // Lớp thuộc nhóm lớp hiện theo phần (khung riêng từng phần, nối bằng dấu +): mỗi phần là một nội dung, phụ huynh
 // chọn một ca cho mỗi phần; kèm ví dụ các cách chọn đúng (✓) và một cách sai (✕) tính từ lịch thật.
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import {
@@ -15,9 +15,10 @@ import {
   vnDateText,
 } from '../lib/catalog.js'
 
-function chipClass(on) {
-  return `inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
-    on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+// Nút lọc: một hàng cuộn ngang trên điện thoại; nút môn đang chọn mang màu của môn (subjectStyle().chip).
+function chipClass(on, activeClass = 'border-brand-600 bg-brand-600 text-white') {
+  return `inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors ${
+    on ? activeClass : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`
 }
 
@@ -26,6 +27,10 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
   const [error, setError] = useState('')
   const [subject, setSubject] = useState('all')
   const [grade, setGrade] = useState('all')
+  // Thanh lọc dính dưới thanh tiêu đề khi cuộn; đổi môn/khối lúc đã cuộn sâu thì đưa đầu danh sách về ngay dưới thanh lọc.
+  const barRef = useRef(null)
+  const listRef = useRef(null)
+  const filtered = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +45,13 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!filtered.current) return
+    const bar = barRef.current?.getBoundingClientRect()
+    const list = listRef.current?.getBoundingClientRect()
+    if (bar && list && list.top < bar.bottom) window.scrollBy(0, list.top - bar.bottom - 12)
+  }, [subject, grade])
 
   const sections = useMemo(() => buildSections(data?.classes ?? [], subjects), [data, subjects])
   const subjectList = [...new Set(sections.map((s) => s.subject))]
@@ -80,17 +92,21 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
   return (
     <div className="space-y-4">
       {(subjectList.length > 1 || gradeList.length > 1) && (
-        <div className="space-y-2">
+        <div
+          ref={barRef}
+          className="sticky top-16 z-10 -mx-4 space-y-2 border-b border-brand-100 bg-brand-50/95 px-4 py-2.5 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:border sm:px-3"
+        >
           {subjectList.length > 1 && (
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Lọc theo môn">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Lọc theo môn">
               {['all', ...subjectList].map((s) => (
                 <button
                   key={s}
                   type="button"
                   role="radio"
                   aria-checked={subject === s}
-                  className={chipClass(subject === s)}
+                  className={chipClass(subject === s, s === 'all' ? undefined : subjectStyle(s).chip)}
                   onClick={() => {
+                    filtered.current = true
                     setSubject(s)
                     setGrade('all')
                   }}
@@ -101,7 +117,7 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
             </div>
           )}
           {gradeList.length > 1 && (
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Lọc theo khối">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Lọc theo khối">
               {['all', ...gradeList].map((g) => (
                 <button
                   key={g}
@@ -109,7 +125,10 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
                   role="radio"
                   aria-checked={grade === g}
                   className={chipClass(grade === g)}
-                  onClick={() => setGrade(g)}
+                  onClick={() => {
+                    filtered.current = true
+                    setGrade(g)
+                  }}
                 >
                   {g === 'all' ? 'Tất cả khối' : `Lớp ${g}`}
                 </button>
@@ -119,9 +138,11 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
         </div>
       )}
 
-      {shown.map((section) => (
-        <Section key={section.key} section={section} today={data.today} />
-      ))}
+      <div ref={listRef} className="scroll-mt-40 space-y-4">
+        {shown.map((section) => (
+          <Section key={section.key} section={section} today={data.today} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -138,11 +159,11 @@ function Section({ section, today }) {
             <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
             Lớp {section.grade}
           </h3>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
             {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
             <a
               href={`/dang-ky?mon=${encodeURIComponent(section.subject)}&khoi=${section.grade}`}
-              className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-brand-600 px-3 text-sm font-semibold text-white hover:bg-brand-700"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 sm:min-h-10 sm:w-auto"
             >
               Đăng ký lịch này
               <ArrowRight size={16} aria-hidden="true" />

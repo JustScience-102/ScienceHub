@@ -1,10 +1,26 @@
 ---
+// Tra cứu điểm: src/components/ScoreLookup.jsx (giữ nguyên; khung đã có tiêu đề riêng nên trang không thêm PageHero).
+// Trang chỉ đặt khung trên nền giấy kẻ ô như trang chủ và thêm dòng hỗ trợ.
+import { MessageCircle } from 'lucide-react'
 import Base from '../layouts/Base.astro'
 import ScoreLookup from '../components/ScoreLookup.jsx'
+import { CENTER } from '../data/center.js'
 ---
 <Base
+  wide
   title="Tra cứu điểm"
   description="Phụ huynh xem điểm các bài kiểm tra của con tại Lớp học ScienceHub bằng mã học sinh và số điện thoại."
 >
-  <ScoreLookup client:load />
+  <div class="tone-grid border-b border-slate-200">
+    <div class="mx-auto max-w-5xl px-4 pt-6 pb-10 sm:pt-10 sm:pb-16">
+      <ScoreLookup client:load />
+      <p class="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-slate-600">
+        <MessageCircle size={16} aria-hidden="true" className="text-brand-600" />
+        Cần hỗ trợ tra cứu điểm? Nhắn Zalo cho thầy
+        <a href={`https://zalo.me/${CENTER.phone}`} target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-700 hover:underline">
+          {CENTER.phoneShown}
+        </a>
+      </p>
+    </div>
+  </div>
 </Base>

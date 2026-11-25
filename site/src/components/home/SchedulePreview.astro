@@ -3,14 +3,14 @@
 // Dữ liệu lấy từ /api/lop-hoc như trang Lớp học & học phí; script trang chủ (setupSchedulePreview) dựng thẻ từ các
 // <template> bên dưới. Không tải được thì chỉ còn liên kết sang trang Lớp học. Thay 4 thẻ lặp menu của trang chủ cũ.
 import { ArrowRight, CalendarDays, Wallet } from 'lucide-react'
-import HomeSection from './HomeSection.astro'
-import SectionHeader from './SectionHeader.astro'
+import PageSection from '../PageSection.astro'
+import SectionHeader from '../SectionHeader.astro'
 import { FEE_TABLE } from '../../data/fees.js'
 
 const { tone } = Astro.props
 const fee = FEE_TABLE[0]
 ---
-<HomeSection id="lop-dang-mo" tone={tone}>
+<PageSection id="lop-dang-mo" tone={tone}>
   <SectionHeader
     id="lop-dang-mo-tieu-de"
     eyebrow="Lịch học"
@@ -79,4 +79,4 @@ const fee = FEE_TABLE[0]
       </a>
     </li>
   </template>
-</HomeSection>
+</PageSection>

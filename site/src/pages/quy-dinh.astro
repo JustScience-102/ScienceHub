@@ -1,9 +1,23 @@
 ---
 // Nội quy và xin nghỉ: theo ý người dùng (25/11/2026). Học phí: tờ quy định của Trung tâm gia sư Chìa Khóa Vàng
 // (src/data/fees.js). Lịch chia theo phần: quy tắc nhóm lớp của app quản lý (ARCHITECTURE.md mục 2.7).
+// Bố cục cùng kiểu trang chủ: PageHero + mục lục nhanh, mỗi mục một dải nền xen kẽ, nút liên hệ nổi trên điện thoại.
+// Giữ id các mục (#noi-quy, #xin-nghi, #hoc-phi, #lich-theo-phan): trang khác liên kết tới.
+import {
+  ArrowRight,
+  BookOpenCheck,
+  CalendarX,
+  Layers,
+  MessageCircle,
+  ScrollText,
+  Wallet,
+} from 'lucide-react'
 import Base from '../layouts/Base.astro'
 import FeeInfo from '../components/FeeInfo.astro'
-import PageHeading from '../components/PageHeading.astro'
+import FloatingContact from '../components/FloatingContact.astro'
+import JumpLinks from '../components/JumpLinks.astro'
+import PageHero from '../components/PageHero.astro'
+import PageSection from '../components/PageSection.astro'
 import { CENTER } from '../data/center.js'
 
 const CLASS_RULES = [
@@ -15,9 +29,12 @@ const CLASS_RULES = [
 ]
 
 const LEAVE_RULES = [
-  `Khi cần nghỉ học, phụ huynh hoặc học sinh nhắn tin báo trước cho thầy qua Zalo ${CENTER.phoneShown}.`,
-  'Thầy hỗ trợ lại kiến thức buổi nghỉ hoặc sắp xếp cho em đến học bù ở một ca khác.',
-  'Học phí của buổi nghỉ tính theo quy định thu học phí ở mục 3.',
+  {
+    icon: MessageCircle,
+    text: `Khi cần nghỉ học, phụ huynh hoặc học sinh nhắn tin báo trước cho thầy qua Zalo ${CENTER.phoneShown}.`,
+  },
+  { icon: BookOpenCheck, text: 'Thầy hỗ trợ lại kiến thức buổi nghỉ hoặc sắp xếp cho em đến học bù ở một ca khác.' },
+  { icon: Wallet, text: 'Học phí của buổi nghỉ tính theo quy định thu học phí ở mục 3.' },
 ]
 
 const PART_RULES = [
@@ -25,50 +42,142 @@ const PART_RULES = [
   'Con học một ca của mỗi phần, không học hai ca của cùng một phần vì hai ca đó dạy cùng một nội dung.',
 ]
 
-const heading = 'flex items-center gap-3 text-lg font-semibold text-slate-800'
-const badge = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700'
-const card = 'scroll-mt-20 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6'
-const list = 'mt-3 list-disc space-y-2 pl-6 text-base text-slate-700 marker:text-brand-600'
+const JUMPS = [
+  { href: '#noi-quy', label: 'Nội quy', icon: ScrollText },
+  { href: '#xin-nghi', label: 'Xin nghỉ & học bù', icon: CalendarX },
+  { href: '#hoc-phi', label: 'Học phí', icon: Wallet },
+  { href: '#lich-theo-phan', label: 'Lịch theo phần', icon: Layers },
+]
+
+// Tiêu đề từng mục: ô biểu tượng xanh + "Mục N" + tên mục.
+const SECTIONS = {
+  'noi-quy': { no: 1, title: 'Nội quy lớp học', icon: ScrollText },
+  'xin-nghi': { no: 2, title: 'Xin nghỉ và học bù', icon: CalendarX },
+  'hoc-phi': { no: 3, title: 'Quy định thu học phí', icon: Wallet },
+  'lich-theo-phan': { no: 4, title: 'Lịch học chia theo phần', icon: Layers },
+}
+const card = 'reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6'
 ---
 <Base
+  wide
   title="Quy định"
   description="Nội quy lớp học, xin nghỉ, học bù và quy định thu học phí của Lớp học ScienceHub."
 >
-  <PageHeading title="Quy định" subtitle="Phụ huynh và học sinh vui lòng đọc trước khi đăng ký." />
+  <PageHero
+    eyebrow="Đọc trước khi đăng ký"
+    title="Quy định"
+    subtitle="Nội quy lớp học, xin nghỉ và học bù, học phí và cách chia lịch theo phần. Phụ huynh và học sinh vui lòng đọc trước khi đăng ký."
+  >
+    <JumpLinks items={JUMPS} />
+  </PageHero>
 
-  <div class="space-y-4">
-    <section id="noi-quy" class={card}>
-      <h2 class={heading}><span class={badge}>1</span>Nội quy lớp học</h2>
-      <p class="mt-4 rounded-lg bg-brand-50 px-4 py-3 text-center text-lg font-semibold text-brand-800">
-        Tôn sư trọng đạo · Tiên học lễ, hậu học văn
-      </p>
-      <ul class={list}>
-        {CLASS_RULES.map((item) => <li>{item}</li>)}
-      </ul>
-    </section>
+  {Object.entries(SECTIONS).map(([id, section], index) => {
+    const Icon = section.icon
+    return (
+      <PageSection id={id} tone={index % 2 === 0 ? 'white' : 'tint'} compact>
+        <h2 id={`${id}-tieu-de`} class="reveal flex items-center gap-3 text-xl leading-tight font-bold text-slate-900 sm:text-2xl">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md shadow-brand-600/25">
+            <Icon size={22} aria-hidden="true" />
+          </span>
+          <span>
+            <span class="block text-xs font-semibold tracking-wide text-mint-700 uppercase">Mục {section.no}</span>
+            {section.title}
+          </span>
+        </h2>
 
-    <section id="xin-nghi" class={card}>
-      <h2 class={heading}><span class={badge}>2</span>Xin nghỉ và học bù</h2>
-      <ul class={list}>
-        {LEAVE_RULES.map((item) => <li>{item}</li>)}
-      </ul>
-    </section>
+        <div class="mt-5">
+          {id === 'noi-quy' && (
+            <>
+              <blockquote class="reveal rounded-2xl bg-brand-700 px-5 py-6 text-center text-white shadow-lg shadow-brand-900/15">
+                <p class="text-xl font-bold sm:text-2xl">Tôn sư trọng đạo</p>
+                <p class="mt-1 text-lg text-brand-100 sm:text-xl">Tiên học lễ, hậu học văn</p>
+              </blockquote>
+              <ul class:list={[card, 'mt-4 space-y-3']}>
+                {CLASS_RULES.map((item) => (
+                  <li class="flex items-start gap-3 text-base text-slate-700">
+                    <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true"></span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
 
-    <section id="hoc-phi" class={card}>
-      <h2 class={heading}><span class={badge}>3</span>Quy định thu học phí</h2>
-      <div class="mt-4">
-        <FeeInfo table={false} />
-      </div>
-      <p class="mt-3 text-sm text-slate-500">
-        Mức học phí từng loại lớp xem ở trang <a href="/lop-hoc" class="font-medium text-brand-700 hover:underline">Lớp học & học phí</a>.
-      </p>
-    </section>
+          {id === 'xin-nghi' && (
+            <>
+              <ol class="grid gap-3 md:grid-cols-3">
+                {LEAVE_RULES.map((rule, i) => {
+                  const RuleIcon = rule.icon
+                  return (
+                    <li class:list={[card, 'flex items-start gap-3 md:flex-col']}>
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-100 text-mint-700">
+                        <RuleIcon size={20} aria-hidden="true" />
+                      </span>
+                      <span class="text-base text-slate-700">
+                        <span class="sr-only">Bước {i + 1}: </span>
+                        {rule.text}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ol>
+              <a
+                href={`https://zalo.me/${CENTER.phone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="reveal mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 text-base font-semibold text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 sm:w-auto"
+              >
+                <MessageCircle size={18} aria-hidden="true" />
+                Nhắn Zalo báo nghỉ cho thầy
+              </a>
+            </>
+          )}
 
-    <section id="lich-theo-phan" class={card}>
-      <h2 class={heading}><span class={badge}>4</span>Lịch học chia theo phần</h2>
-      <ul class={list}>
-        {PART_RULES.map((item) => <li>{item}</li>)}
-      </ul>
-    </section>
-  </div>
+          {id === 'hoc-phi' && (
+            <>
+              <FeeInfo table={false} />
+              <p class="mt-4 text-sm text-slate-500">
+                Mức học phí từng loại lớp xem ở trang <a href="/lop-hoc#hoc-phi" class="font-medium text-brand-700 hover:underline">Lớp học & học phí</a>.
+              </p>
+            </>
+          )}
+
+          {id === 'lich-theo-phan' && (
+            <>
+              <div class="reveal flex items-stretch gap-2" aria-hidden="true">
+                <div class="flex-1 overflow-hidden rounded-xl border-2 border-brand-300 bg-white">
+                  <p class="bg-brand-600 px-3 py-1.5 text-sm font-bold text-white">Phần 1</p>
+                  <p class="px-3 py-2 text-sm text-slate-600">Chọn 1 ca</p>
+                </div>
+                <span class="flex items-center">
+                  <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-lg font-bold text-white">+</span>
+                </span>
+                <div class="flex-1 overflow-hidden rounded-xl border-2 border-brand-300 bg-white">
+                  <p class="bg-brand-600 px-3 py-1.5 text-sm font-bold text-white">Phần 2</p>
+                  <p class="px-3 py-2 text-sm text-slate-600">Chọn 1 ca</p>
+                </div>
+              </div>
+              <ul class:list={[card, 'mt-4 space-y-3']}>
+                {PART_RULES.map((item) => (
+                  <li class="flex items-start gap-3 text-base text-slate-700">
+                    <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-500" aria-hidden="true"></span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <a
+                href="/lop-hoc#lich-hoc"
+                class="reveal mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-base font-medium text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                Xem lịch các lớp
+                <ArrowRight size={16} aria-hidden="true" />
+              </a>
+            </>
+          )}
+        </div>
+      </PageSection>
+    )
+  })}
+
+  <FloatingContact />
 </Base>

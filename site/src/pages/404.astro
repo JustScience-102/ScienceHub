@@ -1,15 +1,20 @@
 ---
+import { House } from 'lucide-react'
 import Base from '../layouts/Base.astro'
+import PageHero from '../components/PageHero.astro'
 ---
-<Base title="Không tìm thấy trang">
-  <section class="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-    <h1 class="text-2xl font-bold text-slate-800">Không tìm thấy trang</h1>
-    <p class="mt-2 text-base text-slate-600">Địa chỉ này không có trên web của ScienceHub. Phụ huynh vui lòng quay về trang chủ.</p>
+<Base wide title="Không tìm thấy trang">
+  <PageHero
+    eyebrow="Lỗi 404"
+    title="Không tìm thấy trang"
+    subtitle="Địa chỉ này không có trên web của ScienceHub. Phụ huynh vui lòng quay về trang chủ."
+  >
     <a
       href="/"
-      class="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700"
+      class="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 text-base font-semibold text-white shadow-md shadow-brand-600/25 hover:bg-brand-700"
     >
+      <House size={18} aria-hidden="true" />
       Về trang chủ
     </a>
-  </section>
+  </PageHero>
 </Base>

@@ -1,17 +1,55 @@
 ---
 // Học phí theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
-// table: bảng học phí (bảng từ md trở lên, thẻ trên điện thoại); rules: các quy định thu học phí.
+// table: thẻ giá (mỗi dòng FEE_TABLE một thẻ, giá hiện to); rules: các quy định thu học phí (danh sách đánh số).
+// Thông tin đối tác (Trung tâm thu học phí, SĐT quản lý) luôn hiện: sau thẻ giá nếu có (máy tính: hai thẻ cạnh nhau),
+// không thì ở đầu.
 import { Handshake, Phone } from 'lucide-react'
 import { FEE_RULES, FEE_TABLE, PARTNER } from '../data/fees.js'
 
 const { table = true, rules = true } = Astro.props
+// "600.000đ/tháng" -> số tiền to, "/tháng" nhỏ.
+const splitFee = (fee) => {
+  const i = fee.indexOf('/')
+  return i === -1 ? [fee, ''] : [fee.slice(0, i), fee.slice(i)]
+}
 ---
-<div class="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-  <Handshake size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-700" />
+<div class:list={[table && 'grid gap-4 md:grid-cols-2 md:items-stretch']}>
+{table && (
+  <ul class="grid gap-4">
+    {FEE_TABLE.map((row) => {
+      const [amount, unit] = splitFee(row.fee)
+      return (
+        <li class="reveal relative overflow-hidden rounded-2xl bg-brand-700 p-5 text-white shadow-lg shadow-brand-900/15 sm:p-6">
+          <svg aria-hidden="true" viewBox="0 0 200 200" class="pointer-events-none absolute -right-10 -bottom-14 w-48 text-white opacity-10">
+            <g fill="none" stroke="currentColor" stroke-width="4">
+              <ellipse cx="100" cy="100" rx="88" ry="30" />
+              <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(60 100 100)" />
+              <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(120 100 100)" />
+            </g>
+          </svg>
+          <p class="relative text-sm font-semibold tracking-wide text-mint-200 uppercase">{row.classes}</p>
+          <p class="relative mt-2 font-extrabold tracking-tight">
+            <span class="text-4xl sm:text-5xl">{amount}</span>
+            <span class="text-lg font-semibold text-brand-100">{unit}</span>
+          </p>
+          <p class="relative mt-4 flex flex-wrap gap-2 text-sm font-medium">
+            <span class="rounded-full bg-white/15 px-3 py-1">{row.schedule}</span>
+            <span class="rounded-full bg-white/15 px-3 py-1">{row.sessions}</span>
+          </p>
+        </li>
+      )
+    })}
+  </ul>
+)}
+
+<div class="reveal flex items-start gap-3 rounded-2xl border border-brand-200 bg-white p-4 text-sm text-slate-700 shadow-sm sm:p-5">
+  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+    <Handshake size={18} aria-hidden="true" />
+  </span>
   <div>
     <p>
-      ScienceHub cộng tác với <b>{PARTNER.name}</b>. Mức học phí do Trung tâm quy định; phụ huynh đóng học phí
-      trực tiếp cho quản lý của Trung tâm.
+      ScienceHub cộng tác với <b class="text-slate-900">{PARTNER.name}</b>. Mức học phí do Trung tâm quy định; phụ huynh
+      đóng học phí trực tiếp cho quản lý của Trung tâm.
     </p>
     <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
       <Phone size={16} aria-hidden="true" className="text-brand-700" />
@@ -21,47 +59,12 @@ const { table = true, rules = true } = Astro.props
     </p>
   </div>
 </div>
-
-{table && (
-  <>
-    <div class="mt-4 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-slate-50 text-slate-600">
-          <tr>
-            <th scope="col" class="px-4 py-3 font-semibold">Lớp học</th>
-            <th scope="col" class="px-4 py-3 font-semibold">Lịch học</th>
-            <th scope="col" class="px-4 py-3 font-semibold">Tổng số buổi</th>
-            <th scope="col" class="px-4 py-3 text-right font-semibold">Học phí</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {FEE_TABLE.map((row) => (
-            <tr>
-              <td class="px-4 py-3 font-medium text-slate-800">{row.classes}</td>
-              <td class="px-4 py-3 text-slate-700">{row.schedule}</td>
-              <td class="px-4 py-3 text-slate-700">{row.sessions}</td>
-              <td class="px-4 py-3 text-right text-base font-bold text-brand-700">{row.fee}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <ul class="mt-4 space-y-3 md:hidden">
-      {FEE_TABLE.map((row) => (
-        <li class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p class="font-semibold text-slate-800">{row.classes}</p>
-          <p class="mt-1 text-sm text-slate-600">{row.schedule} · {row.sessions}</p>
-          <p class="mt-2 text-xl font-bold text-brand-700">{row.fee}</p>
-        </li>
-      ))}
-    </ul>
-  </>
-)}
+</div>
 
 {rules && (
-  <ol class="mt-4 space-y-2">
+  <ol class="reveal mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     {FEE_RULES.map((rule, index) => (
-      <li class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-base text-slate-700 shadow-sm">
+      <li class="flex items-start gap-3 p-4 text-base text-slate-700">
         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
           {index + 1}
         </span>

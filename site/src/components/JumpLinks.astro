@@ -1,0 +1,23 @@
+---
+// Mục lục nhanh ở đầu trang dài: một hàng nút cuộn ngang (điện thoại), bấm là nhảy tới mục.
+// items: [{ href: '#hoc-phi', label: 'Học phí', icon: Wallet }]
+const { items = [] } = Astro.props
+---
+<nav aria-label="Mục lục trang" class="mt-5">
+  <ul class="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+    {items.map((item) => {
+      const Icon = item.icon
+      return (
+        <li class="shrink-0">
+          <a
+            href={item.href}
+            class="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 text-sm font-semibold text-brand-700 shadow-sm hover:border-brand-300 hover:bg-brand-50"
+          >
+            {Icon && <Icon size={16} aria-hidden="true" />}
+            {item.label}
+          </a>
+        </li>
+      )
+    })}
+  </ul>
+</nav>

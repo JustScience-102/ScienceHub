@@ -1,28 +1,53 @@
 ---
 // Học phí (đặt trước, phụ huynh quan tâm trước): theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
 // Lịch học: lấy tự động từ app quản lý qua /api/lop-hoc (mốc M2, site/api/lop-hoc.js).
+// Bố cục cùng kiểu trang chủ: phần đầu PageHero + mục lục nhanh, các dải nền xen kẽ, nút liên hệ nổi trên điện thoại.
+import { CalendarDays, ClipboardPen, Wallet } from 'lucide-react'
 import Base from '../layouts/Base.astro'
 import ClassSchedule from '../components/ClassSchedule.jsx'
 import FeeInfo from '../components/FeeInfo.astro'
-import PageHeading from '../components/PageHeading.astro'
+import FloatingContact from '../components/FloatingContact.astro'
+import JumpLinks from '../components/JumpLinks.astro'
+import PageHero from '../components/PageHero.astro'
+import PageSection from '../components/PageSection.astro'
 import { CENTER, CLASS_SUBJECTS } from '../data/center.js'
+
+const JUMPS = [
+  { href: '#hoc-phi', label: 'Học phí', icon: Wallet },
+  { href: '#lich-hoc', label: 'Lịch học các lớp', icon: CalendarDays },
+  { href: '/dang-ky', label: 'Đăng ký học', icon: ClipboardPen },
+]
 ---
 <Base
+  wide
   title="Lớp học & học phí"
   description="Mức học phí và lịch học các lớp Vật Lí, Hóa học đang mở của ScienceHub."
 >
-  <PageHeading title="Lớp học & học phí" subtitle="Mức học phí, các lớp đang mở, giáo viên và lịch học trong tuần." />
+  <PageHero
+    eyebrow="Vật Lí · Hóa học · lớp 10–12"
+    title="Lớp học & học phí"
+    subtitle="Mức học phí, các lớp đang mở, giáo viên và lịch học trong tuần."
+  >
+    <JumpLinks items={JUMPS} />
+  </PageHero>
 
-  <section>
-    <h2 class="mb-3 text-lg font-semibold text-slate-800">Học phí</h2>
+  <PageSection id="hoc-phi" tone="white" compact eyebrow="Học phí" title="Học phí theo tháng">
     <FeeInfo rules={false} />
-    <p class="mt-3 text-sm text-slate-500">
+    <p class="mt-4 text-sm text-slate-500">
       Quy định khi học sinh nghỉ học xem ở trang <a href="/quy-dinh#hoc-phi" class="font-medium text-brand-700 hover:underline">Quy định</a>.
     </p>
-  </section>
+  </PageSection>
 
-  <section class="mt-8">
-    <h2 class="mb-3 text-lg font-semibold text-slate-800">Lịch học các lớp</h2>
+  <PageSection
+    id="lich-hoc"
+    tone="tint"
+    compact
+    eyebrow="Lịch học"
+    title="Lịch học các lớp"
+    subtitle="Lịch cập nhật tự động. Chọn môn và khối để xem nhanh, bấm “Đăng ký lịch này” để đăng ký đúng khối."
+  >
     <ClassSchedule client:load subjects={CLASS_SUBJECTS} phone={CENTER.phone} phoneShown={CENTER.phoneShown} />
-  </section>
+  </PageSection>
+
+  <FloatingContact />
 </Base>

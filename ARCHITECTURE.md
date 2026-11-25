@@ -218,6 +218,9 @@ Chi tiết kỹ thuật: `site/README.md`.
   tra điểm), các lớp đang mở (cùng `/api/lop-hoc`), ảnh lớp học, con số + nhận xét, "ScienceHub phù hợp với ai?", Đăng
   ký + Liên hệ, nút Zalo/Gọi nổi trên điện thoại. Con số, nhận xét, ảnh ở `site/src/data/trang-chu.js`: **chỉ dữ liệu
   thật, chưa có thì phần đó tự ẩn** (người dùng chốt 25/11/2026). Màu môn trên web: Vật Lí xanh dương, Hóa học cam.
+- **Các tab khác cùng kiểu trang chủ** (26/11/2026): phần đầu `PageHero`, dải nền xen kẽ, mục lục nhanh (Lớp học, Quy
+  định), thanh lọc lịch dính khi cuộn, nút Zalo/Gọi nổi ở Lớp học và Quy định. Trang Đăng ký học thay khung lưu ý màu
+  vàng bằng khung gọn "ScienceHub phù hợp với ai?" (cùng nội dung trang chủ). Form Đăng ký và Tra cứu điểm giữ nguyên.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
   (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
 - **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở

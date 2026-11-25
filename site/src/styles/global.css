@@ -52,6 +52,20 @@
 html {
   -webkit-text-size-adjust: 100%;
 }
+/* Bấm mục lục nhanh (#id) thì cuộn mượt (trừ khi người dùng chọn giảm chuyển động). */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Hàng nút cuộn ngang (mục lục nhanh, bộ lọc): ẩn thanh cuộn, vẫn vuốt được. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 body {
   margin: 0;
