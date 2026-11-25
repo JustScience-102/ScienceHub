@@ -136,7 +136,7 @@ function Section({ section, today }) {
             {group.parts.map((part) => (
               <div key={part.part} className="mt-3">
                 <p className="mb-2 text-sm font-semibold text-slate-700">
-                  Phần {part.part} · chọn 1 trong {part.classes.length} ca
+                  Phần {part.part} · {part.classes.length > 1 ? `chọn 1 trong ${part.classes.length} ca` : '1 ca'}
                 </p>
                 <ul className="space-y-2">
                   {part.classes.map((cls) => (
