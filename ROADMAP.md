@@ -31,6 +31,7 @@
 - App quản lý hiện tên "Lớp học ScienceHub" (tiêu đề trình duyệt, thanh bên, thanh tiêu đề điện thoại, trang Đăng nhập). Mã nhận diện file sao lưu `'Trung tâm ScienceHub'` (`08_ops.sql`, `lib/restore.js`) **giữ nguyên** để file sao lưu cũ vẫn khôi phục được.
 - `supabase/v3/11_website.sql` + `website_link.sql` (mẫu), test `v3_website.test.mjs` (7 tình huống); `site/api/lop-hoc.js`, `site/src/lib/catalog.js`, `ClassSchedule.jsx`; thư viện `postgres` 3.4.9 cho `site/`.
 - Trang Lớp học & học phí: học phí đặt trước lịch học; nhóm lớp hiện từng phần trong khung riêng nối bằng "+", kèm ví dụ cách chọn lịch đúng/sai tính từ lịch thật (`partCombos`).
+- Sửa lỗi `/api/lop-hoc` báo "Chưa tải được lịch học" ở lần gọi đầu mỗi khi Vercel khởi động hàm: `db.array()` của thư viện `postgres` trên kết nối mới gửi sai định dạng mảng (22P02). Nay gửi chuỗi "Vật Lí|Hóa học" và tách bằng `string_to_array`; lỗi thì thử lại một lần bằng kết nối mới. **Hàm máy chủ mới của `site/` không truyền mảng bằng `db.array()`.**
 
 ### 25/11/2026 — Trang giới thiệu: nội dung thật
 - Danh xưng "Lớp học ScienceHub"; ScienceHub cộng tác với Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy (Trung tâm quy định và thu học phí). Bảng và quy định học phí chép từ tờ quy định của Trung tâm (`site/src/data/fees.js`); trang Quy định viết lại (nội quy "Tôn sư trọng đạo · Tiên học lễ, hậu học văn", xin nghỉ báo trước cho thầy, học bù); lời giới thiệu và lưu ý "không phù hợp với học sinh quá lười" ở trang chủ và trang Đăng ký; Chính sách bảo mật ghi rõ thông tin chuyển cho Trung tâm để thu học phí.
