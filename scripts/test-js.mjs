@@ -28,6 +28,10 @@ const parentLookup = await import('../site/src/lib/parentLookup.js')
 const catalog = await import('../site/src/lib/catalog.js')
 const siteCenter = await import('../site/src/data/center.js')
 const lopHoc = await import('../site/api/lop-hoc.js')
+const siteDb = await import('../site/server/db.js')
+const dangKy = await import('../site/api/dang-ky.js')
+const reg = await import('../site/src/lib/registration.js')
+const registrations = await import('../src/lib/registrations.js')
 
 let passed = 0
 let failed = 0
@@ -326,18 +330,157 @@ await test('Kết nối CSDL bị đứt sau lúc nghỉ: bỏ kết nối cũ, 
   try {
     let calls = 0
     let resets = 0
-    const flaky = lopHoc.withRetry(async (x) => {
+    const flaky = siteDb.withRetry(async (x) => {
       calls += 1
       if (calls === 1) throw Object.assign(new Error('write CONNECTION_CLOSED'), { code: 'CONNECTION_CLOSED' })
       return `ok ${x}`
     }, async () => { resets += 1 })
     assert.equal(await flaky('a'), 'ok a')
     assert.deepEqual([calls, resets], [2, 1])
-    const broken = lopHoc.withRetry(async () => { throw new Error('sai mật khẩu') }, async () => {})
+    const broken = siteDb.withRetry(async () => { throw new Error('sai mật khẩu') }, async () => {})
     await assert.rejects(broken(), /sai mật khẩu/)
+    // Ghi đơn: chỉ thử lại khi đứt kết nối; lỗi do CSDL trả (có SQLSTATE) thì không gửi lần hai.
+    let writes = 0
+    const write = siteDb.withRetry(async () => {
+      writes += 1
+      throw Object.assign(new Error('Môn Vật Lí: còn thiếu ca'), { code: 'P0001' })
+    }, async () => {}, siteDb.isConnectionError)
+    await assert.rejects(write(), /còn thiếu ca/)
+    assert.equal(writes, 1)
+    assert.equal(siteDb.isConnectionError({ code: 'ECONNRESET' }), true)
+    assert.equal(siteDb.isConnectionError({ code: '22P02' }), false)
   } finally {
     console.warn = quiet
   }
+})
+
+console.log('\n▶ App quản lý: trang Đơn đăng ký (src/lib/registrations.js)')
+await test('Gom lựa chọn theo môn + khối, thứ tự phần; giờ Việt Nam; đếm theo trạng thái', () => {
+  const choices = [
+    { class_id: 'b', subject: 'Vật Lí', grade: 12, class_no: 3, part: 2, schedule: [{ day: 3, start: '19:30', end: '21:30' }] },
+    { class_id: 'a', subject: 'Vật Lí', grade: 12, class_no: 1, part: 1, schedule: [{ day: 3, start: '17:00', end: '19:00' }] },
+    { class_id: 'c', subject: 'Hóa học', grade: 12, class_no: 1, part: null, schedule: [] },
+  ]
+  const groups = registrations.groupChoices(choices)
+  assert.deepEqual(groups.map((g) => g.title), ['Vật Lí 12', 'Hóa học 12'])
+  assert.deepEqual(groups[0].items.map((i) => i.label), ['Nhóm 1 · Phần 1', 'Nhóm 3 · Phần 2'])
+  assert.equal(groups[0].items[0].text, 'Thứ 3 17:00–19:00')
+  assert.equal(groups[1].items[0].text, 'chưa có lịch')
+  assert.equal(registrations.formatDateTime('2026-11-25T07:05:00Z'), '25/11/2026 14:05')
+  assert.deepEqual(registrations.countByStatus([{ status: 'new' }, { status: 'new' }, { status: 'enrolled' }]), {
+    all: 3, new: 2, contacted: 0, enrolled: 1, cancelled: 0,
+  })
+  assert.equal(registrations.statusInfo('contacted').label, 'Đã liên hệ')
+})
+
+console.log('\n▶ Trang giới thiệu: form đăng ký học (site/src/lib/registration.js, site/api/dang-ky.js)')
+const GOOD_FORM = {
+  ...reg.EMPTY_FORM,
+  student_name: '  Trần   Thị Bình ',
+  grade: '12',
+  parent_name: 'Trần Văn Hà',
+  parent_phone: '+84 901 000 031',
+  referrer_code: ' hs0001 ',
+  consent: true,
+}
+await test('Kiểm tra ô nhập: hợp lệ; thiếu tên, SĐT sai, mã giới thiệu sai dạng, chưa đồng ý', () => {
+  assert.deepEqual(reg.validateFields(GOOD_FORM), {})
+  const bad = reg.validateFields({ ...reg.EMPTY_FORM, student_phone: '123', referrer_code: 'AB12', parent_phone: '0912' })
+  assert.deepEqual(Object.keys(bad), ['student_name', 'grade', 'student_phone', 'parent_name', 'parent_phone', 'referrer_code', 'consent'])
+  assert.equal(reg.normalizePhone('0912.345.678'), '0912345678')
+  assert.equal(reg.normalizePhone('84912345678'), '0912345678')
+  assert.equal(reg.normalizePhone('091234567'), null)
+  const payload = reg.buildPayload(GOOD_FORM, ['a', 'b', 'a'])
+  assert.deepEqual(payload, {
+    student_name: 'Trần Thị Bình', grade: 12, school: '', student_phone: '', parent_name: 'Trần Văn Hà',
+    parent_phone: '0901000031', referrer_code: 'HS0001', note: '', class_ids: ['a', 'b'],
+  })
+})
+await test('Chọn lịch theo phần: chọn sẵn phần chỉ có 1 ca; thiếu phần thì báo; đủ phần thì lấy đúng lớp', () => {
+  const g = { id: 'g', name: 'Hóa học 10' }
+  const list = [
+    cls('h1', 'Hóa học', 10, 1, { ...g, part: 1 }, [row(4, '14:30', '16:30')]),
+    cls('h2', 'Hóa học', 10, 2, { ...g, part: 1 }, [row(5, '19:30', '21:30')]),
+    cls('h3', 'Hóa học', 10, 3, { ...g, part: 2 }, [row(8, '19:30', '21:30')]),
+  ]
+  const [section] = catalog.buildSections(list, [])
+  const pick = reg.defaultPick(section)
+  assert.deepEqual(pick, { option: 'group:g', parts: { 2: 'h3' } }, 'phần 2 chỉ có 1 ca nên chọn sẵn')
+  assert.match(reg.pickError(section, pick), /chọn 1 ca của Phần 1/)
+  const full = { ...pick, parts: { ...pick.parts, 1: 'h2' } }
+  assert.equal(reg.pickError(section, full), '')
+  assert.deepEqual(reg.pickedClasses(section, full).map((c) => c.id), ['h2', 'h3'])
+  const [single] = catalog.buildSections([cls('s', 'Hóa học', 11, 1, null, [row(2, '19:30', '21:30')])], [])
+  assert.deepEqual(reg.pickedClasses(single, reg.defaultPick(single)).map((c) => c.id), ['s'])
+  assert.equal(reg.pickError(section, { option: null, parts: {} }), 'Vui lòng chọn lịch học cho môn này.')
+})
+await test('Báo trùng giờ giữa hai môn', () => {
+  const a = cls('a', 'Vật Lí', 12, 1, null, [row(2, '17:00', '19:00')])
+  const b = cls('b', 'Hóa học', 12, 1, null, [row(2, '18:30', '20:30')])
+  const c = cls('c', 'Hóa học', 12, 2, null, [row(2, '19:00', '21:00')])
+  assert.match(reg.overlapError([a, b], TODAY), /trùng giờ: Thứ 2 17:00 \(Vật Lí\) và Thứ 2 18:30 \(Hóa học\)/)
+  assert.equal(reg.overlapError([a, c], TODAY), '', 'nối tiếp giờ 19:00 không tính là trùng')
+})
+await test('Hàm máy chủ /api/dang-ky: kiểm tra, ô bẫy, chuyển câu lỗi của CSDL, mã IP một chiều', async () => {
+  const fakeRes = () => {
+    const res = { headers: {}, code: 0, body: null }
+    res.setHeader = (k, v) => { res.headers[k] = v }
+    res.status = (c) => { res.code = c; return res }
+    res.json = (b) => { res.body = b; return res }
+    return res
+  }
+  const calls = []
+  const handler = dangKy.createHandler({
+    configured: () => true,
+    secret: () => 'bi-mat',
+    submit: async (payload, hash) => {
+      calls.push({ payload, hash })
+      if (payload.student_name === 'Lỗi CSDL') throw Object.assign(new Error('Môn Vật Lí: còn thiếu ca của Phần 2.'), { code: 'P0001' })
+      if (payload.student_name === 'Mất mạng') throw Object.assign(new Error('connect ETIMEDOUT 1.2.3.4'), { code: 'ETIMEDOUT' })
+      return { id: 'id-1', updated: false }
+    },
+  })
+  const req = (body) => ({ method: 'POST', body, headers: { 'x-forwarded-for': '113.1.2.3, 10.0.0.1' } })
+  const r1 = fakeRes()
+  await handler(req({ ...GOOD_FORM, class_ids: ['c1', 'c2'] }), r1)
+  assert.equal(r1.code, 200)
+  assert.deepEqual(r1.body, { ok: true, id: 'id-1', updated: false })
+  assert.equal(r1.headers['Cache-Control'], 'no-store')
+  assert.equal(calls[0].payload.parent_phone, '0901000031')
+  assert.equal(calls[0].hash, dangKy.ipHash('113.1.2.3', 'bi-mat'))
+  assert.equal(calls[0].hash.length, 32)
+  assert.ok(!JSON.stringify(calls[0]).includes('113.1.2.3'), 'không gửi IP thật xuống CSDL')
+  const r2 = fakeRes()
+  await handler(req({ ...GOOD_FORM, class_ids: ['c1'], website: 'http://spam' }), r2)
+  assert.equal(r2.code, 200, 'ô bẫy: trả thành công')
+  assert.equal(calls.length, 1, 'ô bẫy: không ghi')
+  const r3 = fakeRes()
+  await handler(req({ ...GOOD_FORM, parent_phone: '123', class_ids: ['c1'] }), r3)
+  assert.equal(r3.code, 400)
+  assert.match(r3.body.error, /Số điện thoại phụ huynh/)
+  const r4 = fakeRes()
+  await handler(req({ ...GOOD_FORM, class_ids: [] }), r4)
+  assert.match(r4.body.error, /ít nhất một môn/)
+  const r5 = fakeRes()
+  await handler(req({ ...GOOD_FORM, student_name: 'Lỗi CSDL', class_ids: ['c1'] }), r5)
+  assert.equal(r5.code, 400)
+  assert.equal(r5.body.error, 'Môn Vật Lí: còn thiếu ca của Phần 2.')
+  const r6 = fakeRes()
+  const quiet = console.error
+  console.error = () => {}
+  try {
+    await handler(req({ ...GOOD_FORM, student_name: 'Mất mạng', class_ids: ['c1'] }), r6)
+  } finally {
+    console.error = quiet
+  }
+  assert.equal(r6.code, 503)
+  assert.ok(!r6.body.error.includes('1.2.3.4'), 'không lộ chi tiết lỗi kết nối')
+  const r7 = fakeRes()
+  await handler({ method: 'POST', body: '{hỏng', headers: {} }, r7)
+  assert.equal(r7.code, 400)
+  const r8 = fakeRes()
+  await handler({ method: 'GET', headers: {} }, r8)
+  assert.equal(r8.code, 405)
 })
 
 console.log(`\n${passed} đạt, ${failed} lỗi`)

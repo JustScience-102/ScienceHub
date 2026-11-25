@@ -1,26 +1,23 @@
 ---
-// Mốc M3 sẽ thay phần này bằng form đăng ký (chọn lịch theo nhóm lớp: mỗi phần một ca).
-import { Info } from 'lucide-react'
+// Form đăng ký học (mốc M3): src/components/RegistrationForm.jsx, gửi tới /api/dang-ky.
 import Base from '../layouts/Base.astro'
 import ContactList from '../components/ContactList.astro'
 import FitNote from '../components/FitNote.astro'
 import PageHeading from '../components/PageHeading.astro'
+import RegistrationForm from '../components/RegistrationForm.jsx'
+import { CENTER, CLASS_SUBJECTS } from '../data/center.js'
 ---
-<Base title="Đăng ký học" description="Đăng ký học Vật Lí, Hóa học tại Lớp học ScienceHub.">
-  <PageHeading title="Đăng ký học" subtitle="Điền thông tin và chọn lịch học, ScienceHub sẽ liên hệ lại với phụ huynh." />
+<Base title="Đăng ký học" description="Đăng ký học Vật Lí, Hóa học tại Lớp học ScienceHub: chọn lịch học và để lại thông tin liên hệ.">
+  <PageHeading title="Đăng ký học" subtitle="Điền thông tin và chọn lịch học, thầy sẽ gọi lại cho phụ huynh để xác nhận." />
 
   <FitNote />
 
-  <div class="mt-4 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
-    <Info size={18} aria-hidden="true" className="mt-0.5 shrink-0" />
-    <p>
-      Form đăng ký trực tuyến đang được hoàn thiện. Trong lúc chờ, phụ huynh vui lòng gọi điện hoặc nhắn Zalo cho
-      thầy để đăng ký.
-    </p>
+  <div class="mt-4">
+    <RegistrationForm client:load subjects={CLASS_SUBJECTS} phone={CENTER.phone} phoneShown={CENTER.phoneShown} />
   </div>
 
   <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <h2 class="mb-4 text-lg font-semibold text-slate-800">Liên hệ đăng ký</h2>
+    <h2 class="mb-4 text-lg font-semibold text-slate-800">Cần tư vấn trước khi đăng ký?</h2>
     <ContactList />
   </section>
 </Base>

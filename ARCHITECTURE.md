@@ -154,7 +154,7 @@ Khóa ngoại nghiệp vụ `ON DELETE RESTRICT`. Không xóa cứng dữ liệu
 
 ## 3. Frontend (`src/`)
 - **`App.jsx`**: cổng đăng nhập (chưa có khóa Supabase thì dừng ở trang Đăng nhập), kiểm `my_profile()`, xử lý `PASSWORD_RECOVERY`, tự đăng xuất khi hết phiên 48 giờ của Giáo viên, điều hướng bằng state (không dùng router), lối tắt từ Tổng quan sang màn hình Điểm danh. Trang Tổng quan và Giáo viên tải riêng (`lazy`).
-- **`pages/`**: `LoginPage`, `DashboardPage`, `ClassesPage`, `StudentsPage`, `TeachersPage`.
+- **`pages/`**: `LoginPage`, `DashboardPage`, `ClassesPage`, `StudentsPage`, `TeachersPage`, `RegistrationsPage` (Đơn đăng ký từ web, mục 5.2).
 - **`components/`** dùng chung: `PageShell`, `Modal`, `ConfirmDialog`, `FormActions` (cặp nút Hủy / nút chính cuối hộp thoại), `FormField`, `SelectField`, `SearchInput`, `MobileFilters`, `MonthNav`, `Notice`, `EmptyState`, `RowActions`.
   - `layout/` (`AppLayout`, `Sidebar`, `BottomNav`, `navItems.js` lọc menu theo vai trò), `auth/`, `dashboard/`, `audit/` (`AuditLogModal`), `backup/` (`BackupModal` + các phần `MonthCloseSection`, `RolloverSection`, `RestoreSection`).
   - `classes/`: `ClassForm`, `ClassRoster`, `ClassAttendance`, `MakeupModal`, `EnrollStudentModal`, `RegisterStudentFlow`, `DropEnrollmentDialog`, `ChangeTeacherDialog`, `ClassGroupsModal`, `ClassGroupsPanel`, `TeacherStatsBar`.
@@ -207,9 +207,10 @@ Chi tiết kỹ thuật: `site/README.md`.
 ### 5.1. Danh xưng, học phí và các tab
 - **Danh xưng trên web** (người dùng chốt 25/11/2026): "Lớp học ScienceHub", trong câu gọi tắt "ScienceHub". Chữ
   "Trung tâm" trên web chỉ dùng cho **Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy**: ScienceHub cộng tác với Trung tâm,
-  mức học phí do Trung tâm quy định, phụ huynh đóng học phí cho quản lý của Trung tâm. App quản lý này vẫn giữ tên cũ.
+  mức học phí do Trung tâm quy định, phụ huynh đóng học phí cho quản lý của Trung tâm. App quản lý này hiện tên "Lớp học
+  ScienceHub" (mã nhận diện file sao lưu `'Trung tâm ScienceHub'` giữ nguyên); câu thông báo trong app vẫn xưng "Trung tâm".
 - **Học phí trên web** chép theo tờ "Quy định thu học phí" của Trung tâm (`site/src/data/fees.js`: bảng 600.000đ/tháng
-  cho lớp 2 buổi/tuần, 75.000đ/buổi cho KHTN cấp 2, 4 quy định khi nghỉ), **không** lấy `price_per_session` của app này.
+  cho các lớp Vật Lí, Hóa học 2 buổi/tuần, 4 quy định khi nghỉ; SĐT/Zalo quản lý Trung tâm), **không** lấy `price_per_session` của app này.
 - **Trang chủ**, **Quy định** (nội quy, xin nghỉ và học bù, học phí, lịch chia theo phần), **Chính sách bảo mật**: nội dung
   tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc, lời giới thiệu ở `site/src/data/center.js`.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
@@ -220,7 +221,12 @@ Chi tiết kỹ thuật: `site/README.md`.
   học 2 buổi: 1 buổi Phần 1 + 1 buổi Phần 2", và "Ví dụ cách chọn lịch" tính từ lịch thật (`partCombos`: mỗi phần một
   ca, bỏ cách trùng giờ; ✓ các cách đúng, ✕ một cách sai cùng phần). Mỗi lớp ghi "Nhóm N" (như `classTitle` của app
   này), các buổi đang áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới; tên giáo viên ghi một lần ở đầu mục
-  nếu cả mục cùng giáo viên. **Đăng ký học**: chờ mốc M3 (dùng lại `partCombos` để kiểm tra lựa chọn).
+  nếu cả mục cùng giáo viên; nút "Đăng ký lịch này" mở form với môn + khối chọn sẵn (`/dang-ky?mon=…&khoi=…`).
+- **Đăng ký học** (mốc M3, 25/11/2026; `RegistrationForm.jsx`, `site/src/lib/registration.js`, `site/api/dang-ky.js`):
+  4 bước (học sinh: họ tên, trường, SĐT, khối; môn và lịch; phụ huynh: họ tên, SĐT; thêm: **mã HS giới thiệu**, ghi chú),
+  ô đồng ý Chính sách bảo mật, ô bẫy chống spam. Lịch: mỗi phần của nhóm lớp là một nhóm nút chọn (radio) nên không
+  chọn được 2 ca cùng phần; phần chỉ có 1 ca chọn sẵn; lớp lẻ chọn sẵn; báo thiếu phần và trùng giờ giữa các môn. Gửi
+  xong hiện lịch đã chọn và "Thầy sẽ gọi lại".
 
 ### 5.2. Nối CSDL Trung tâm
 - Theo cách của mục 2.14: file `supabase/v3/11_website.sql`, schema riêng `website`, tài khoản CSDL `website_link`
@@ -231,8 +237,18 @@ Chi tiết kỹ thuật: `site/README.md`.
   viên**, nhóm lớp + phần), mọi dòng lịch còn hiệu lực từ hôm nay kèm `from`/`to`. Không trả đơn giá (học phí theo
   mục 5.1), học sinh, phụ huynh, điểm danh, doanh thu. `/api/lop-hoc` được Vercel lưu đệm 5 phút. Test:
   `v3_website.test.mjs`; phần xử lý ở `site/src/lib/catalog.js` (test trong `scripts/test-js.mjs`).
-- `website.submit_registration(...)` ghi vào `website.registration_requests`. **Chọn lịch theo nhóm lớp:** lớp thuộc
-  nhóm thì phụ huynh chọn **đúng một ca ở mỗi phần** đang mở của nhóm (không được hai ca cùng phần vì cùng nội dung,
-  không được thiếu phần); kiểm tra ở cả form và SQL. Chống spam: ô bẫy, giới hạn theo IP và SĐT.
-- Đơn đăng ký chỉ Quản lý xem, để liên hệ phụ huynh trực tiếp (màn hình "Đơn đăng ký" trong app này, RPC có
-  `assert_manager()`). **Không nằm trong file sao lưu** (người dùng chốt 24/11/2026, giống `sciencehub.results`).
+- `website.submit_registration(p_data, p_ip_hash)` (xong 25/11/2026) ghi vào `website.registration_requests` (bảng
+  có `choices` = ảnh chụp lựa chọn lúc gửi, `class_ids`, `referrer_code`, `status` new/contacted/enrolled/cancelled,
+  `staff_note`). Kiểm tra lại toàn bộ: họ tên, SĐT (chuẩn hóa +84), **mã HS giới thiệu phải có trong bảng học sinh**;
+  lớp đang hiển thị, đúng khối; **mỗi môn một lớp lẻ HOẶC đúng một ca ở mỗi phần đang mở của một nhóm lớp** (chặn hai
+  ca cùng phần, thiếu phần, lẫn lớp lẻ với nhóm); không trùng giờ (lịch áp dụng hôm nay). Gửi lại cùng SĐT + cùng
+  họ tên (`_norm_name`) khi đơn còn "Mới" trong 7 ngày thì cập nhật đơn cũ. Chống spam: 10 đơn/giờ/IP (HMAC của IP,
+  không lưu IP thật), 5 đơn/ngày/SĐT. Câu lỗi (P0001) viết cho phụ huynh, `/api/dang-ky` chuyển nguyên lên form.
+- Đơn đăng ký chỉ Quản lý xem (RPC `list_registration_requests`, `set_registration_status`,
+  `registration_requests_summary`, có `assert_manager()`). **Không nằm trong file sao lưu** (người dùng chốt
+  24/11/2026, giống `sciencehub.results`). Test: `v3_website_registration.test.mjs`.
+- **App quản lý, trang "Đơn đăng ký"** (`pages/RegistrationsPage.jsx`, `lib/registrations.js`; menu chỉ Quản lý, số đơn
+  mới hiện cạnh mục): lọc theo trạng thái; mỗi đơn: học sinh, phụ huynh (bấm gọi), học sinh giới thiệu (mã + họ tên),
+  báo SĐT phụ huynh đã có trong app, lịch đã chọn theo môn và phần, ghi chú. "Xếp lớp" mở lần lượt
+  `EnrollStudentModal` cho từng lớp đã chọn với thông tin điền sẵn (tra SĐT phụ huynh; có em trùng họ tên thì chọn sẵn,
+  chưa có thì mở sẵn "Học sinh mới"); xếp xong mọi lớp thì đơn chuyển "Đã xếp lớp". "Trạng thái & ghi chú" đổi tay.

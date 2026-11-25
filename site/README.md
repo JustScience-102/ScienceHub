@@ -23,6 +23,14 @@ Chính sách bảo mật. Kế hoạch và các mốc: `ROADMAP.md` ở thư m�
 - `src/lib/catalog.js` (gom theo môn + khối, theo phần của nhóm lớp, tách lịch đang áp dụng / lịch mới) và
   `src/components/ClassSchedule.jsx`. Chỉ lấy các môn trong `CLASS_SUBJECTS` (`src/data/center.js`).
 
+## Đăng ký học (`/api/dang-ky`)
+- `api/dang-ky.js`: nhận form, kiểm tra nhanh bằng `src/lib/registration.js` (cùng quy tắc với form), rồi gọi
+  `website.submit_registration` (CSDL kiểm tra lại toàn bộ). Câu lỗi nhập liệu của CSDL trả nguyên cho phụ huynh.
+  Ô bẫy `website` có chữ thì trả thành công mà không ghi. IP chỉ gửi dạng HMAC (khóa = `WEBSITE_DATABASE_URL`).
+- `server/db.js`: kết nối dùng chung cho mọi hàm `api/*`. Không truyền mảng bằng `db.array()`, không ép `::jsonb` ở câu
+  lệnh (lỗi lần gọi đầu, xem ghi chú trong file); ghi dữ liệu chỉ thử lại khi đứt kết nối.
+- `src/components/RegistrationForm.jsx`: form 4 bước; `?mon=&khoi=` chọn sẵn môn + khối.
+
 ## Tra cứu điểm
 Giao diện viết lại từ trang `/phu-huynh` của app giao bài; dữ liệu và luật (mã HS + SĐT phụ huynh, khóa 15 phút
 khi sai 5 lần, nhớ máy 90 ngày, chỉ bài Kiểm tra) do máy chủ ScienceApp xử lý. Web gọi `/api/diem/*`, được chuyển

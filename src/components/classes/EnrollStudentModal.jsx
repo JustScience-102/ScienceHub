@@ -85,21 +85,28 @@ function StudentPickList({ students, selectedId, onSelect, activeHere, activeCou
 //    bấm "Thêm con mới", em đó được tạo mới và gắn vào đúng phụ huynh.
 //  - Tab "Tìm học sinh": tìm theo tên, mã, SĐT học sinh hoặc SĐT phụ huynh.
 //  onDone(message) được gọi sau khi lưu thành công.
-export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onClose }) {
+// Họ tên so khớp để chọn sẵn: bỏ khoảng trắng thừa, không phân biệt hoa thường, PHÂN BIỆT dấu (như _norm_name).
+const sameName = (a, b) =>
+  String(a ?? '').trim().replace(/\s+/g, ' ').toLowerCase() === String(b ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+// initial (tùy chọn): thông tin điền sẵn từ đơn đăng ký trên web { parentPhone, studentName, studentPhone, parentName }.
+//   Tra được phụ huynh: có em trùng họ tên thì chọn sẵn em đó, chưa có thì mở sẵn ô "Học sinh mới".
+// step (tùy chọn): chữ đầu tiêu đề khi xếp lần lượt nhiều lớp, ví dụ "Lớp 1/2".
+export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onClose, initial = null, step = '' }) {
   const today = todayISO()
   // Giáo viên chỉ được chọn ngày vào lớp từ đầu tháng hiện tại (Database cũng chặn).
   const minJoined = isTeacher ? monthStartISO() : undefined
   const [data, setData] = useState(null) // { students, parents, enrollments } (cho tab Tìm học sinh)
   const [loadError, setLoadError] = useState('')
   const [tab, setTab] = useState('parent')
-  const [parentPhone, setParentPhone] = useState('')
+  const [parentPhone, setParentPhone] = useState(initial?.parentPhone ?? '')
   const [lookup, setLookup] = useState({ phone: '', parent: null, error: '' })
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState('')
   const [creating, setCreating] = useState(false)
-  const [studentName, setStudentName] = useState('')
-  const [studentPhone, setStudentPhone] = useState('')
-  const [parentName, setParentName] = useState('')
+  const [studentName, setStudentName] = useState(initial?.studentName ?? '')
+  const [studentPhone, setStudentPhone] = useState(initial?.studentPhone ?? '')
+  const [parentName, setParentName] = useState(initial?.parentName ?? '')
   const [joinedAt, setJoinedAt] = useState(today)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -174,6 +181,9 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
   const normalizedParentPhone = normalizePhone(parentPhone)
   const parentPhoneValid = isValidPhone(normalizedParentPhone)
 
+  // Mở từ đơn đăng ký: tra được phụ huynh thì chọn sẵn em trùng họ tên, chưa có em đó thì mở form học sinh mới.
+  const initialName = initial?.studentName ?? ''
+
   useEffect(() => {
     if (!parentPhoneValid) return undefined
     let cancelled = false
@@ -184,11 +194,16 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
         parent: error ? null : (found ?? null),
         error: error ? toVietnameseError(error) : '',
       })
+      if (!error && found && initialName) {
+        const same = (found.students ?? []).find((child) => sameName(child.full_name, initialName))
+        setSelectedId(same ? same.id : '')
+        setCreating(!same)
+      }
     })
     return () => {
       cancelled = true
     }
-  }, [parentPhoneValid, normalizedParentPhone])
+  }, [parentPhoneValid, normalizedParentPhone, initialName])
 
   const lookupLoading = parentPhoneValid && lookup.phone !== normalizedParentPhone
   const matchedParent = parentPhoneValid && lookup.phone === normalizedParentPhone ? lookup.parent : null
@@ -339,6 +354,9 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
   else {
     content = (
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {initial && (
+          <Notice type="info">Thông tin điền sẵn từ đơn đăng ký trên web. Hãy kiểm tra lại trước khi lưu.</Notice>
+        )}
         {formError && <Notice type="error">{formError}</Notice>}
 
         <div className="flex gap-2">
@@ -514,7 +532,7 @@ export default function EnrollStudentModal({ cls, isTeacher = false, onDone, onC
   }
 
   return (
-    <Modal title={`Thêm học sinh vào lớp ${classTitle(cls)}`} onClose={onClose}>
+    <Modal title={`${step ? `${step} · ` : ''}Thêm học sinh vào lớp ${classTitle(cls)}`} onClose={onClose}>
       {content}
     </Modal>
   )

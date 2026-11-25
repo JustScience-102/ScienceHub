@@ -2,7 +2,7 @@
 // Lớp thuộc nhóm lớp hiện theo phần (khung riêng từng phần, nối bằng dấu +): mỗi phần là một nội dung, phụ huynh
 // chọn một ca cho mỗi phần; kèm ví dụ các cách chọn đúng (✓) và một cách sai (✕) tính từ lịch thật.
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import {
   buildSections,
@@ -138,7 +138,16 @@ function Section({ section, today }) {
             <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
             Lớp {section.grade}
           </h3>
-          {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
+            <a
+              href={`/dang-ky?mon=${encodeURIComponent(section.subject)}&khoi=${section.grade}`}
+              className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-sky-600 px-3 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              Đăng ký lịch này
+              <ArrowRight size={16} aria-hidden="true" />
+            </a>
+          </div>
         </div>
 
         {section.groups.map((group) => (

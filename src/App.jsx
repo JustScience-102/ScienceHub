@@ -9,16 +9,19 @@ import LoginPage from './pages/LoginPage'
 import { supabase } from './lib/supabaseClient'
 import { toVietnameseError } from './lib/errors'
 
-// Hai trang chỉ Quản lý dùng: tải riêng khi mở (Giáo viên không phải tải).
+// Các trang chỉ Quản lý dùng: tải riêng khi mở (Giáo viên không phải tải).
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const TeachersPage = lazy(() => import('./pages/TeachersPage'))
+const RegistrationsPage = lazy(() => import('./pages/RegistrationsPage'))
 
 const PAGES = {
   dashboard: DashboardPage,
   teachers: TeachersPage,
   classes: ClassesPage,
   students: StudentsPage,
+  registrations: RegistrationsPage,
 }
+const MANAGER_ONLY = new Set(['dashboard', 'teachers', 'registrations'])
 
 // Thông báo tiếng Việt khi phiên bị từ chối theo trạng thái my_profile().
 const REJECT_MESSAGES = {
@@ -55,9 +58,25 @@ function Shell({ userProfile, onOpenChangePassword, onSignOut }) {
     setCurrentPage('classes')
   }
 
-  // Phòng hờ: Giáo viên không bao giờ vào được 2 trang chỉ dành cho Quản lý.
-  const page = isTeacher && (currentPage === 'dashboard' || currentPage === 'teachers') ? 'classes' : currentPage
+  // Phòng hờ: Giáo viên không bao giờ vào được các trang chỉ dành cho Quản lý.
+  const page = isTeacher && MANAGER_ONLY.has(currentPage) ? 'classes' : currentPage
   const roleProps = { isManager, isTeacher, teacherId }
+
+  // Số đơn đăng ký mới (từ trang sciencehub.id.vn) hiện cạnh mục "Đơn đăng ký". Lấy lại mỗi lần chuyển trang và
+  // khi trang Đơn đăng ký đổi trạng thái đơn. Lỗi (vd. chưa chạy 11_website.sql) thì bỏ qua, không hiện số.
+  const [badges, setBadges] = useState({})
+  const [badgeKey, setBadgeKey] = useState(0)
+  const refreshBadges = useCallback(() => setBadgeKey((k) => k + 1), [])
+  useEffect(() => {
+    if (!isManager) return undefined
+    let cancelled = false
+    supabase.rpc('registration_requests_summary').then(({ data, error }) => {
+      if (!cancelled) setBadges(error ? {} : { registrations: Number(data?.new) || 0 })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isManager, page, badgeKey])
 
   let content
   if (!isManager && !isTeacher) {
@@ -66,6 +85,8 @@ function Shell({ userProfile, onOpenChangePassword, onSignOut }) {
     )
   } else if (page === 'dashboard') {
     content = <DashboardPage onOpenAttendance={openAttendance} />
+  } else if (page === 'registrations') {
+    content = <RegistrationsPage onChanged={refreshBadges} />
   } else if (page === 'classes' && shortcut) {
     content = (
       <ClassesPage
@@ -87,6 +108,7 @@ function Shell({ userProfile, onOpenChangePassword, onSignOut }) {
       userProfile={userProfile}
       onOpenChangePassword={onOpenChangePassword}
       onSignOut={onSignOut}
+      badges={badges}
     >
       <Suspense
         fallback={

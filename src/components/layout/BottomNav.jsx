@@ -22,6 +22,7 @@ export default function BottomNav({
   userProfile,
   onOpenChangePassword,
   onSignOut,
+  badges = {},
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   // Đang gõ vào ô nhập: ẩn thanh tab để nó không nổi ngay trên bàn phím ảo và ăn mất chỗ.
@@ -29,8 +30,8 @@ export default function BottomNav({
   const displayName = userProfile?.teacher_name || userProfile?.email || ''
   const roleLabel = ROLE_LABELS[userProfile?.role] ?? ''
   const items = navItemsFor(userProfile?.role)
-  // Quản lý: 4 mục + Tài khoản = 5 cột; Giáo viên: 2 mục + Tài khoản = 3 cột.
-  const gridCols = items.length >= 4 ? 'grid-cols-5' : 'grid-cols-3'
+  // Quản lý: 5 mục + Tài khoản = 6 cột; Giáo viên: 2 mục + Tài khoản = 3 cột.
+  const gridCols = { 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6' }[items.length + 1] ?? 'grid-cols-6'
 
   useEffect(() => {
     function handleFocusIn(event) {
@@ -119,8 +120,18 @@ export default function BottomNav({
                     active ? 'text-sky-600 bg-sky-50' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  <Icon size={22} aria-hidden="true" />
-                  <span>{item.short}</span>
+                  <span className="relative">
+                    <Icon size={22} aria-hidden="true" />
+                    {badges[item.id] > 0 && (
+                      <span className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-red-500 px-1 text-[10px] font-bold leading-4 text-white">
+                        {badges[item.id] > 99 ? '99+' : badges[item.id]}
+                      </span>
+                    )}
+                  </span>
+                  <span>
+                    {item.short}
+                    {badges[item.id] > 0 && <span className="sr-only"> ({badges[item.id]} mới)</span>}
+                  </span>
                 </button>
               </li>
             )

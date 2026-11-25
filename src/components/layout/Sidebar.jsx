@@ -11,6 +11,7 @@ export default function Sidebar({
   userProfile,
   onOpenChangePassword,
   onSignOut,
+  badges = {},
 }) {
   const displayName = userProfile?.teacher_name || userProfile?.email || ''
   const roleLabel = ROLE_LABELS[userProfile?.role] ?? ''
@@ -39,7 +40,13 @@ export default function Sidebar({
               }`}
             >
               <Icon size={20} aria-hidden="true" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {badges[item.id] > 0 && (
+                <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                  {badges[item.id]}
+                  <span className="sr-only"> mới</span>
+                </span>
+              )}
             </button>
           )
         })}

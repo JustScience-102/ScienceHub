@@ -7,13 +7,13 @@
 
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
-- **Kiểm thử:** `npm test` đạt 19 tình huống JS + 113 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
+- **Kiểm thử:** `npm test` đạt 25 tình huống JS + 126 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
   - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về (25/11/2026). Còn lại (người dùng làm tay): thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
   - **M1 – Khung web: xong 24/11/2026; nội dung xong 25/11/2026** (địa chỉ, bản đồ, giờ làm việc, lời giới thiệu, nội quy, xin nghỉ, bảng và quy định học phí của Trung tâm Chìa Khóa Vàng; đổi danh xưng thành "Lớp học ScienceHub", `ARCHITECTURE.md` mục 5.1). Chờ người dùng duyệt câu chữ.
   - **M2 – Lịch học các lớp tự động: xong và chạy thật 25/11/2026** (`11_website.sql`, `website.catalog()`, `site/api/lop-hoc.js` chạy ở vùng `sin1` gần CSDL, `ClassSchedule.jsx`; học phí không lấy từ app mà theo `site/src/data/fees.js`). Người dùng đã chạy `website_link.sql` (bản điền mật khẩu ở `%LOCALAPPDATA%\ScienceHub\website-link\`), `11_website.sql`, `09_grants.sql` và đặt `WEBSITE_DATABASE_URL` trên Vercel. Lúc bật: 20 lớp (Vật Lí 10/11/12, Hóa học 10/11/12); Vật Lí 11 có 4 lớp 1 buổi/tuần nhưng chưa xếp nhóm lớp.
-  - **M3 – Form đăng ký** (chọn lịch theo nhóm lớp: mỗi phần đúng một ca) + màn hình "Đơn đăng ký" cho Quản lý.
+  - **M3 – Form đăng ký + màn hình "Đơn đăng ký": mã xong 25/11/2026** (`ARCHITECTURE.md` mục 5.1, 5.2). Người dùng làm tay: chạy lại `11_website.sql` rồi `09_grants.sql` (không cần đổi gì trên Vercel); gửi thử một đơn trên web rồi xem ở app quản lý.
   - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem`, thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
   - Lưu ý chi phí: gói Hobby của Vercel chỉ cho dùng phi thương mại; nên gom các dự án vào một nhóm Vercel Pro.
 - **Tồn đọng nhỏ (không chặn):**
@@ -25,6 +25,11 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 25/11/2026 — Trang giới thiệu: mốc M3 (form đăng ký học, trang Đơn đăng ký)
+- Web: form 4 bước ở trang Đăng ký học (chọn lịch theo phần bằng nút chọn, **mã HS giới thiệu**, ô đồng ý, ô bẫy chống spam); nút "Đăng ký lịch này" ở trang Lớp học mở form chọn sẵn môn + khối. `site/api/dang-ky.js`, `site/server/db.js` (kết nối dùng chung, chỉ thử lại khi đứt kết nối).
+- CSDL (`11_website.sql`): bảng `website.registration_requests`, `website.submit_registration` (kiểm tra lại toàn bộ quy tắc chọn lịch, mã giới thiệu, chống gửi trùng/spam), RPC Quản lý `list_registration_requests`, `set_registration_status`, `registration_requests_summary`. Test `v3_website_registration.test.mjs` (13 tình huống).
+- App quản lý: mục menu "Đơn đăng ký" (chỉ Quản lý, số đơn mới màu đỏ; thanh tab đáy thành 6 cột), `RegistrationsPage.jsx`; `EnrollStudentModal` nhận thông tin điền sẵn (`initial`) và tiêu đề bước (`step`) để "Xếp lớp" từ đơn.
 
 ### 25/11/2026 — Trang giới thiệu: mốc M2 (lịch học tự động); đổi tên app quản lý
 - Bảng học phí trên web chỉ còn lớp Vật Lí, Hóa học; ghi rõ "SĐT/Zalo quản lý Trung tâm: 0973 765 752".
