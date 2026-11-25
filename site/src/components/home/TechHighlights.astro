@@ -1,0 +1,90 @@
+---
+// Phần công nghệ: 3 điểm mạnh của app làm bài tập và khung điện thoại chứa ảnh chụp màn hình app
+// (APP_SCREENSHOT ở src/data/trang-chu.js; chưa có file thì khung điện thoại không hiện).
+import { Picture } from 'astro:assets'
+import { ArrowRight, BadgeCheck, NotebookPen, Smartphone } from 'lucide-react'
+import HomeSection from './HomeSection.astro'
+import SectionHeader from './SectionHeader.astro'
+import { homeImage } from './images.js'
+import { HOMEWORK_APP_URL } from '../../data/center.js'
+import { APP_SCREENSHOT } from '../../data/trang-chu.js'
+
+const { tone } = Astro.props
+const screenshot = homeImage(APP_SCREENSHOT.file)
+
+const FEATURES = [
+  {
+    icon: NotebookPen,
+    title: 'Mỗi em một đề riêng',
+    text: 'Mỗi học sinh nhận đề bài tập của riêng mình, nên phải tự suy nghĩ và tự làm bài.',
+  },
+  {
+    icon: BadgeCheck,
+    title: 'Nộp bài là có điểm kèm lời giải',
+    text: 'Nộp xong biết điểm ngay và xem lời giải những câu làm sai để hiểu mình sai ở đâu.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Phụ huynh tra điểm online',
+    text: 'Phụ huynh xem điểm các bài kiểm tra của con ngay trên web này, bằng mã học sinh và số điện thoại.',
+  },
+]
+---
+<HomeSection id="cong-nghe" tone={tone}>
+  <div class:list={['grid items-center gap-10', screenshot && 'lg:grid-cols-[1fr_auto] lg:gap-16']}>
+    <div>
+      <SectionHeader
+        id="cong-nghe-tieu-de"
+        eyebrow="Công nghệ hỗ trợ học tập"
+        title="Luyện tập mỗi ngày, có kết quả ngay"
+        subtitle="Ngoài giờ học trên lớp, mỗi em có một tài khoản làm bài tập trực tuyến trên app của ScienceHub."
+        class="mb-8"
+      />
+      <ul class:list={['grid gap-4', !screenshot && 'md:grid-cols-3']}>
+        {FEATURES.map((feature) => {
+          const Icon = feature.icon
+          return (
+            <li class="reveal lift flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md shadow-brand-600/25">
+                <Icon size={24} aria-hidden="true" />
+              </span>
+              <span class="min-w-0">
+                <span class="block text-lg leading-snug font-bold text-slate-900">{feature.title}</span>
+                <span class="mt-1 block text-base leading-relaxed text-slate-600">{feature.text}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <div class="reveal mt-5 flex flex-wrap gap-x-6 gap-y-2">
+        <a href="/tra-cuu-diem" class="inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand-700 hover:underline">
+          Phụ huynh: tra cứu điểm
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+        <a href={HOMEWORK_APP_URL} class="inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand-700 hover:underline">
+          Học sinh: vào app làm bài tập
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+
+    {screenshot && (
+      <figure class="reveal mx-auto w-52 sm:w-64">
+        <div class="relative rounded-[2.6rem] bg-slate-900 p-2.5 shadow-2xl shadow-brand-900/25 ring-1 ring-slate-700">
+          <div aria-hidden="true" class="absolute top-2.5 left-1/2 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-slate-900"></div>
+          <div class="aspect-[9/19.5] overflow-hidden rounded-[2.1rem] bg-white">
+            <Picture
+              src={screenshot}
+              alt={APP_SCREENSHOT.moTa}
+              widths={[240, 480]}
+              sizes="(min-width: 640px) 236px, 188px"
+              formats={['webp']}
+              class="h-full w-full object-cover object-top"
+            />
+          </div>
+        </div>
+        <figcaption class="mt-3 text-center text-sm text-slate-500">App làm bài tập của học sinh</figcaption>
+      </figure>
+    )}
+  </div>
+</HomeSection>

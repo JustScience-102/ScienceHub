@@ -1,0 +1,55 @@
+---
+// "ScienceHub phù hợp với ai?" (FIT ở src/data/trang-chu.js), đặt ngay trước phần Đăng ký ở cuối trang chủ.
+// Thay khung lưu ý màu vàng cũ của trang chủ (trang Đăng ký học vẫn dùng FitNote).
+import { Check, X } from 'lucide-react'
+import HomeSection from './HomeSection.astro'
+import { FIT } from '../../data/trang-chu.js'
+
+const { tone } = Astro.props
+---
+<HomeSection
+  id="phu-hop"
+  tone={tone}
+  eyebrow="Trước khi đăng ký"
+  title="ScienceHub phù hợp với ai?"
+  subtitle="Để việc học thật sự hiệu quả, phụ huynh vui lòng cân nhắc cùng con trước khi đăng ký."
+>
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="reveal rounded-2xl border border-mint-200 bg-white p-5 shadow-sm sm:p-6">
+      <h3 class="flex items-center gap-3 text-lg font-bold text-slate-900">
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-mint-100 text-mint-700">
+          <Check size={20} strokeWidth={3} aria-hidden="true" />
+        </span>
+        Phù hợp với học sinh
+      </h3>
+      <ul class="mt-4 space-y-3">
+        {FIT.phuHop.map((text) => (
+          <li class="flex items-start gap-3 text-base text-slate-700">
+            <Check size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-mint-600" />
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <h3 class="flex items-center gap-3 text-lg font-bold text-slate-900">
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <X size={20} strokeWidth={3} aria-hidden="true" />
+        </span>
+        Chưa phù hợp với học sinh
+      </h3>
+      <ul class="mt-4 space-y-3">
+        {FIT.chuaPhuHop.map((text) => (
+          <li class="flex items-start gap-3 text-base text-slate-700">
+            <X size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-rose-400" />
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+  <p class="reveal mt-5 text-base text-slate-600">
+    Phụ huynh còn băn khoăn, hãy gọi hoặc nhắn Zalo để thầy tư vấn trước khi đăng ký.
+  </p>
+</HomeSection>

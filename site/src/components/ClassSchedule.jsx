@@ -17,7 +17,7 @@ import {
 
 function chipClass(on) {
   return `inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
-    on ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+    on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`
 }
 
@@ -54,7 +54,7 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-5 text-base text-slate-600 shadow-sm">
         <p>{error}</p>
-        <a href={`tel:${phone}`} className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-sky-700 hover:underline">
+        <a href={`tel:${phone}`} className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-brand-700 hover:underline">
           <Phone size={16} aria-hidden="true" />
           Gọi {phoneShown}
         </a>
@@ -142,7 +142,7 @@ function Section({ section, today }) {
             {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
             <a
               href={`/dang-ky?mon=${encodeURIComponent(section.subject)}&khoi=${section.grade}`}
-              className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-sky-600 px-3 text-sm font-semibold text-white hover:bg-sky-700"
+              className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-brand-600 px-3 text-sm font-semibold text-white hover:bg-brand-700"
             >
               Đăng ký lịch này
               <ArrowRight size={16} aria-hidden="true" />
@@ -176,7 +176,7 @@ function GroupBlock({ group, today, showTeacher }) {
   const perWeek = group.parts.map((p) => `1 buổi Phần ${p.part}`).join(' + ')
   return (
     <div className="mt-4 space-y-3">
-      <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900">
+      <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-brand-900">
         <p className="text-base font-semibold">
           Mỗi tuần con học {group.parts.length} buổi: {perWeek}.
         </p>
@@ -196,8 +196,8 @@ function GroupBlock({ group, today, showTeacher }) {
                 </span>
               </div>
             )}
-            <div className="flex-1 overflow-hidden rounded-xl border-2 border-sky-300">
-              <div className="flex items-center justify-between gap-2 bg-sky-600 px-4 py-2 text-white">
+            <div className="flex-1 overflow-hidden rounded-xl border-2 border-brand-300">
+              <div className="flex items-center justify-between gap-2 bg-brand-600 px-4 py-2 text-white">
                 <span className="text-base font-bold">Phần {part.part}</span>
                 <span className="text-sm">
                   {part.classes.length > 1 ? `Chọn 1 trong ${part.classes.length} ca` : 'Có 1 ca'}

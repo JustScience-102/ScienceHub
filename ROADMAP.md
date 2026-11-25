@@ -7,13 +7,14 @@
 
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
-- **Kiểm thử:** `npm test` đạt 25 tình huống JS + 126 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
+- **Kiểm thử:** `npm test` đạt 27 tình huống JS + 126 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
   - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về (25/11/2026). Còn lại (người dùng làm tay): thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
   - **M1 – Khung web: xong 24/11/2026; nội dung xong 25/11/2026** (địa chỉ, bản đồ, giờ làm việc, lời giới thiệu, nội quy, xin nghỉ, bảng và quy định học phí của Trung tâm Chìa Khóa Vàng; đổi danh xưng thành "Lớp học ScienceHub", `ARCHITECTURE.md` mục 5.1). Chờ người dùng duyệt câu chữ.
   - **M2 – Lịch học các lớp tự động: xong và chạy thật 25/11/2026** (`11_website.sql`, `website.catalog()`, `site/api/lop-hoc.js` chạy ở vùng `sin1` gần CSDL, `ClassSchedule.jsx`; học phí không lấy từ app mà theo `site/src/data/fees.js`). Người dùng đã chạy `website_link.sql` (bản điền mật khẩu ở `%LOCALAPPDATA%\ScienceHub\website-link\`), `11_website.sql`, `09_grants.sql` và đặt `WEBSITE_DATABASE_URL` trên Vercel. Lúc bật: 20 lớp (Vật Lí 10/11/12, Hóa học 10/11/12); Vật Lí 11 có 4 lớp 1 buổi/tuần nhưng chưa xếp nhóm lớp.
   - **M3 – Form đăng ký + màn hình "Đơn đăng ký": mã xong 25/11/2026** (`ARCHITECTURE.md` mục 5.1, 5.2). Người dùng làm tay: chạy lại `11_website.sql` rồi `09_grants.sql` (không cần đổi gì trên Vercel); gửi thử một đơn trên web rồi xem ở app quản lý.
+  - **Trang chủ mới: xong 25/11/2026** (`site/README.md` mục "Trang chủ"). Người dùng làm tay: thay ảnh giữ chỗ trong `site/src/assets/anh/` (4 ảnh lớp học, 1 ảnh chụp màn hình app); điền con số và nhận xét THẬT vào `site/src/data/trang-chu.js` (đang để trống nên phần đó đang ẩn); duyệt 20 câu hỏi "vì sao" ở `site/src/data/cau-hoi-vi-sao.js`.
   - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem`, thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
   - Lưu ý chi phí: gói Hobby của Vercel chỉ cho dùng phi thương mại; nên gom các dự án vào một nhóm Vercel Pro.
 - **Tồn đọng nhỏ (không chặn):**
@@ -25,6 +26,11 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 25/11/2026 — Trang giới thiệu: làm mới trang chủ
+- Trang chủ chia thành các dải nền xen kẽ (trắng / xanh rất nhạt / giấy kẻ ô), mỗi phần một component ở `site/src/components/home/`: phần đầu có họa tiết khoa học SVG trôi chậm; khung "Câu hỏi vì sao hôm nay" (20 câu, ngẫu nhiên, "Xem lời giải", "Câu khác"); công nghệ (3 ô + khung điện thoại); "Các lớp đang mở" lấy từ `/api/lop-hoc` (thay 4 thẻ lặp menu); ảnh lớp học; con số + nhận xét (tự ẩn khi chưa có dữ liệu thật); "ScienceHub phù hợp với ai?" (thay khung lưu ý vàng của trang chủ, trang Đăng ký giữ nguyên); dải Đăng ký + Liên hệ; nút Zalo/Gọi nổi trên điện thoại (tự ẩn ở đầu trang, ở phần Liên hệ và khi đè lên nút khác). Script JS thuần `site/src/scripts/home.js`; tôn trọng `prefers-reduced-motion`.
+- Màu của cả web gom thành biến trong `site/src/styles/global.css`: `brand` (xanh dương chính, đổi tên từ `sky`, cùng giá trị), `mint` (xanh lá của logo), `physics` (Vật Lí, xanh dương), `chem` (Hóa học, **đổi sang cam**). Các trang khác không đổi giao diện (so ảnh chụp từng điểm ảnh), trừ nhãn Hóa học ở trang Lớp học/Đăng ký/Tra cứu điểm thành màu cam. App quản lý vẫn để Hóa học màu xanh lá.
+- `site/src/lib/catalog.js` thêm `sectionDays`, `daysText`; test JS thêm 2 tình huống (các thứ có ca học, dữ liệu câu hỏi và cấu hình trang chủ). Bỏ `CENTER.intro` (lời giới thiệu cũ, nay viết trong các phần của trang chủ).
 
 ### 25/11/2026 — Trang giới thiệu: mốc M3 (form đăng ký học, trang Đơn đăng ký)
 - Web: form 4 bước ở trang Đăng ký học (chọn lịch theo phần bằng nút chọn, **mã HS giới thiệu**, ô đồng ý, ô bẫy chống spam); nút "Đăng ký lịch này" ở trang Lớp học mở form chọn sẵn môn + khối. `site/api/dang-ky.js`, `site/server/db.js` (kết nối dùng chung, chỉ thử lại khi đứt kết nối).

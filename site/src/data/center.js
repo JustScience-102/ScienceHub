@@ -1,4 +1,5 @@
 // Thông tin Lớp học ScienceHub hiển thị trên web. Sửa ở đây rồi push lên main là web cập nhật.
+// Nội dung riêng của trang chủ (con số, nhận xét, ảnh, "phù hợp với ai") ở src/data/trang-chu.js.
 // Ô để trống ('' hoặc []) thì trang ghi "Đang cập nhật".
 // Danh xưng (người dùng chốt 25/11/2026): "Lớp học ScienceHub", trong câu gọi tắt "ScienceHub";
 // chữ "Trung tâm" chỉ dùng cho Trung tâm gia sư Chìa Khóa Vàng (đối tác thu học phí, xem fees.js).
@@ -6,12 +7,7 @@ export const CENTER = {
   name: 'Lớp học ScienceHub',
   shortName: 'ScienceHub',
   slogan: 'Always ask why?',
-  // Đoạn giới thiệu ở trang chủ: mỗi phần tử là một đoạn văn.
-  intro: [
-    'ScienceHub là lớp học Vật Lí và Hóa học theo tinh thần “Always ask why?”: các em được hướng dẫn hiểu vì sao một hiện tượng xảy ra, vì sao một công thức đúng, chứ không chỉ học thuộc để làm bài.',
-    'Lớp học có môi trường nghiêm túc, lành mạnh; phòng học rộng rãi, tiện nghi. ScienceHub ứng dụng nhiều công nghệ để hỗ trợ học sinh tối đa: mỗi em có tài khoản làm bài tập trực tuyến với đề riêng, nộp bài là có điểm ngay kèm lời giải những câu làm sai; phụ huynh tự xem điểm các bài kiểm tra của con ngay trên web này.',
-  ],
-  // Lưu ý nổi bật ở trang chủ và trang Đăng ký học.
+  // Lưu ý nổi bật ở trang Đăng ký học (trang chủ dùng phần "ScienceHub phù hợp với ai?" ở src/data/trang-chu.js).
   fitNote:
     'ScienceHub dành cho học sinh sẵn sàng cố gắng. Lớp học không phù hợp với học sinh quá lười: không làm bài tập, không chịu nghe giảng và không có ý thức tự học.',
   address: 'Số 10 Nguyễn Công Trứ, phường Bãi Cháy, thành phố Quảng Ninh',

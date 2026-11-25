@@ -1,0 +1,72 @@
+---
+// Ảnh lớp học (PHOTOS ở src/data/trang-chu.js, file trong src/assets/anh/). Ảnh tải lười (loading="lazy"), Astro tạo
+// sẵn bản WebP nhiều cỡ để điện thoại chỉ tải bản vừa màn hình. Không có ảnh nào thì cả phần ẩn.
+// Bố cục theo số ảnh: 4 ảnh trên máy tính là 1 ảnh lớn + 1 ảnh ngang + 2 ảnh nhỏ; điện thoại 2 cột.
+import { Picture } from 'astro:assets'
+import HomeSection from './HomeSection.astro'
+import { homeImage } from './images.js'
+import { PHOTOS } from '../../data/trang-chu.js'
+
+const { tone } = Astro.props
+const photos = PHOTOS.map((photo) => ({ ...photo, image: homeImage(photo.file) })).filter((photo) => photo.image)
+const count = photos.length
+
+// Lớp lưới cho từng ảnh (máy tính: lg:), và cỡ ảnh hiển thị để trình duyệt chọn bản WebP phù hợp.
+const SMALL = '(min-width: 1024px) 240px, 48vw'
+const BIG = '(min-width: 1024px) 490px, 96vw'
+function cell(index) {
+  const mobileWide = count % 2 === 1 && index === 0 ? 'col-span-2' : ''
+  if (count === 4) {
+    if (index === 0) return { cls: 'lg:col-span-2 lg:row-span-2', sizes: BIG }
+    if (index === 1) return { cls: 'lg:col-span-2', sizes: '(min-width: 1024px) 490px, 48vw' }
+    return { cls: '', sizes: SMALL }
+  }
+  if (count === 3) {
+    return index === 0 ? { cls: `${mobileWide} lg:col-span-2 lg:row-span-2`, sizes: BIG } : { cls: '', sizes: SMALL }
+  }
+  return { cls: mobileWide, sizes: count <= 2 ? BIG : SMALL }
+}
+const gridClass =
+  count === 4
+    ? 'lg:grid-cols-4 lg:grid-rows-[200px_200px]'
+    : count === 3
+      ? 'lg:grid-cols-3 lg:grid-rows-[200px_200px]'
+      : count >= 5
+        ? 'lg:grid-cols-3'
+        : ''
+const fixedRows = count === 3 || count === 4
+---
+{count > 0 && (
+  <HomeSection
+    id="anh-lop-hoc"
+    tone={tone}
+    eyebrow="Không gian lớp học"
+    title="Một buổi học ở ScienceHub"
+    subtitle="Lớp học có môi trường nghiêm túc, lành mạnh; phòng học rộng rãi, tiện nghi."
+  >
+    <ul class:list={['grid grid-cols-2 gap-3 sm:gap-4', gridClass]}>
+      {photos.map((photo, index) => {
+        const { cls, sizes } = cell(index)
+        return (
+          <li class:list={['reveal', cls]}>
+            <figure class="lift relative h-full overflow-hidden rounded-2xl border-4 border-white bg-white shadow-md shadow-slate-900/10">
+              <Picture
+                src={photo.image}
+                alt={photo.moTa}
+                widths={[320, 640, 960]}
+                sizes={sizes}
+                formats={['webp']}
+                class:list={['aspect-[4/3] w-full object-cover', fixedRows && 'lg:aspect-auto lg:h-full']}
+              />
+              {photo.chuThich && (
+                <figcaption class="absolute bottom-2 left-2 rounded-full bg-slate-900/70 px-3 py-1 text-xs font-medium text-white sm:text-sm">
+                  {photo.chuThich}
+                </figcaption>
+              )}
+            </figure>
+          </li>
+        )
+      })}
+    </ul>
+  </HomeSection>
+)}

@@ -1,8 +1,52 @@
 @import "tailwindcss";
 
-/* Cùng chữ và màu nền với app quản lý trung tâm (src/index.css) và app giao bài. Luôn nền sáng. */
+/* Cùng chữ và màu nền với app quản lý trung tâm (src/index.css) và app giao bài. Luôn nền sáng.
+   BẢNG MÀU CỦA CẢ WEB: đổi giá trị ở đây là đổi mọi trang (dùng trong class: bg-brand-600, text-mint-700,
+   bg-physics-100, text-chem-800...). Giá trị lấy theo bảng màu Tailwind (oklch). */
 @theme {
   --font-sans: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+
+  /* Màu chính: xanh dương của logo (#0284c7 = brand-600), dùng cho nút chính, liên kết, tiêu đề nhấn. */
+  --color-brand-50: oklch(97.7% 0.013 236.62);
+  --color-brand-100: oklch(95.1% 0.026 236.824);
+  --color-brand-200: oklch(90.1% 0.058 230.902);
+  --color-brand-300: oklch(82.8% 0.111 230.318);
+  --color-brand-400: oklch(74.6% 0.16 232.661);
+  --color-brand-500: oklch(68.5% 0.169 237.323);
+  --color-brand-600: oklch(58.8% 0.158 241.966);
+  --color-brand-700: oklch(50% 0.134 242.749);
+  --color-brand-800: oklch(44.3% 0.11 240.79);
+  --color-brand-900: oklch(39.1% 0.09 240.876);
+  --color-brand-950: oklch(29.3% 0.066 243.157);
+
+  /* Màu phụ: xanh lá của chấm tròn trên logo (#6ee7b7 = mint-300). Chữ trên nền trắng dùng mint-700 trở lên. */
+  --color-mint-50: oklch(97.9% 0.021 166.113);
+  --color-mint-100: oklch(95% 0.052 163.051);
+  --color-mint-200: oklch(90.5% 0.093 164.15);
+  --color-mint-300: oklch(84.5% 0.143 164.978);
+  --color-mint-400: oklch(76.5% 0.177 163.223);
+  --color-mint-500: oklch(69.6% 0.17 162.48);
+  --color-mint-600: oklch(59.6% 0.145 163.225);
+  --color-mint-700: oklch(50.8% 0.118 165.612);
+  --color-mint-800: oklch(43.2% 0.095 166.913);
+  --color-mint-900: oklch(37.8% 0.077 168.94);
+
+  /* Màu từng môn, dùng ở mọi nhãn môn (src/lib/catalog.js, ScoreLookup.jsx, trang chủ).
+     Vật Lí: xanh dương. Hóa học: cam. */
+  --color-physics-50: oklch(97.7% 0.013 236.62);
+  --color-physics-100: oklch(95.1% 0.026 236.824);
+  --color-physics-200: oklch(90.1% 0.058 230.902);
+  --color-physics-500: oklch(68.5% 0.169 237.323);
+  --color-physics-600: oklch(58.8% 0.158 241.966);
+  --color-physics-700: oklch(50% 0.134 242.749);
+  --color-physics-800: oklch(44.3% 0.11 240.79);
+  --color-chem-50: oklch(98% 0.016 73.684);
+  --color-chem-100: oklch(95.4% 0.038 75.164);
+  --color-chem-200: oklch(90.1% 0.076 70.697);
+  --color-chem-500: oklch(70.5% 0.213 47.604);
+  --color-chem-600: oklch(64.6% 0.222 41.116);
+  --color-chem-700: oklch(55.3% 0.195 38.402);
+  --color-chem-800: oklch(47% 0.157 37.304);
 }
 
 html {
@@ -17,6 +61,130 @@ body {
 
 /* Đang gõ vào ô nhập trên điện thoại: ẩn thanh tab đáy để nó không nổi ngay trên bàn phím ảo
    (giống BottomNav của app quản lý). Cờ data-typing do script trong layouts/Base.astro đặt. */
-body[data-typing] .bottom-nav {
+body[data-typing] .bottom-nav,
+body[data-typing] .floating-contact {
   display: none;
+}
+
+/* ===== Nền các phần của trang chủ (xen kẽ: trắng / xanh rất nhạt / giấy kẻ ô) ===== */
+.tone-white {
+  background-color: #fff;
+}
+.tone-tint {
+  background-color: var(--color-brand-50);
+}
+.tone-grid {
+  background-color: #fff;
+  background-image:
+    linear-gradient(to right, oklch(58.8% 0.158 241.966 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(58.8% 0.158 241.966 / 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ===== Chuyển động (tắt hết khi người dùng chọn giảm chuyển động) ===== */
+/* Hiện dần khi cuộn tới: script trang chủ thêm .is-hidden cho phần còn ở dưới màn hình rồi gỡ khi cuộn tới.
+   Không có JavaScript thì mọi thứ hiện bình thường. */
+.reveal {
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+.reveal.is-hidden {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+/* Thẻ nổi nhẹ lên khi rê chuột (chỉ máy có chuột). */
+.lift {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 12px 24px -10px rgb(15 23 42 / 0.18),
+      0 4px 8px -4px rgb(15 23 42 / 0.08);
+  }
+}
+
+/* Họa tiết khoa học ở đầu trang chủ: trôi rất chậm. */
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes answer-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.drift {
+  animation: float-y 14s ease-in-out infinite;
+}
+.drift-late {
+  animation: float-y 18s ease-in-out -6s infinite;
+}
+/* Quay quanh tâm của khung <svg> chứa nó. */
+.orbit {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: spin-slow 90s linear infinite;
+}
+.orbit-fast {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: spin-slow 40s linear infinite;
+}
+.answer-in {
+  animation: answer-in 0.3s ease;
+}
+
+/* Nút <summary> của khung "Câu hỏi vì sao": bỏ tam giác mặc định, đổi chữ khi mở. */
+.why-toggle {
+  list-style: none;
+}
+.why-toggle::-webkit-details-marker {
+  display: none;
+}
+details[open] > .why-toggle .when-closed,
+details:not([open]) > .why-toggle .when-open {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-hidden {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lift,
+  .lift:hover {
+    transform: none;
+    transition: none;
+  }
+  .drift,
+  .drift-late,
+  .orbit,
+  .orbit-fast,
+  .answer-in {
+    animation: none;
+  }
 }

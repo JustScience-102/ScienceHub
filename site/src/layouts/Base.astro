@@ -7,7 +7,8 @@ import ContactList from '../components/ContactList.astro'
 import { CENTER, HOMEWORK_APP_URL, NAV_ITEMS } from '../data/center.js'
 import { PARTNER } from '../data/fees.js'
 
-const { title, description } = Astro.props
+// wide: bỏ khung giữa trang để trang tự chia các dải nền tràn hết chiều ngang (trang chủ).
+const { title, description, wide = false } = Astro.props
 const ICONS = { home: House, classes: CalendarDays, rules: ScrollText, register: ClipboardPen, scores: GraduationCap }
 
 // Đường dẫn trang hiện tại, dạng "/lop-hoc" (lúc build Astro trả "/lop-hoc.html", trang chủ "/index.html").
@@ -47,7 +48,7 @@ const year = new Date().getFullYear()
   <body class="flex min-h-dvh flex-col font-sans antialiased">
     <a
       href="#noi-dung"
-      class="sr-only rounded-lg bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50"
+      class="sr-only rounded-lg bg-white px-4 py-2 text-sm font-medium text-brand-700 shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50"
     >
       Bỏ qua menu
     </a>
@@ -74,7 +75,7 @@ const year = new Date().getFullYear()
                     aria-current={active ? 'page' : undefined}
                     class:list={[
                       'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                      active ? 'bg-sky-100 text-sky-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
+                      active ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
                     ]}
                   >
                     <Icon size={18} aria-hidden="true" />
@@ -96,7 +97,7 @@ const year = new Date().getFullYear()
       </div>
     </header>
 
-    <main id="noi-dung" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    <main id="noi-dung" class:list={['w-full flex-1', !wide && 'mx-auto max-w-5xl px-4 py-6 sm:py-8']}>
       <slot />
     </main>
 
@@ -114,14 +115,14 @@ const year = new Date().getFullYear()
         <nav aria-label="Liên kết cuối trang">
           <ul class="grid gap-2 text-sm">
             {NAV_ITEMS.slice(1).map((item) => (
-              <li><a href={item.href} class="text-slate-600 hover:text-sky-700 hover:underline">{item.label}</a></li>
+              <li><a href={item.href} class="text-slate-600 hover:text-brand-700 hover:underline">{item.label}</a></li>
             ))}
             <li>
-              <a href={HOMEWORK_APP_URL} class="text-slate-600 hover:text-sky-700 hover:underline">
+              <a href={HOMEWORK_APP_URL} class="text-slate-600 hover:text-brand-700 hover:underline">
                 Học sinh: vào app làm bài tập
               </a>
             </li>
-            <li><a href="/bao-mat" class="text-slate-600 hover:text-sky-700 hover:underline">Chính sách bảo mật</a></li>
+            <li><a href="/bao-mat" class="text-slate-600 hover:text-brand-700 hover:underline">Chính sách bảo mật</a></li>
           </ul>
         </nav>
       </div>
@@ -145,7 +146,7 @@ const year = new Date().getFullYear()
                 aria-current={active ? 'page' : undefined}
                 class:list={[
                   'flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium transition-colors',
-                  active ? 'bg-sky-50 text-sky-600' : 'text-slate-500 hover:text-slate-700',
+                  active ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:text-slate-700',
                 ]}
               >
                 <Icon size={22} aria-hidden="true" />

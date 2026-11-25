@@ -27,6 +27,8 @@ const { SUBJECTS } = await import('../src/lib/subjects.js')
 const parentLookup = await import('../site/src/lib/parentLookup.js')
 const catalog = await import('../site/src/lib/catalog.js')
 const siteCenter = await import('../site/src/data/center.js')
+const siteWhy = await import('../site/src/data/cau-hoi-vi-sao.js')
+const siteHome = await import('../site/src/data/trang-chu.js')
 const lopHoc = await import('../site/api/lop-hoc.js')
 const siteDb = await import('../site/server/db.js')
 const dangKy = await import('../site/api/dang-ky.js')
@@ -289,6 +291,38 @@ await test('Cách chọn: bỏ cách trùng giờ; hai ca cùng phần trùng th
   assert.equal(r2.wrongExample, null)
   const mixed = catalog.buildSections([list[0], { ...list[1], teacher: 'Trần Thị Lan' }], [])[0]
   assert.equal(catalog.sharedTeacher(mixed), null, 'khác giáo viên thì ghi từng lớp')
+})
+await test('Trang chủ, "Các lớp đang mở": các thứ có ca học của một khối (chỉ lịch đang áp dụng)', () => {
+  const sections = catalog.buildSections(
+    [...SAMPLE, cls('li12b', 'Vật Lí', 12, 5, null, [row(8, '07:30', '09:30'), row(2, '19:00', '21:00', '2026-12-10')])],
+    siteCenter.CLASS_SUBJECTS,
+  )
+  const li12 = sections.find((s) => s.subject === 'Vật Lí' && s.grade === 12)
+  assert.deepEqual(catalog.sectionDays(li12, TODAY), [2, 3, 5, 6, 8], 'gồm cả lớp lẻ, bỏ lịch chưa áp dụng')
+  assert.equal(catalog.daysText([2, 3, 5, 6, 8]), 'Thứ 2, 3, 5, 6, Chủ nhật')
+  assert.equal(catalog.daysText([8]), 'Chủ nhật')
+  assert.equal(catalog.daysText([4, 7]), 'Thứ 4, 7')
+  assert.equal(catalog.daysText([]), '')
+  assert.equal(catalog.subjectStyle('Hóa học').tag, 'bg-chem-100 text-chem-800', 'Hóa học màu cam')
+  assert.equal(catalog.subjectStyle('VẬT LÍ').tag, 'bg-physics-100 text-physics-800', 'Vật Lí màu xanh dương')
+})
+await test('Trang chủ: câu hỏi "vì sao" đủ nội dung, đúng tên môn; con số/nhận xét chưa điền thì ẩn', () => {
+  const questions = siteWhy.WHY_QUESTIONS
+  assert.ok(questions.length >= 1)
+  for (const q of questions) {
+    assert.ok(siteCenter.CLASS_SUBJECTS.includes(q.mon), `câu "${q.cauHoi}": môn phải là ${siteCenter.CLASS_SUBJECTS.join(' hoặc ')}`)
+    assert.ok(q.cauHoi?.trim() && q.loiGiai?.trim(), `câu "${q.cauHoi}" thiếu câu hỏi hoặc lời giải`)
+  }
+  assert.equal(new Set(questions.map((q) => q.cauHoi)).size, questions.length, 'không có câu hỏi trùng')
+  assert.deepEqual(
+    siteHome.filledStats([{ so: null, hauTo: '', nhan: 'năm' }, { so: 0, nhan: 'a' }, { so: 120, hauTo: '+', nhan: 'học sinh' }, { so: 5, nhan: ' ' }]),
+    [{ so: 120, hauTo: '+', nhan: 'học sinh' }],
+  )
+  assert.deepEqual(
+    siteHome.filledReviews([{ noiDung: 'Tốt', nguoiViet: '' }, { noiDung: ' ', nguoiViet: 'A' }, { noiDung: 'Hay', nguoiViet: 'Chị B' }]),
+    [{ noiDung: 'Hay', nguoiViet: 'Chị B' }],
+  )
+  for (const item of siteHome.STATS) assert.ok(item.so === null || Number.isInteger(item.so), `con số "${item.nhan}" phải là số nguyên hoặc null`)
 })
 await test('Hàm máy chủ /api/lop-hoc: trả dữ liệu kèm bộ nhớ đệm; lỗi CSDL hoặc chưa cấu hình thì 503', async () => {
   const fakeRes = () => {

@@ -1,101 +1,42 @@
 ---
-import { ArrowRight, CalendarDays, ClipboardPen, GraduationCap, ScrollText } from 'lucide-react'
+// Trang chủ: các dải nền tràn hết chiều ngang (Base wide), mỗi phần một component ở src/components/home/.
+// Nội dung sửa được: src/data/trang-chu.js (con số, nhận xét, ảnh, phù hợp với ai), src/data/cau-hoi-vi-sao.js,
+// src/data/center.js (liên hệ). Script: src/scripts/home.js.
 import Base from '../layouts/Base.astro'
-import ContactList from '../components/ContactList.astro'
-import FitNote from '../components/FitNote.astro'
-import { CENTER } from '../data/center.js'
+import CallToAction from '../components/home/CallToAction.astro'
+import ClassPhotos from '../components/home/ClassPhotos.astro'
+import FitForWho from '../components/home/FitForWho.astro'
+import FloatingContact from '../components/home/FloatingContact.astro'
+import Hero from '../components/home/Hero.astro'
+import SchedulePreview from '../components/home/SchedulePreview.astro'
+import StatsReviews from '../components/home/StatsReviews.astro'
+import TechHighlights from '../components/home/TechHighlights.astro'
+import WhyQuestion from '../components/home/WhyQuestion.astro'
+import { homeImage } from '../components/home/images.js'
+import { PHOTOS, filledReviews, filledStats } from '../data/trang-chu.js'
 
-const CARDS = [
-  {
-    href: '/lop-hoc',
-    icon: CalendarDays,
-    title: 'Lớp học & học phí',
-    text: 'Các lớp đang mở, giáo viên, lịch học trong tuần và mức học phí.',
-  },
-  {
-    href: '/quy-dinh',
-    icon: ScrollText,
-    title: 'Quy định',
-    text: 'Nội quy lớp học, xin nghỉ, học bù và quy định thu học phí.',
-  },
-  {
-    href: '/dang-ky',
-    icon: ClipboardPen,
-    title: 'Đăng ký học',
-    text: 'Điền thông tin và chọn lịch học, ScienceHub sẽ liên hệ lại với phụ huynh.',
-  },
-  {
-    href: '/tra-cuu-diem',
-    icon: GraduationCap,
-    title: 'Tra cứu điểm',
-    text: 'Xem điểm các bài kiểm tra của con bằng mã học sinh và số điện thoại phụ huynh.',
-  },
+// Thứ tự các phần; phần nào không có dữ liệu thì bỏ, rồi xếp nền xen kẽ: giấy kẻ ô / trắng / xanh rất nhạt.
+const SECTIONS = [
+  { Part: WhyQuestion, show: true },
+  { Part: TechHighlights, show: true },
+  { Part: SchedulePreview, show: true },
+  { Part: ClassPhotos, show: PHOTOS.some((photo) => homeImage(photo.file)) },
+  { Part: StatsReviews, show: filledStats().length > 0 || filledReviews().length > 0 },
+  { Part: FitForWho, show: true },
 ]
+const TONES = ['grid', 'white', 'tint']
+const parts = SECTIONS.filter((section) => section.show).map((section, index) => ({
+  Part: section.Part,
+  tone: TONES[index % TONES.length],
+}))
 ---
-<Base>
-  <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
-    <div class="flex flex-col-reverse gap-6 sm:flex-row sm:items-start">
-      <div class="min-w-0 flex-1">
-        <h1 class="text-3xl font-bold text-slate-800 sm:text-4xl">{CENTER.name}</h1>
-        <p class="mt-2 text-lg font-medium text-sky-700">{CENTER.slogan}</p>
-        {CENTER.intro.length > 0 ? (
-          <div class="mt-4 space-y-3 text-base leading-relaxed text-slate-600">
-            {CENTER.intro.map((paragraph) => <p>{paragraph}</p>)}
-          </div>
-        ) : (
-          <p class="mt-4 text-base text-slate-600">
-            Thông tin lớp học, lịch học, học phí và đăng ký học dành cho phụ huynh và học sinh.
-          </p>
-        )}
-        <div class="mt-5">
-          <FitNote />
-        </div>
-        <div class="mt-6 flex flex-wrap gap-3">
-          <a
-            href="/dang-ky"
-            class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-sky-600 px-5 text-base font-semibold text-white hover:bg-sky-700"
-          >
-            <ClipboardPen size={18} aria-hidden="true" />
-            Đăng ký học
-          </a>
-          <a
-            href="/lop-hoc"
-            class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-base font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <CalendarDays size={18} aria-hidden="true" />
-            Xem lịch học & học phí
-          </a>
-        </div>
-      </div>
-      <img src="/icon-512.png" alt="" width="128" height="128" class="h-20 w-20 rounded-2xl sm:h-32 sm:w-32" />
-    </div>
-  </section>
-
-  <section aria-label="Thông tin chính" class="mt-6 grid gap-4 sm:grid-cols-2">
-    {CARDS.map((card) => {
-      const Icon = card.icon
-      return (
-        <a
-          href={card.href}
-          class="group flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-sky-300"
-        >
-          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-            <Icon size={22} aria-hidden="true" />
-          </span>
-          <span class="min-w-0 flex-1">
-            <span class="flex items-center gap-1 font-semibold text-slate-800 group-hover:text-sky-700">
-              {card.title}
-              <ArrowRight size={16} aria-hidden="true" />
-            </span>
-            <span class="mt-1 block text-sm text-slate-500">{card.text}</span>
-          </span>
-        </a>
-      )
-    })}
-  </section>
-
-  <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <h2 class="mb-4 text-lg font-semibold text-slate-800">Liên hệ</h2>
-    <ContactList />
-  </section>
+<Base wide>
+  <Hero />
+  {parts.map(({ Part, tone }) => <Part tone={tone} />)}
+  <CallToAction />
+  <FloatingContact />
 </Base>
+
+<script>
+  import '../scripts/home.js'
+</script>

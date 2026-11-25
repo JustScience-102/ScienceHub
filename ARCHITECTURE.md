@@ -211,8 +211,13 @@ Chi tiết kỹ thuật: `site/README.md`.
   ScienceHub" (mã nhận diện file sao lưu `'Trung tâm ScienceHub'` giữ nguyên); câu thông báo trong app vẫn xưng "Trung tâm".
 - **Học phí trên web** chép theo tờ "Quy định thu học phí" của Trung tâm (`site/src/data/fees.js`: bảng 600.000đ/tháng
   cho các lớp Vật Lí, Hóa học 2 buổi/tuần, 4 quy định khi nghỉ; SĐT/Zalo quản lý Trung tâm), **không** lấy `price_per_session` của app này.
-- **Trang chủ**, **Quy định** (nội quy, xin nghỉ và học bù, học phí, lịch chia theo phần), **Chính sách bảo mật**: nội dung
-  tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc, lời giới thiệu ở `site/src/data/center.js`.
+- **Quy định** (nội quy, xin nghỉ và học bù, học phí, lịch chia theo phần), **Chính sách bảo mật**: nội dung
+  tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc ở `site/src/data/center.js`.
+- **Trang chủ** (làm mới 25/11/2026, chi tiết `site/README.md` mục "Trang chủ"): phần đầu "Hiểu vì sao, nhớ thật lâu",
+  câu hỏi vì sao ngẫu nhiên (`site/src/data/cau-hoi-vi-sao.js`), công nghệ (đề riêng, có điểm kèm lời giải, phụ huynh
+  tra điểm), các lớp đang mở (cùng `/api/lop-hoc`), ảnh lớp học, con số + nhận xét, "ScienceHub phù hợp với ai?", Đăng
+  ký + Liên hệ, nút Zalo/Gọi nổi trên điện thoại. Con số, nhận xét, ảnh ở `site/src/data/trang-chu.js`: **chỉ dữ liệu
+  thật, chưa có thì phần đó tự ẩn** (người dùng chốt 25/11/2026). Màu môn trên web: Vật Lí xanh dương, Hóa học cam.
 - **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
   (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
 - **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở

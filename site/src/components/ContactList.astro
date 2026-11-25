@@ -6,14 +6,14 @@ import { CENTER } from '../data/center.js'
 
 const { compact = false } = Astro.props
 const row = 'flex items-start gap-3'
-const icon = 'mt-0.5 shrink-0 text-sky-700'
+const icon = 'mt-0.5 shrink-0 text-brand-700'
 ---
 <ul class:list={['text-sm text-slate-700', compact ? 'space-y-2' : 'space-y-3']}>
   <li class={row}>
     <Phone size={18} aria-hidden="true" className={icon} />
     <span>
       {CENTER.contactName}:{' '}
-      <a href={`tel:${CENTER.phone}`} class="font-semibold text-sky-700 hover:underline">{CENTER.phoneShown}</a>{' '}
+      <a href={`tel:${CENTER.phone}`} class="font-semibold text-brand-700 hover:underline">{CENTER.phoneShown}</a>{' '}
       <span class="text-slate-500">(gọi điện hoặc Zalo)</span>
     </span>
   </li>
@@ -24,7 +24,7 @@ const icon = 'mt-0.5 shrink-0 text-sky-700'
       {compact && CENTER.mapUrl && (
         <>
           {' '}·{' '}
-          <a href={CENTER.mapUrl} target="_blank" rel="noopener noreferrer" class="font-medium text-sky-700 hover:underline">
+          <a href={CENTER.mapUrl} target="_blank" rel="noopener noreferrer" class="font-medium text-brand-700 hover:underline">
             Xem bản đồ
           </a>
         </>
@@ -46,7 +46,7 @@ const icon = 'mt-0.5 shrink-0 text-sky-700'
   <div class="mt-4 flex flex-wrap gap-2">
     <a
       href={`tel:${CENTER.phone}`}
-      class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700"
+      class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
     >
       <Phone size={16} aria-hidden="true" />
       Gọi {CENTER.phoneShown}

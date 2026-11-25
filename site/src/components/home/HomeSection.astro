@@ -1,0 +1,15 @@
+---
+// Một dải của trang chủ: nền tràn hết chiều ngang (tone: white | tint | grid, xem global.css), nội dung ở giữa.
+// eyebrow/title/subtitle: phần đầu dải đặt phía trên nội dung (tùy chọn). Dải tự đặt tiêu đề ở chỗ khác thì
+// không truyền title mà dùng SectionHeader với id `${id}-tieu-de`.
+import SectionHeader from './SectionHeader.astro'
+
+const { id, tone = 'white', eyebrow, title, subtitle, class: extra } = Astro.props
+const titleId = `${id}-tieu-de`
+---
+<section id={id} aria-labelledby={titleId} class:list={[`tone-${tone}`, 'scroll-mt-16', extra]}>
+  <div class="mx-auto max-w-5xl px-4 py-12 sm:py-16">
+    {title && <SectionHeader id={titleId} eyebrow={eyebrow} title={title} subtitle={subtitle} class="mb-8" />}
+    <slot />
+  </div>
+</section>

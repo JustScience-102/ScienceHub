@@ -7,16 +7,16 @@ import { api } from '../lib/api.js'
 import { MIN_CLASS_AVG, SUBJECT_NAMES, scoreText, vnDate } from '../lib/parentLookup.js'
 
 const BTN_PRIMARY =
-  'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 text-base font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-base font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60'
 const BTN_SECONDARY =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50'
 const INPUT =
-  'w-full min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200'
-const SUBJECT_TAG = { VL: 'bg-sky-100 text-sky-800', HH: 'bg-emerald-100 text-emerald-800' }
+  'w-full min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200'
+const SUBJECT_TAG = { VL: 'bg-physics-100 text-physics-800', HH: 'bg-chem-100 text-chem-800' }
 
 function chipClass(on) {
   return `inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors ${
-    on ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+    on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`
 }
 

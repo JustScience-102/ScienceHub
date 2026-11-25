@@ -1,0 +1,29 @@
+---
+// Nút liên hệ nổi ở góc dưới bên phải (chỉ điện thoại và máy tính bảng, ẩn từ 1024px vì máy tính đã có menu và phần
+// Liên hệ). Nằm ngay trên thanh tab đáy; script trang chủ (setupFloatingContact) chỉ hiện nút khi đã cuộn qua phần
+// đầu trang và ẩn khi phần Liên hệ hoặc chân trang hiện ra (ở đó đã có nút gọi/Zalo), để không che nút khác.
+import { MessageCircle, Phone } from 'lucide-react'
+import { CENTER } from '../../data/center.js'
+
+const button =
+  'flex h-13 w-13 flex-col items-center justify-center rounded-full text-white shadow-lg ring-2 ring-white focus-visible:ring-4 focus-visible:ring-brand-300 focus-visible:outline-none'
+---
+<div
+  data-floating-contact
+  class="floating-contact invisible fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex translate-y-3 flex-col gap-3 opacity-0 transition-[opacity,transform,visibility] duration-300 motion-reduce:transition-none lg:hidden"
+>
+  <a
+    href={`https://zalo.me/${CENTER.phone}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={`Nhắn Zalo cho thầy: ${CENTER.phoneShown}`}
+    class:list={[button, 'bg-brand-700 hover:bg-brand-800']}
+  >
+    <MessageCircle size={20} aria-hidden="true" />
+    <span class="text-[11px] leading-tight font-bold" aria-hidden="true">Zalo</span>
+  </a>
+  <a href={`tel:${CENTER.phone}`} aria-label={`Gọi thầy: ${CENTER.phoneShown}`} class:list={[button, 'bg-mint-700 hover:bg-mint-800']}>
+    <Phone size={20} aria-hidden="true" />
+    <span class="text-[11px] leading-tight font-bold" aria-hidden="true">Gọi</span>
+  </a>
+</div>

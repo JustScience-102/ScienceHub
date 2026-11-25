@@ -1,0 +1,128 @@
+---
+// Phần đầu trang chủ: logo, "Always ask why?", tiêu đề, giới thiệu ngắn, 2 nút.
+// Nền: họa tiết khoa học vẽ bằng SVG (nguyên tử, vòng benzene, phân tử nước, đồ thị, công thức), rất mờ, trôi
+// chậm (tắt khi người dùng chọn giảm chuyển động, xem global.css). Toàn bộ họa tiết chỉ để trang trí (aria-hidden).
+import { Atom, CalendarDays, ClipboardPen, FlaskConical, MapPin } from 'lucide-react'
+import { CENTER } from '../../data/center.js'
+
+const formula = 'absolute font-serif italic text-brand-700/15 select-none'
+---
+<section class="relative overflow-hidden bg-linear-to-b from-brand-50 via-white to-white" aria-labelledby="tieu-de-trang">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 text-brand-600">
+    <!-- Nguyên tử: góc trên bên phải (điện thoại), giữa trang phía trên (máy tính) -->
+    <svg viewBox="0 0 200 200" class="drift absolute -top-6 -right-14 w-44 opacity-[0.14] sm:-right-6 sm:w-56 lg:top-6 lg:right-auto lg:left-[44%] lg:w-40">
+      <g class="orbit" fill="none" stroke="currentColor" stroke-width="3">
+        <ellipse cx="100" cy="100" rx="88" ry="30" />
+        <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(60 100 100)" />
+        <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(120 100 100)" />
+        <circle cx="188" cy="100" r="6" fill="currentColor" stroke="none" />
+        <circle cx="56" cy="24" r="6" fill="currentColor" stroke="none" />
+      </g>
+      <circle cx="100" cy="100" r="12" fill="currentColor" />
+    </svg>
+
+    <!-- Đồ thị dao động: góc dưới bên trái -->
+    <svg viewBox="0 0 260 150" class="drift-late absolute bottom-4 -left-8 w-52 opacity-[0.16] sm:left-2 sm:w-64">
+      <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <path d="M20 10 V130 H250" />
+        <path d="M14 20 L20 10 L26 20 M240 124 L250 130 L240 136" />
+        <path d="M20 70 Q47 10 74 70 T128 70 T182 70 T236 70" stroke-width="3.5" />
+      </g>
+    </svg>
+
+    <!-- Vòng benzene -->
+    <svg viewBox="0 0 120 120" class="drift absolute right-3 bottom-28 w-20 opacity-[0.14] sm:right-[8%] sm:bottom-10 sm:w-24 lg:right-[36%] lg:bottom-2">
+      <g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round">
+        <polygon points="60,10 103.3,35 103.3,85 60,110 16.7,85 16.7,35" />
+        <circle cx="60" cy="60" r="28" />
+      </g>
+    </svg>
+
+    <!-- Phân tử nước (chỉ máy tính) -->
+    <svg viewBox="0 0 140 110" class="drift-late absolute top-10 left-[4%] hidden w-28 opacity-[0.14] lg:block">
+      <g stroke="currentColor" stroke-width="5" stroke-linecap="round">
+        <line x1="70" y1="40" x2="30" y2="82" />
+        <line x1="70" y1="40" x2="110" y2="82" />
+      </g>
+      <circle cx="70" cy="40" r="24" fill="currentColor" />
+      <circle cx="28" cy="84" r="15" fill="currentColor" />
+      <circle cx="112" cy="84" r="15" fill="currentColor" />
+    </svg>
+
+    <!-- Công thức -->
+    <span class:list={[formula, 'top-36 right-4 text-xl sm:top-24 sm:right-[30%] sm:text-2xl lg:top-auto lg:right-auto lg:bottom-3 lg:left-[30%]']}>F = ma</span>
+    <span class:list={[formula, 'bottom-36 left-4 text-lg sm:bottom-auto sm:top-8 sm:left-[46%] sm:text-2xl lg:top-auto lg:bottom-8 lg:left-auto lg:right-[6%]']}>PV = nRT</span>
+    <span class:list={[formula, 'hidden text-2xl md:block md:top-[46%] md:right-[4%] lg:top-6 lg:right-[24%]']}>2H₂ + O₂ → 2H₂O</span>
+    <span class:list={[formula, 'hidden text-2xl lg:block lg:top-[58%] lg:left-[2%]']}>v = λf</span>
+  </div>
+
+  <div class="relative mx-auto grid max-w-5xl items-center gap-10 px-4 pt-8 pb-14 sm:pt-14 sm:pb-20 lg:grid-cols-[1fr_auto]">
+    <div>
+      <div class="flex items-center gap-3">
+        <img src="/icon-192.png" alt="" width="56" height="56" class="h-14 w-14 rounded-2xl shadow-md shadow-brand-900/10 lg:hidden" />
+        <span class="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-brand-700 shadow-sm">
+          <span class="h-2.5 w-2.5 rounded-full bg-mint-400" aria-hidden="true"></span>
+          {CENTER.slogan}
+        </span>
+      </div>
+
+      <p class="mt-6 text-base font-semibold text-slate-600">
+        {CENTER.name} · Vật Lí &amp; Hóa học <span class="whitespace-nowrap">lớp 10–12</span>
+      </p>
+      <h1 id="tieu-de-trang" class="mt-2 text-4xl leading-[1.15] font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+        Hiểu vì sao,<br />
+        <span class="text-brand-600">nhớ thật lâu.</span>
+      </h1>
+      <p class="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
+        Các em được dẫn dắt để hiểu bản chất từng hiện tượng, từng công thức thay vì học thuộc. Mỗi em có tài khoản
+        luyện đề riêng, phụ huynh xem điểm kiểm tra của con ngay trên web.
+      </p>
+
+      <div class="mt-7 flex flex-wrap gap-3">
+        <a
+          href="/dang-ky"
+          class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand-600 px-6 text-base font-semibold text-white shadow-md shadow-brand-600/25 hover:bg-brand-700"
+        >
+          <ClipboardPen size={18} aria-hidden="true" />
+          Đăng ký học
+        </a>
+        <a
+          href="/lop-hoc"
+          class="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-base font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <CalendarDays size={18} aria-hidden="true" />
+          Xem lịch học & học phí
+        </a>
+      </div>
+
+      {CENTER.address && (
+        <p class="mt-6 flex items-start gap-2 text-sm text-slate-500">
+          <MapPin size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+          {CENTER.address}
+        </p>
+      )}
+    </div>
+
+    <!-- Logo lớn có quỹ đạo quay chậm (chỉ máy tính) -->
+    <div aria-hidden="true" class="relative hidden h-80 w-80 lg:block">
+      <svg viewBox="0 0 320 320" class="absolute inset-0 h-full w-full text-brand-300">
+        <g class="orbit" fill="none" stroke="currentColor" stroke-width="2">
+          <ellipse cx="160" cy="160" rx="152" ry="56" transform="rotate(-24 160 160)" />
+          <circle cx="299" cy="98" r="7" class="fill-mint-400" stroke="none" />
+        </g>
+        <g class="orbit-fast" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 8">
+          <ellipse cx="160" cy="160" rx="152" ry="56" transform="rotate(36 160 160)" />
+        </g>
+      </svg>
+      <img src="/icon-512.png" alt="" width="160" height="160" loading="lazy" class="absolute inset-0 m-auto h-40 w-40 rounded-[2rem] shadow-xl shadow-brand-900/20" />
+      <span class="drift absolute top-6 left-0 inline-flex items-center gap-1.5 rounded-full bg-physics-100 px-3 py-1.5 text-sm font-semibold text-physics-800 shadow-sm">
+        <Atom size={16} aria-hidden="true" />
+        Vật Lí
+      </span>
+      <span class="drift-late absolute right-0 bottom-8 inline-flex items-center gap-1.5 rounded-full bg-chem-100 px-3 py-1.5 text-sm font-semibold text-chem-800 shadow-sm">
+        <FlaskConical size={16} aria-hidden="true" />
+        Hóa học
+      </span>
+    </div>
+  </div>
+</section>

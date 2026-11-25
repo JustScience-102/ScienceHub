@@ -18,8 +18,8 @@ import {
 } from '../lib/registration.js'
 
 const INPUT =
-  'w-full min-h-12 rounded-lg border bg-white px-3 text-base text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-200'
-const inputClass = (error) => `${INPUT} ${error ? 'border-red-400 focus:border-red-500' : 'border-slate-300 focus:border-sky-500'}`
+  'w-full min-h-12 rounded-lg border bg-white px-3 text-base text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200'
+const inputClass = (error) => `${INPUT} ${error ? 'border-red-400 focus:border-red-500' : 'border-slate-300 focus:border-brand-500'}`
 const CARD = 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6'
 
 function Field({ id, label, required, hint, error, children }) {
@@ -44,7 +44,7 @@ function Field({ id, label, required, hint, error, children }) {
 function StepTitle({ no, children }) {
   return (
     <h2 className="mb-4 flex items-center gap-3 text-lg font-semibold text-slate-800">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
         {no}
       </span>
       {children}
@@ -205,7 +205,7 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
     return (
       <div className={`${CARD} text-base text-slate-600`}>
         <p>{loadError}</p>
-        <a href={`tel:${phone}`} className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-sky-700 hover:underline">
+        <a href={`tel:${phone}`} className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-brand-700 hover:underline">
           <Phone size={16} aria-hidden="true" />
           Gọi {phoneShown} để đăng ký
         </a>
@@ -268,8 +268,8 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
               return (
                 <label
                   key={grade}
-                  className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border px-5 text-base font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sky-300 ${
-                    on ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border px-5 text-base font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-300 ${
+                    on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <input type="radio" name="grade" className="sr-only" checked={on} onChange={() => changeGrade(grade)} />
@@ -294,11 +294,11 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
                 return (
                   <label
                     key={section.key}
-                    className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 text-base font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sky-300 ${
-                      on ? 'border-sky-600 bg-sky-50 text-sky-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 text-base font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-300 ${
+                      on ? 'border-brand-600 bg-brand-50 text-brand-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <input type="checkbox" className="h-5 w-5 accent-sky-600" checked={on} onChange={() => toggleSection(section)} />
+                    <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={on} onChange={() => toggleSection(section)} />
                     {section.subject} {section.grade}
                   </label>
                 )
@@ -401,13 +401,13 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
         <label className="flex cursor-pointer items-start gap-3 text-base text-slate-700">
           <input
             type="checkbox"
-            className="mt-1 h-5 w-5 shrink-0 accent-sky-600"
+            className="mt-1 h-5 w-5 shrink-0 accent-brand-600"
             checked={form.consent}
             onChange={(e) => setField('consent', e.target.checked)}
           />
           <span>
             Tôi đồng ý để ScienceHub dùng thông tin trên để liên hệ tư vấn và xếp lớp cho con (xem{' '}
-            <a href="/bao-mat" className="font-medium text-sky-700 hover:underline">
+            <a href="/bao-mat" className="font-medium text-brand-700 hover:underline">
               Chính sách bảo mật
             </a>
             ).<span className="text-red-500"> *</span>
@@ -423,7 +423,7 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
         <button
           type="submit"
           disabled={busy}
-          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-5 text-base font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 text-base font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {busy ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <CalendarCheck size={18} aria-hidden="true" />}
           {busy ? 'Đang gửi…' : 'Gửi đăng ký'}
@@ -475,13 +475,13 @@ function SchedulePicker({ section, today, pick, onChange, error }) {
 
       {option?.type === 'group' && (
         <div className="space-y-3">
-          <p className="text-sm text-sky-900">
+          <p className="text-sm text-brand-900">
             Mỗi tuần con học {option.group.parts.length} buổi: <b>chọn 1 ca trong mỗi phần</b>.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             {option.group.parts.map((part) => (
-              <div key={part.part} className="overflow-hidden rounded-lg border border-sky-300" role="radiogroup" aria-label={`Phần ${part.part}`}>
-                <p className="bg-sky-600 px-3 py-1.5 text-sm font-bold text-white">
+              <div key={part.part} className="overflow-hidden rounded-lg border border-brand-300" role="radiogroup" aria-label={`Phần ${part.part}`}>
+                <p className="bg-brand-600 px-3 py-1.5 text-sm font-bold text-white">
                   Phần {part.part} · {part.classes.length > 1 ? `chọn 1 trong ${part.classes.length} ca` : '1 ca'}
                 </p>
                 <div className="space-y-2 p-2">
@@ -515,11 +515,11 @@ function SchedulePicker({ section, today, pick, onChange, error }) {
 function RadioCard({ name, checked, onChange, title, text }) {
   return (
     <label
-      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sky-300 ${
-        checked ? 'border-sky-600 bg-sky-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-300 ${
+        checked ? 'border-brand-600 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50'
       }`}
     >
-      <input type="radio" name={name} className="h-5 w-5 shrink-0 accent-sky-600" checked={checked} onChange={onChange} />
+      <input type="radio" name={name} className="h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onChange} />
       <span className="min-w-0">
         <span className="block font-semibold text-slate-800">{title}</span>
         <span className="block text-sm text-slate-600">{text}</span>

@@ -4,10 +4,10 @@
 
 export const DAY_LABELS = { 2: 'Thứ 2', 3: 'Thứ 3', 4: 'Thứ 4', 5: 'Thứ 5', 6: 'Thứ 6', 7: 'Thứ 7', 8: 'Chủ nhật' }
 
-// Màu môn giống app quản lý (src/lib/dashboard.js) và tab Tra cứu điểm.
+// Màu môn trên web (biến physics/chem ở src/styles/global.css), dùng chung với tab Tra cứu điểm và trang chủ.
 const SUBJECT_STYLES = {
-  'vật lí': { tag: 'bg-sky-100 text-sky-800', bar: 'bg-sky-500' },
-  'hóa học': { tag: 'bg-emerald-100 text-emerald-800', bar: 'bg-emerald-500' },
+  'vật lí': { tag: 'bg-physics-100 text-physics-800', bar: 'bg-physics-500' },
+  'hóa học': { tag: 'bg-chem-100 text-chem-800', bar: 'bg-chem-500' },
 }
 const DEFAULT_STYLE = { tag: 'bg-slate-100 text-slate-700', bar: 'bg-slate-400' }
 
@@ -135,4 +135,20 @@ export function buildSections(classes, subjectOrder = []) {
         .sort((a, b) => byClassNo(a.parts[0].classes[0], b.parts[0].classes[0])),
     }))
     .sort((a, b) => subjectRank(a.subject) - subjectRank(b.subject) || a.subject.localeCompare(b.subject) || a.grade - b.grade)
+}
+
+// Các thứ có ca học (lịch đang áp dụng hôm nay) của mọi lớp trong một mục môn + khối, tăng dần: [2, 5, 8].
+// Dùng cho phần "Các lớp đang mở" ở trang chủ.
+export function sectionDays(section, today) {
+  const all = [...section.singles, ...section.groups.flatMap((g) => g.parts.flatMap((p) => p.classes))]
+  const days = new Set(all.flatMap((cls) => splitSchedule(cls.schedules ?? [], today).current.map((r) => r.day)))
+  return [...days].sort((a, b) => a - b)
+}
+
+// [2, 3, 5, 8] -> "Thứ 2, 3, 5, Chủ nhật"; [8] -> "Chủ nhật"; [] -> "".
+export function daysText(days) {
+  const weekdays = days.filter((d) => d >= 2 && d <= 7)
+  const parts = weekdays.length > 0 ? [`Thứ ${weekdays.join(', ')}`] : []
+  if (days.includes(8)) parts.push('Chủ nhật')
+  return parts.join(', ')
 }
