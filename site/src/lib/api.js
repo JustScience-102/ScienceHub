@@ -19,3 +19,16 @@ export async function api(url, { method = 'GET', body } = {}) {
   }
   return data
 }
+
+// Lịch các lớp (/api/lop-hoc). Lịch học và form đăng ký cùng nằm trên trang chủ nên dùng chung một lần tải;
+// tải lỗi thì lần gọi sau thử lại.
+let catalogRequest = null
+export function loadCatalog() {
+  if (!catalogRequest) {
+    catalogRequest = api('/api/lop-hoc').catch((err) => {
+      catalogRequest = null
+      throw err
+    })
+  }
+  return catalogRequest
+}

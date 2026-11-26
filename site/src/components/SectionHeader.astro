@@ -1,15 +1,17 @@
 ---
-// Phần đầu một dải của trang chủ: dòng nhỏ màu xanh lá (eyebrow), tiêu đề h2, câu giới thiệu.
+// Phần đầu một dải: dòng nhỏ màu xanh lá (eyebrow), tiêu đề, câu giới thiệu.
 // id: id của tiêu đề (dải dùng aria-labelledby trỏ vào); light: chữ trắng cho nền xanh đậm.
-const { id, eyebrow, title, subtitle, light = false, class: extra } = Astro.props
+// level: 2 (các dải của phần Trang chủ) hoặc 3 (dải nằm trong một phần lớn đã có PartHeader h2).
+const { id, eyebrow, title, subtitle, light = false, level = 2, class: extra } = Astro.props
+const Heading = level === 3 ? 'h3' : 'h2'
 ---
 <header class:list={['reveal max-w-2xl', extra]}>
   {eyebrow && (
     <p class:list={['text-sm font-semibold tracking-wide uppercase', light ? 'text-mint-200' : 'text-mint-700']}>{eyebrow}</p>
   )}
-  <h2 id={id} class:list={['mt-1 text-2xl leading-tight font-bold sm:text-3xl', light ? 'text-white' : 'text-slate-900']}>
+  <Heading id={id} class:list={['mt-1 text-2xl leading-tight font-bold sm:text-3xl', light ? 'text-white' : 'text-slate-900']}>
     {title}
-  </h2>
+  </Heading>
   {subtitle && (
     <p class:list={['mt-3 text-base leading-relaxed sm:text-lg', light ? 'text-brand-50' : 'text-slate-600']}>{subtitle}</p>
   )}

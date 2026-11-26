@@ -1,0 +1,9 @@
+---
+// Một phần lớn của trang chủ một trang (Trang chủ, Lớp học, Quy định, Đăng ký, Tra cứu điểm). id trùng id của mục
+// trong NAV_ITEMS (src/data/center.js): đang xem phần nào thì thanh tab sáng mục đó (src/scripts/scroll-spy.js).
+// hideFloating: ẩn nút Zalo/Gọi nổi khi đang xem phần này (phần có ô nhập, xem src/scripts/page-effects.js).
+const { id, hideFloating = false, class: extra } = Astro.props
+---
+<div id={id} data-spy-section data-hide-floating={hideFloating ? '' : undefined} class:list={['scroll-mt-16', extra]}>
+  <slot />
+</div>

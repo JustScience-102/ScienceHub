@@ -137,19 +137,3 @@ export function buildSections(classes, subjectOrder = []) {
     }))
     .sort((a, b) => subjectRank(a.subject) - subjectRank(b.subject) || a.subject.localeCompare(b.subject) || a.grade - b.grade)
 }
-
-// Các thứ có ca học (lịch đang áp dụng hôm nay) của mọi lớp trong một mục môn + khối, tăng dần: [2, 5, 8].
-// Dùng cho phần "Các lớp đang mở" ở trang chủ.
-export function sectionDays(section, today) {
-  const all = [...section.singles, ...section.groups.flatMap((g) => g.parts.flatMap((p) => p.classes))]
-  const days = new Set(all.flatMap((cls) => splitSchedule(cls.schedules ?? [], today).current.map((r) => r.day)))
-  return [...days].sort((a, b) => a - b)
-}
-
-// [2, 3, 5, 8] -> "Thứ 2, 3, 5, Chủ nhật"; [8] -> "Chủ nhật"; [] -> "".
-export function daysText(days) {
-  const weekdays = days.filter((d) => d >= 2 && d <= 7)
-  const parts = weekdays.length > 0 ? [`Thứ ${weekdays.join(', ')}`] : []
-  if (days.includes(8)) parts.push('Chủ nhật')
-  return parts.join(', ')
-}

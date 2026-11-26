@@ -2,15 +2,18 @@
 // Một dải nội dung tràn hết chiều ngang (trang dùng <Base wide>): nền theo tone (white | tint | grid, xem
 // global.css), nội dung ở giữa. eyebrow/title/subtitle: phần đầu dải đặt phía trên nội dung (tùy chọn); dải tự đặt
 // tiêu đề ở chỗ khác thì không truyền title mà dùng SectionHeader với id `${id}-tieu-de`.
-// compact: khoảng cách trên dưới nhỏ hơn (các trang ngoài trang chủ).
+// compact: khoảng cách trên dưới nhỏ hơn (dải trong các phần Lớp học, Quy định, Đăng ký).
+// level: cấp tiêu đề (2 hoặc 3, xem SectionHeader).
 import SectionHeader from './SectionHeader.astro'
 
-const { id, tone = 'white', eyebrow, title, subtitle, compact = false, class: extra } = Astro.props
+const { id, tone = 'white', eyebrow, title, subtitle, compact = false, level = 2, class: extra } = Astro.props
 const titleId = `${id}-tieu-de`
 ---
 <section id={id} aria-labelledby={titleId} class:list={[`tone-${tone}`, 'scroll-mt-16', extra]}>
   <div class:list={['mx-auto max-w-5xl px-4', compact ? 'py-8 sm:py-12' : 'py-12 sm:py-16']}>
-    {title && <SectionHeader id={titleId} eyebrow={eyebrow} title={title} subtitle={subtitle} class:list={[compact ? 'mb-5' : 'mb-8']} />}
+    {title && (
+      <SectionHeader id={titleId} level={level} eyebrow={eyebrow} title={title} subtitle={subtitle} class:list={[compact ? 'mb-5' : 'mb-8']} />
+    )}
     <slot />
   </div>
 </section>

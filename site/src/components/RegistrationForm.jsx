@@ -1,9 +1,12 @@
-// Form đăng ký học (trang Đăng ký học, mốc M3). Lịch lấy từ /api/lop-hoc; gửi đơn tới /api/dang-ky.
+// Form đăng ký học (phần Đăng ký của trang chủ, mốc M3). Lịch lấy từ /api/lop-hoc (loadCatalog, dùng chung với lịch học);
+// gửi đơn tới /api/dang-ky.
 // Lớp thuộc nhóm lớp: mỗi phần là một nhóm nút chọn (radio) nên không thể chọn 2 ca cùng phần; phải chọn đủ các phần.
-// Mở từ nút "Đăng ký lịch này" ở trang Lớp học: ?mon=<môn>&khoi=<khối> chọn sẵn môn và khối.
-import { useEffect, useMemo, useState } from 'react'
+// Chọn sẵn môn + khối: nút "Đăng ký lịch này" ở phần Lớp học (src/lib/registerPick.js) hoặc địa chỉ ?mon=<môn>&khoi=<khối>.
+// Cùng khối với lựa chọn đang có thì thêm môn đó vào, khác khối thì đổi khối; đã gửi đơn thì mở form mới.
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarCheck, CircleCheck, Loader2, Phone } from 'lucide-react'
-import { api } from '../lib/api.js'
+import { api, loadCatalog } from '../lib/api.js'
+import { onPick } from '../lib/registerPick.js'
 import { buildSections, classLabel, sessionText, splitSchedule, subjectStyle } from '../lib/catalog.js'
 import {
   EMPTY_FORM,
@@ -43,18 +46,28 @@ function Field({ id, label, required, hint, error, children }) {
 
 function StepTitle({ no, children }) {
   return (
-    <h2 className="mb-4 flex items-center gap-3 text-lg font-semibold text-slate-800">
+    <h3 className="mb-4 flex items-center gap-3 text-lg font-semibold text-slate-800">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
         {no}
       </span>
       {children}
-    </h2>
+    </h3>
   )
 }
 
 const scheduleText = (cls, today) => splitSchedule(cls.schedules ?? [], today).current.map(sessionText).join(', ') || 'Chưa có lịch'
 
-export default function RegistrationForm({ subjects, phone, phoneShown }) {
+// Khung ngoài: gửi đơn xong thì cuộn về đầu form (trang chủ dài, không cuộn về đầu trang).
+export default function RegistrationForm(props) {
+  const rootRef = useRef(null)
+  return (
+    <div ref={rootRef} className="scroll-mt-20">
+      <RegistrationBody {...props} rootRef={rootRef} />
+    </div>
+  )
+}
+
+function RegistrationBody({ subjects, phone, phoneShown, rootRef }) {
   const [catalog, setCatalog] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
@@ -70,15 +83,14 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
 
   useEffect(() => {
     let cancelled = false
-    api('/api/lop-hoc')
+    loadCatalog()
       .then((data) => {
         if (cancelled) return
         setCatalog(data)
-        // Chọn sẵn từ nút "Đăng ký lịch này" (?mon=Vật Lí&khoi=12).
+        // Địa chỉ ?mon=Vật Lí&khoi=12 (nút "Đăng ký lịch này" mở ở tab mới, địa chỉ cũ /dang-ky?...).
         const params = new URLSearchParams(window.location.search)
         const grade = Number(params.get('khoi'))
-        const subject = params.get('mon')
-        const section = buildSections(data.classes ?? [], subjects).find((s) => s.grade === grade && s.subject === subject)
+        const section = buildSections(data.classes ?? [], subjects).find((s) => s.grade === grade && s.subject === params.get('mon'))
         if (section) {
           setForm((f) => ({ ...f, grade: String(grade) }))
           setChosen([section.key])
@@ -92,6 +104,40 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
       cancelled = true
     }
   }, [subjects])
+
+  // Nút "Đăng ký lịch này" ở phần Lớp học (src/lib/registerPick.js). Chỉ nhận khi đã có lịch; trước đó lựa chọn được
+  // giữ lại chờ. Cùng khối thì thêm môn đó, khác khối thì đổi khối, đã gửi đơn thì mở form mới.
+  useEffect(() => {
+    if (!catalog) return undefined
+    return onPick(({ subject, grade }) => {
+      const section = sections.find((s) => s.grade === grade && s.subject === subject)
+      if (!section) return
+      const pick = defaultPick(section)
+      setSubmitError('')
+      if (done) {
+        setDone(null)
+        setForm({ ...EMPTY_FORM, grade: String(section.grade) })
+        setChosen([section.key])
+        setPicks({ [section.key]: pick })
+        setErrors({})
+        return
+      }
+      setErrors((e) => ({ ...e, grade: '', subjects: '', [`pick:${section.key}`]: '' }))
+      if (form.grade !== String(section.grade)) {
+        setForm((f) => ({ ...f, grade: String(section.grade) }))
+        setChosen([section.key])
+        setPicks({ [section.key]: pick })
+        return
+      }
+      setChosen((c) => (c.includes(section.key) ? c : [...c, section.key]))
+      setPicks((p) => ({ ...p, [section.key]: p[section.key] ?? pick }))
+    })
+  }, [catalog, sections, done, form.grade])
+
+  // Vừa gửi xong: khung "Đã gửi đăng ký" ngắn hơn form nên đưa đầu khung vào màn hình.
+  useEffect(() => {
+    if (done) rootRef.current?.scrollIntoView({ block: 'start' })
+  }, [done, rootRef])
 
   const grades = [...new Set(sections.map((s) => s.grade))].sort((a, b) => a - b)
   const gradeSections = sections.filter((s) => String(s.grade) === String(form.grade))
@@ -156,7 +202,6 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
           text: pickedClasses(s, picks[s.key]).map((c) => `${classLabel(c)}: ${scheduleText(c, today)}`).join(' + '),
         })),
       })
-      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setSubmitError(err.message)
     } finally {
@@ -170,7 +215,7 @@ export default function RegistrationForm({ subjects, phone, phoneShown }) {
         <div className="flex items-start gap-3">
           <CircleCheck size={28} aria-hidden="true" className="shrink-0 text-emerald-600" />
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Đã gửi đăng ký cho con {done.name}</h2>
+            <h3 className="text-xl font-bold text-slate-800">Đã gửi đăng ký cho con {done.name}</h3>
             <p className="mt-1 text-base text-slate-600">
               {done.updated && 'Đơn trước đó của con đã được cập nhật theo lựa chọn mới. '}
               Thầy sẽ gọi lại cho phụ huynh qua số <b>{done.phone}</b> trong thời gian sớm nhất để xác nhận lịch học.

@@ -1,6 +1,7 @@
 ---
-// Học phí theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js).
-// table: thẻ giá (mỗi dòng FEE_TABLE một thẻ, giá hiện to); rules: các quy định thu học phí (danh sách đánh số).
+// Học phí theo quy định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js), ở dải #hoc-phi của phần Lớp học.
+// table: thẻ giá (mỗi dòng FEE_TABLE một thẻ, giá hiện to); rules: các quy định thu học phí (danh sách đánh số,
+// có tiêu đề h4 khi đi cùng thẻ giá).
 // Thông tin đối tác (Trung tâm thu học phí, SĐT quản lý) luôn hiện: sau thẻ giá nếu có (máy tính: hai thẻ cạnh nhau),
 // không thì ở đầu.
 import { Handshake, Phone } from 'lucide-react'
@@ -61,8 +62,11 @@ const splitFee = (fee) => {
 </div>
 </div>
 
+{rules && table && (
+  <h4 class="reveal mt-6 mb-3 text-lg font-bold text-slate-900">Quy định thu học phí</h4>
+)}
 {rules && (
-  <ol class="reveal mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <ol class:list={['reveal divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm', !table && 'mt-4']}>
     {FEE_RULES.map((rule, index) => (
       <li class="flex items-start gap-3 p-4 text-base text-slate-700">
         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">

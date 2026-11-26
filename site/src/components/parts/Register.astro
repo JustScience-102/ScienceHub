@@ -1,0 +1,44 @@
+---
+// Phần "Đăng ký học" của trang chủ: form RegistrationForm.jsx (mốc M3, gửi tới /api/dang-ky) trên nền giấy kẻ ô và thẻ
+// "Cần tư vấn". Form chỉ dựng khi cuộn gần tới (client:visible) cho trang tải nhanh; "phù hợp với ai?" đã có ở phần
+// Trang chủ nên không lặp lại. Có ô nhập nên ẩn nút Zalo/Gọi nổi.
+import { ClipboardPen, MessageCircleQuestion } from 'lucide-react'
+import ContactList from '../ContactList.astro'
+import PageSection from '../PageSection.astro'
+import PartHeader from '../PartHeader.astro'
+import RegistrationForm from '../RegistrationForm.jsx'
+import Part from './Part.astro'
+import { CENTER, CLASS_SUBJECTS } from '../../data/center.js'
+---
+<Part id="dang-ky" hideFloating>
+  <PartHeader
+    id="dang-ky-tieu-de"
+    icon={ClipboardPen}
+    eyebrow="Đăng ký trực tuyến"
+    title="Đăng ký học"
+    subtitle="Điền thông tin và chọn lịch học, thầy sẽ gọi lại cho phụ huynh để xác nhận."
+  />
+
+  <div class="tone-grid">
+    <div class="mx-auto max-w-5xl px-4 py-6 sm:py-8">
+      <RegistrationForm
+        client:visible={{ rootMargin: '600px' }}
+        subjects={CLASS_SUBJECTS}
+        phone={CENTER.phone}
+        phoneShown={CENTER.phoneShown}
+      />
+    </div>
+  </div>
+
+  <PageSection id="tu-van" tone="tint" compact>
+    <div class="reveal rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <h3 id="tu-van-tieu-de" class="mb-4 flex items-center gap-3 text-lg font-bold text-slate-900">
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-mint-100 text-mint-700">
+          <MessageCircleQuestion size={20} aria-hidden="true" />
+        </span>
+        Cần tư vấn trước khi đăng ký?
+      </h3>
+      <ContactList />
+    </div>
+  </PageSection>
+</Part>

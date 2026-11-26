@@ -1,0 +1,27 @@
+---
+// Họa tiết khoa học rất mờ (nguyên tử, đồ thị dao động, vòng benzene) trôi chậm, nằm dưới nội dung của PageHero và
+// PartHeader. Khung chứa phải có class "relative overflow-hidden". Chỉ để trang trí (aria-hidden).
+---
+<div aria-hidden="true" class="pointer-events-none absolute inset-0 text-brand-600">
+  <svg viewBox="0 0 200 200" class="drift absolute -top-8 -right-12 w-36 opacity-[0.13] sm:right-4 sm:w-44">
+    <g class="orbit" fill="none" stroke="currentColor" stroke-width="3">
+      <ellipse cx="100" cy="100" rx="88" ry="30" />
+      <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(60 100 100)" />
+      <ellipse cx="100" cy="100" rx="88" ry="30" transform="rotate(120 100 100)" />
+      <circle cx="188" cy="100" r="6" fill="currentColor" stroke="none" />
+    </g>
+    <circle cx="100" cy="100" r="12" fill="currentColor" />
+  </svg>
+  <svg viewBox="0 0 260 150" class="drift-late absolute -bottom-6 left-[38%] hidden w-48 opacity-[0.12] sm:block">
+    <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+      <path d="M20 10 V130 H250" />
+      <path d="M20 70 Q47 10 74 70 T128 70 T182 70 T236 70" stroke-width="3.5" />
+    </g>
+  </svg>
+  <svg viewBox="0 0 120 120" class="drift-late absolute right-[22%] bottom-3 hidden w-16 opacity-[0.12] md:block">
+    <g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round">
+      <polygon points="60,10 103.3,35 103.3,85 60,110 16.7,85 16.7,35" />
+      <circle cx="60" cy="60" r="28" />
+    </g>
+  </svg>
+</div>

@@ -204,32 +204,38 @@ Web công khai cho phụ huynh và học sinh, dự án Vercel riêng trong cùn
 HTML tĩnh; phần cần bấm là component React; cùng Tailwind, `lucide-react`, logo và bảng màu với app này và app giao bài.
 Chi tiết kỹ thuật: `site/README.md`.
 
-### 5.1. Danh xưng, học phí và các tab
+### 5.1. Danh xưng, học phí và các phần của web
 - **Danh xưng trên web** (người dùng chốt 25/11/2026): "Lớp học ScienceHub", trong câu gọi tắt "ScienceHub". Chữ
   "Trung tâm" trên web chỉ dùng cho **Trung tâm gia sư Chìa Khóa Vàng Bãi Cháy**: ScienceHub cộng tác với Trung tâm,
   mức học phí do Trung tâm quy định, phụ huynh đóng học phí cho quản lý của Trung tâm. App quản lý này hiện tên "Lớp học
   ScienceHub" (mã nhận diện file sao lưu `'Trung tâm ScienceHub'` giữ nguyên); câu thông báo trong app vẫn xưng "Trung tâm".
 - **Học phí trên web** chép theo tờ "Quy định thu học phí" của Trung tâm (`site/src/data/fees.js`: bảng 600.000đ/tháng
   cho các lớp Vật Lí, Hóa học 2 buổi/tuần, 4 quy định khi nghỉ; SĐT/Zalo quản lý Trung tâm), **không** lấy `price_per_session` của app này.
-- **Quy định** (nội quy, xin nghỉ và học bù, học phí, lịch chia theo phần), **Chính sách bảo mật**: nội dung
-  tĩnh; thông tin liên hệ, địa chỉ, giờ làm việc ở `site/src/data/center.js`.
-- **Trang chủ** (làm mới 25/11/2026, chi tiết `site/README.md` mục "Trang chủ"): phần đầu "Hiểu vì sao, nhớ thật lâu",
-  câu hỏi vì sao ngẫu nhiên (`site/src/data/cau-hoi-vi-sao.js`), công nghệ (đề riêng, có điểm kèm lời giải, phụ huynh
-  tra điểm), các lớp đang mở (cùng `/api/lop-hoc`), ảnh lớp học, con số + nhận xét, "ScienceHub phù hợp với ai?", Đăng
-  ký + Liên hệ, nút Zalo/Gọi nổi trên điện thoại. Con số, nhận xét, ảnh ở `site/src/data/trang-chu.js`: **chỉ dữ liệu
-  thật, chưa có thì phần đó tự ẩn** (người dùng chốt 25/11/2026). Màu môn trên web: Vật Lí xanh dương, Hóa học cam.
-- **Các tab khác cùng kiểu trang chủ** (26/11/2026): phần đầu `PageHero`, dải nền xen kẽ, mục lục nhanh (Lớp học, Quy
-  định), thanh lọc lịch dính khi cuộn, nút Zalo/Gọi nổi ở Lớp học và Quy định. Trang Đăng ký học thay khung lưu ý màu
-  vàng bằng khung gọn "ScienceHub phù hợp với ai?" (cùng nội dung trang chủ). Form Đăng ký và Tra cứu điểm giữ nguyên.
-- **Tra cứu điểm** (`/tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
-  (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm.
+- **Trang chủ một trang** (người dùng chốt 26/11/2026, chi tiết `site/README.md`): cả web là một trang cuộn, lần lượt 5
+  phần **Trang chủ → Lớp học & học phí → Quy định → Đăng ký học → Tra cứu điểm** (id `#trang-chu`, `#lop-hoc`,
+  `#quy-dinh`, `#dang-ky`, `#tra-cuu-diem`). Thanh tab (đáy điện thoại, ngang máy tính) là 5 mục đó: cuộn tới phần nào
+  thì mục đó sáng lên, bấm mục là cuộn mượt tới phần đó. Địa chỉ cũ `/lop-hoc`, `/quy-dinh`, `/dang-ky`,
+  `/tra-cuu-diem`, `/phu-huynh` chuyển về đúng phần. Riêng Chính sách bảo mật và 404 là trang riêng. Khi gộp đã bỏ các
+  phần trùng: "Các lớp đang mở" và dải "Đăng ký + Liên hệ" của trang chủ, khung gọn "phù hợp với ai?" ở Đăng ký; quy
+  định thu học phí chỉ còn ở phần Lớp học (cùng thẻ giá).
+- **Phần Trang chủ** (làm mới 25/11/2026): phần đầu "Hiểu vì sao, nhớ thật lâu", câu hỏi vì sao ngẫu nhiên
+  (`site/src/data/cau-hoi-vi-sao.js`), công nghệ (đề riêng, có điểm kèm lời giải, phụ huynh tra điểm), ảnh lớp học, con
+  số + nhận xét, "ScienceHub phù hợp với ai?", nút Zalo/Gọi nổi trên điện thoại. Con số, nhận xét, ảnh ở
+  `site/src/data/trang-chu.js`: **chỉ dữ liệu thật, chưa có thì phần đó tự ẩn** (người dùng chốt 25/11/2026). Màu môn
+  trên web: Vật Lí xanh dương, Hóa học cam.
+- **Quy định** (nội quy, xin nghỉ và học bù, lịch chia theo phần), **Chính sách bảo mật**: nội dung tĩnh; thông tin
+  liên hệ, địa chỉ, giờ làm việc ở `site/src/data/center.js`.
+- **Tra cứu điểm** (`#tra-cuu-diem`, xong 24/11/2026): giao diện của web, dữ liệu do máy chủ ScienceApp
+  (`/api/parent/*`) trả qua đường chuyển tiếp `/api/diem/*` (`site/vercel.json`). Không đọc CSDL Trung tâm. Khung chỉ
+  dựng (và hỏi máy chủ ScienceApp) khi cuộn gần tới.
 - **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở
   `site/src/data/center.js`) lấy tự động qua `/api/lop-hoc`, gom theo môn + khối. Học phí đặt **trước** lịch học
   (người dùng chốt 25/11/2026). Lớp thuộc nhóm lớp hiện mỗi phần một khung màu nối bằng dấu "+", câu "Mỗi tuần con
   học 2 buổi: 1 buổi Phần 1 + 1 buổi Phần 2", và "Ví dụ cách chọn lịch" tính từ lịch thật (`partCombos`: mỗi phần một
   ca, bỏ cách trùng giờ; ✓ các cách đúng, ✕ một cách sai cùng phần). Mỗi lớp ghi "Nhóm N" (như `classTitle` của app
   này), các buổi đang áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới; tên giáo viên ghi một lần ở đầu mục
-  nếu cả mục cùng giáo viên; nút "Đăng ký lịch này" mở form với môn + khối chọn sẵn (`/dang-ky?mon=…&khoi=…`).
+  nếu cả mục cùng giáo viên; nút "Đăng ký lịch này" cuộn xuống phần Đăng ký và chọn sẵn môn + khối trong form (cùng
+  khối thì thêm môn, khác khối thì đổi khối; địa chỉ `/?mon=…&khoi=…#dang-ky` mở ở tab mới cũng chọn sẵn).
 - **Đăng ký học** (mốc M3, 25/11/2026; `RegistrationForm.jsx`, `site/src/lib/registration.js`, `site/api/dang-ky.js`):
   4 bước (học sinh: họ tên, trường, SĐT, khối; môn và lịch; phụ huynh: họ tên, SĐT; thêm: **mã HS giới thiệu**, ghi chú),
   ô đồng ý Chính sách bảo mật, ô bẫy chống spam. Lịch: mỗi phần của nhóm lớp là một nhóm nút chọn (radio) nên không

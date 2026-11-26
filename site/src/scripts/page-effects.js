@@ -26,9 +26,10 @@ function setupReveal() {
 }
 
 // ===== Nút liên hệ nổi (điện thoại) =====
-// Trang nào cần thì đặt <FloatingContact />. Hiện khi đã cuộn qua phần đầu trang (data-page-top); ẩn khi phần
-// Liên hệ hoặc chân trang đang hiện (ở đó đã có nút gọi/Zalo), và tạm ẩn mỗi khi nằm đè lên một nút hay liên kết
-// khác của trang để không che nút đó. Trang đổi bố cục sau khi tải (dữ liệu về) thì phát sự kiện 'layout-changed'.
+// Trang nào cần thì đặt <FloatingContact />. Hiện khi đã cuộn qua phần đầu trang (data-page-top); ẩn khi đang xem
+// phần có ô nhập (data-hide-floating: Đăng ký, Tra cứu điểm; phần Đăng ký đã có thẻ gọi/Zalo) hoặc chân trang, và tạm ẩn
+// mỗi khi nằm đè lên một nút hay liên kết khác của trang để không che nút đó. Trang đổi bố cục sau khi tải (dữ liệu
+// về) thì phát sự kiện 'layout-changed'.
 function setupFloatingContact() {
   const floating = document.querySelector('[data-floating-contact]')
   if (!floating) return
@@ -37,11 +38,7 @@ function setupFloatingContact() {
     floating.classList.toggle('opacity-0', !show)
     floating.classList.toggle('translate-y-3', !show)
   }
-  const watched = [
-    document.querySelector('[data-page-top]'),
-    document.querySelector('#lien-he'),
-    document.querySelector('footer'),
-  ].filter(Boolean)
+  const watched = [...document.querySelectorAll('[data-page-top], [data-hide-floating], body > footer')]
   if (!('IntersectionObserver' in window) || watched.length === 0) {
     setShown(true)
     return

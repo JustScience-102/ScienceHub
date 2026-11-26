@@ -1,0 +1,39 @@
+---
+// Phần "Lớp học & học phí" của trang chủ.
+// Học phí (đặt trước, phụ huynh quan tâm trước): thẻ giá, Trung tâm thu học phí và quy định thu học phí, theo tờ quy
+// định của Trung tâm gia sư Chìa Khóa Vàng (src/data/fees.js). Lịch học: lấy tự động từ app quản lý qua /api/lop-hoc
+// (ClassSchedule.jsx, client:load để lịch có sẵn trước khi cuộn tới).
+// Giữ id #hoc-phi, #lich-hoc: địa chỉ cũ /lop-hoc#lich-hoc, /quy-dinh#hoc-phi chuyển về đây.
+import { CalendarDays } from 'lucide-react'
+import ClassSchedule from '../ClassSchedule.jsx'
+import FeeInfo from '../FeeInfo.astro'
+import PageSection from '../PageSection.astro'
+import PartHeader from '../PartHeader.astro'
+import Part from './Part.astro'
+import { CENTER, CLASS_SUBJECTS } from '../../data/center.js'
+---
+<Part id="lop-hoc">
+  <PartHeader
+    id="lop-hoc-tieu-de"
+    icon={CalendarDays}
+    eyebrow="Vật Lí · Hóa học · lớp 10–12"
+    title="Lớp học & học phí"
+    subtitle="Mức học phí, các lớp đang mở, giáo viên và lịch học trong tuần."
+  />
+
+  <PageSection id="hoc-phi" tone="white" compact level={3} eyebrow="Học phí" title="Học phí theo tháng">
+    <FeeInfo />
+  </PageSection>
+
+  <PageSection
+    id="lich-hoc"
+    tone="tint"
+    compact
+    level={3}
+    eyebrow="Lịch học"
+    title="Lịch học các lớp"
+    subtitle="Lịch cập nhật tự động. Chọn môn và khối để xem nhanh, bấm “Đăng ký lịch này” để đăng ký đúng khối."
+  >
+    <ClassSchedule client:load subjects={CLASS_SUBJECTS} phone={CENTER.phone} phoneShown={CENTER.phoneShown} />
+  </PageSection>
+</Part>

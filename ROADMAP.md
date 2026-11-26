@@ -15,7 +15,9 @@
   - **M2 – Lịch học các lớp tự động: xong và chạy thật 25/11/2026** (`11_website.sql`, `website.catalog()`, `site/api/lop-hoc.js` chạy ở vùng `sin1` gần CSDL, `ClassSchedule.jsx`; học phí không lấy từ app mà theo `site/src/data/fees.js`). Người dùng đã chạy `website_link.sql` (bản điền mật khẩu ở `%LOCALAPPDATA%\ScienceHub\website-link\`), `11_website.sql`, `09_grants.sql` và đặt `WEBSITE_DATABASE_URL` trên Vercel. Lúc bật: 20 lớp (Vật Lí 10/11/12, Hóa học 10/11/12); Vật Lí 11 có 4 lớp 1 buổi/tuần nhưng chưa xếp nhóm lớp.
   - **M3 – Form đăng ký + màn hình "Đơn đăng ký": mã xong 25/11/2026** (`ARCHITECTURE.md` mục 5.1, 5.2). Người dùng làm tay: chạy lại `11_website.sql` rồi `09_grants.sql` (không cần đổi gì trên Vercel); gửi thử một đơn trên web rồi xem ở app quản lý.
   - **Trang chủ mới: xong 25/11/2026** (`site/README.md` mục "Trang chủ"). Người dùng làm tay: thay ảnh giữ chỗ trong `site/src/assets/anh/` (4 ảnh lớp học, 1 ảnh chụp màn hình app); điền con số và nhận xét THẬT vào `site/src/data/trang-chu.js` (đang để trống nên phần đó đang ẩn); duyệt 20 câu hỏi "vì sao" ở `site/src/data/cau-hoi-vi-sao.js`.
-  - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem`, thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
+  - **Web một trang cuộn: xong 26/11/2026** (`site/README.md`, `ARCHITECTURE.md` mục 5.1). Người dùng xem thử trên
+    điện thoại thật: cuộn qua các phần, bấm thanh đáy, bấm "Đăng ký lịch này"; thấy bất cập thì báo để chỉnh.
+  - **M4 – Hoàn thiện:** ảnh xem trước khi chia sẻ Zalo/Facebook, khai báo Google; bên ScienceApp: `/phu-huynh` chuyển sang `sciencehub.id.vn/tra-cuu-diem` (tự chuyển về phần Tra cứu điểm của trang chủ), thẻ "Trang tra cứu điểm cho phụ huynh" đổi liên kết + mã QR.
   - Lưu ý chi phí: gói Hobby của Vercel chỉ cho dùng phi thương mại; nên gom các dự án vào một nhóm Vercel Pro.
 - **Tồn đọng nhỏ (không chặn):**
   - Chưa có chức năng gỡ liên kết tài khoản giáo viên (muốn đổi thì liên kết lại bằng email mới; tài khoản cũ mất quyền).
@@ -26,6 +28,28 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 26/11/2026 — Trang giới thiệu: gộp thành một trang cuộn, thanh tab sáng theo phần đang xem
+- Người dùng chốt: cả web là một trang cuộn, lần lượt Trang chủ → Lớp học & học phí → Quy định → Đăng ký học → Tra cứu
+  điểm; thanh tab đáy (điện thoại) và thanh ngang (máy tính) sáng mục của phần đang xem, bấm mục là cuộn mượt tới.
+  Chính sách bảo mật, 404 vẫn là trang riêng.
+- `site/src/scripts/scroll-spy.js` (JS thuần): sáng mục theo vị trí cuộn, bấm mục thì sáng ngay và không nhấp nháy qua
+  phần giữa, giữ đúng chỗ khi lịch học/form tải xong làm trang dài thêm (cả khi mở thẳng `/#dang-ky`). Các phần ở
+  `site/src/components/parts/` (`Part`, `Classes`, `Rules`, `Register`, `Scores`), phần đầu mỗi phần `PartHeader`
+  (cùng kiểu `PageHero`, họa tiết tách ra `HeroPattern`); `PageSection`/`SectionHeader` thêm `level` (h2/h3).
+- Bỏ phần trùng: "Các lớp đang mở" (`SchedulePreview`, cùng `sectionDays`/`daysText` và test của chúng) và
+  `CallToAction` ở trang chủ; `FitCompact`, `JumpLinks`; quy định thu học phí gộp vào dải Học phí (`FeeInfo` có tiêu đề
+  "Quy định thu học phí"), Quy định còn 3 mục.
+- Nút "Đăng ký lịch này" cuộn xuống form và chọn sẵn môn + khối không tải lại trang (`site/src/lib/registerPick.js`):
+  cùng khối thì thêm môn, khác khối thì đổi khối, đã gửi đơn thì mở form mới. Lịch học và form dùng chung một lần tải
+  `/api/lop-hoc` (`loadCatalog`). Form, khung tra cứu điểm dựng khi cuộn gần tới (`client:visible`). Gửi đơn xong cuộn
+  về khung "Đã gửi" thay vì đầu trang. Tiêu đề trong form, khung tra cứu điểm hạ cấp (trang chỉ còn một h1).
+- Địa chỉ cũ `/lop-hoc`, `/quy-dinh`, `/dang-ky`, `/tra-cuu-diem` thành trang chuyển về `/#phần` (`SectionRedirect`,
+  giữ mục con và `?mon=&khoi=`, `noindex`); `/phu-huynh` vẫn qua `vercel.json`. Nút Zalo/Gọi nổi ẩn ở phần Đăng ký, Tra
+  cứu điểm (`data-hide-floating`).
+- Kiểm tra trên Chrome headless (dữ liệu lịch giả lập, lịch tải chậm): 47 ý, chạy lặp 6 lần đều đạt (sáng đúng mục khi
+  cuộn tay, khi bấm và khi chạm giữa chừng, dừng đúng chỗ, Quay lại, địa chỉ cũ, chọn sẵn môn/khối, gửi đơn, giảm chuyển
+  động, máy tính 1280px), console không lỗi CSP.
 
 ### 26/11/2026 — Trang giới thiệu: các tab khác cùng kiểu trang chủ, tối ưu điện thoại
 - Khối dùng chung ở `site/src/components/`: `PageHero` (phần đầu trang), `JumpLinks` (mục lục nhanh cuộn ngang),

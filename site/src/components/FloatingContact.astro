@@ -1,7 +1,8 @@
 ---
-// Nút liên hệ nổi ở góc dưới bên phải (chỉ điện thoại và máy tính bảng, ẩn từ 1024px vì máy tính đã có menu và phần
-// Liên hệ). Nằm ngay trên thanh tab đáy; script trang chủ (setupFloatingContact) chỉ hiện nút khi đã cuộn qua phần
-// đầu trang và ẩn khi phần Liên hệ hoặc chân trang hiện ra (ở đó đã có nút gọi/Zalo), để không che nút khác.
+// Nút liên hệ nổi ở góc dưới bên phải (chỉ điện thoại và máy tính bảng, ẩn từ 1024px vì máy tính đã có menu và thẻ
+// liên hệ). Nằm ngay trên thanh tab đáy; src/scripts/page-effects.js (setupFloatingContact) chỉ hiện nút khi đã cuộn
+// qua phần đầu trang, ẩn ở phần Đăng ký, Tra cứu điểm (có ô nhập, data-hide-floating) và chân trang, để không che nút
+// hay ô nhập khác.
 import { MessageCircle, Phone } from 'lucide-react'
 import { CENTER } from '../data/center.js'
 

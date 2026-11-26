@@ -1,0 +1,33 @@
+---
+// Địa chỉ cũ của các tab (/lop-hoc, /quy-dinh, /dang-ky, /tra-cuu-diem; /phu-huynh qua vercel.json) từ khi web gộp
+// thành trang chủ một trang: chuyển về đúng phần trên trang chủ (/#lop-hoc...), giữ mục con (/quy-dinh#noi-quy ->
+// /#noi-quy) và ?mon=&khoi= (form chọn sẵn môn + khối). Chuyển bằng script vì chuyển hướng ở máy chủ không biết phần #
+// của địa chỉ (trình duyệt không gửi lên). Thiếu JavaScript thì hiện liên kết. noindex: Google chỉ lập chỉ mục trang chủ.
+// section: id của phần (NAV_ITEMS, src/data/center.js); label: tên phần.
+import '../styles/global.css'
+import { CENTER } from '../data/center.js'
+
+const { section, label } = Astro.props
+const href = `/#${section}`
+---
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="robots" content="noindex" />
+    <title>{label} – {CENTER.name}</title>
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+  </head>
+  <body class="flex min-h-dvh items-center justify-center p-6 font-sans antialiased">
+    <p data-redirect={section} class="text-center text-base text-slate-600">
+      Đang mở phần <a href={href} class="font-semibold text-brand-700 underline">{label}</a> trên trang chủ…
+    </p>
+    <script>
+      const section = document.querySelector('[data-redirect]')?.getAttribute('data-redirect') ?? ''
+      const hash = window.location.hash.length > 1 ? window.location.hash : `#${section}`
+      window.location.replace(`/${window.location.search}${hash}`)
+    </script>
+  </body>
+</html>

@@ -1,6 +1,7 @@
-// Tab "Tra cứu điểm": giao diện trang /phu-huynh của app giao bài (ScienceApp, web/pages/ParentPage.tsx) viết lại
-// theo mẫu của web. Dữ liệu, kiểm tra mã HS + SĐT, khóa khi nhập sai và phiên 90 ngày đều do máy chủ ScienceApp xử lý:
-// web gọi /api/diem/* và được chuyển tiếp sang /api/parent/* (site/vercel.json), nên cookie phiên nằm trên tên miền web.
+// Phần "Tra cứu điểm" của trang chủ (#tra-cuu-diem; tiêu đề h2 nằm trong khung nên phần không có PartHeader):
+// giao diện trang /phu-huynh của app giao bài (ScienceApp, web/pages/ParentPage.tsx) viết lại theo mẫu của web.
+// Dữ liệu, kiểm tra mã HS + SĐT, khóa khi nhập sai và phiên 90 ngày đều do máy chủ ScienceApp xử lý: web gọi /api/diem/*
+// và được chuyển tiếp sang /api/parent/* (site/vercel.json), nên cookie phiên nằm trên tên miền web.
 import { useEffect, useState } from 'react'
 import { Loader2, LogOut } from 'lucide-react'
 import { api } from '../lib/api.js'
@@ -88,7 +89,7 @@ function LoginForm({ onDone, initialError }) {
       className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
     >
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Tra cứu điểm</h1>
+        <h2 className="text-2xl font-bold text-slate-800">Tra cứu điểm</h2>
         <p className="mt-1 text-sm text-slate-500">Dành cho phụ huynh học sinh Lớp học ScienceHub.</p>
       </div>
 
@@ -160,7 +161,7 @@ function Results({ view, onLogout }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-800">Tra cứu điểm</h1>
+        <h2 className="text-2xl font-bold text-slate-800">Tra cứu điểm</h2>
         <button type="button" className={BTN_SECONDARY} onClick={onLogout}>
           <LogOut size={16} aria-hidden="true" />
           Thoát
@@ -189,7 +190,7 @@ function Results({ view, onLogout }) {
 
       {child && (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800">{child.name}</h2>
+          <h3 className="text-xl font-bold text-slate-800">{child.name}</h3>
           <p className="mt-1 text-sm text-slate-500">
             Mã học sinh {child.code} ·{' '}
             {childItems.length ? `${childItems.length} bài kiểm tra` : 'chưa có bài kiểm tra'}

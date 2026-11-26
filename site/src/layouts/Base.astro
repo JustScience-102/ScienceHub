@@ -1,6 +1,8 @@
 ---
 // Khung chung mọi trang, theo bố cục app quản lý trung tâm: máy tính có thanh tab ngang ở đầu trang,
 // điện thoại có thanh tab cố định ở đáy (như BottomNav). Nền xám sáng, thẻ trắng viền mảnh, màu nhấn xanh dương.
+// Các mục của thanh tab là các phần của trang chủ một trang (NAV_ITEMS, liên kết /#id): ở trang chủ, phần đang xem
+// sáng lên (aria-current, src/scripts/scroll-spy.js); ở trang khác (Chính sách bảo mật, 404) không mục nào sáng.
 import '../styles/global.css'
 import { CalendarDays, ClipboardPen, GraduationCap, House, Phone, ScrollText } from 'lucide-react'
 import ContactList from '../components/ContactList.astro'
@@ -24,6 +26,9 @@ const desc =
 const canonical = new URL(path, Astro.site).href
 const ogImage = new URL('/icon-512.png', Astro.site).href
 const year = new Date().getFullYear()
+const isHome = path === '/'
+// Lúc tải trang chủ, mục Trang chủ sáng sẵn (script đổi theo phần đang xem).
+const current = (item) => (isHome && item.id === 'trang-chu' ? 'true' : undefined)
 const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-brand-700 hover:underline'
 ---
 <!doctype html>
@@ -56,7 +61,7 @@ const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-
 
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white">
       <div class="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
-        <a href="/" class="flex min-w-0 items-center gap-3">
+        <a href="/#trang-chu" class="flex min-w-0 items-center gap-3">
           <img src="/icon-192.png" alt="" width="36" height="36" class="h-9 w-9 shrink-0 rounded-lg" />
           <span class="min-w-0 leading-tight">
             <span class="block truncate text-lg font-bold text-slate-800">{CENTER.name}</span>
@@ -68,16 +73,13 @@ const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-
           <ul class="flex items-center gap-1">
             {NAV_ITEMS.map((item) => {
               const Icon = ICONS[item.icon]
-              const active = item.href === path
               return (
                 <li>
                   <a
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    class:list={[
-                      'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                      active ? 'bg-brand-100 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
-                    ]}
+                    href={`/#${item.id}`}
+                    data-spy-link={item.id}
+                    aria-current={current(item)}
+                    class="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 aria-[current=true]:bg-brand-100 aria-[current=true]:text-brand-700"
                   >
                     <Icon size={18} aria-hidden="true" />
                     {item.label}
@@ -116,7 +118,7 @@ const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-
         <nav aria-label="Liên kết cuối trang">
           <ul class="grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-1">
             {NAV_ITEMS.slice(1).map((item) => (
-              <li><a href={item.href} class={footerLink}>{item.label}</a></li>
+              <li><a href={`/#${item.id}`} class={footerLink}>{item.label}</a></li>
             ))}
             <li><a href={HOMEWORK_APP_URL} class={footerLink}>App làm bài tập</a></li>
             <li><a href="/bao-mat" class={footerLink}>Chính sách bảo mật</a></li>
@@ -135,17 +137,18 @@ const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-
       <ul class="grid grid-cols-5">
         {NAV_ITEMS.map((item) => {
           const Icon = ICONS[item.icon]
-          const active = item.href === path
           return (
             <li>
               <a
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                class:list={[
-                  'flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium transition-colors',
-                  active ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:text-slate-700',
-                ]}
+                href={`/#${item.id}`}
+                data-spy-link={item.id}
+                aria-current={current(item)}
+                class="group relative flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium text-slate-500 transition-colors duration-200 hover:text-slate-700 aria-[current=true]:bg-brand-50 aria-[current=true]:font-semibold aria-[current=true]:text-brand-600"
               >
+                <span
+                  aria-hidden="true"
+                  class="absolute inset-x-3 top-0 h-[3px] scale-x-0 rounded-b-full bg-brand-600 transition-transform duration-200 group-aria-[current=true]:scale-x-100 motion-reduce:transition-none"
+                ></span>
                 <Icon size={22} aria-hidden="true" />
                 <span>{item.short}</span>
               </a>
@@ -158,6 +161,8 @@ const footerLink = 'inline-flex min-h-10 items-center text-slate-600 hover:text-
     <script>
       // Hiện dần khi cuộn tới (.reveal) và nút liên hệ nổi (FloatingContact) của các trang.
       import '../scripts/page-effects.js'
+      // Thanh tab sáng theo phần đang xem của trang chủ, bấm mục là cuộn mượt tới phần đó.
+      import '../scripts/scroll-spy.js'
 
       // Ô nhập làm bật bàn phím ảo thì ẩn thanh tab đáy (CSS body[data-typing] .bottom-nav).
       const KEYBOARD_TYPES = new Set(['text', 'search', 'email', 'password', 'tel', 'url', 'number', 'date', 'time', 'month'])

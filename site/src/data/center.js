@@ -17,18 +17,20 @@ export const CENTER = {
   phoneShown: '0866 076 800',
 }
 
-// Các môn của ScienceHub: trang "Lớp học & học phí" chỉ lấy lớp của các môn này từ app quản lý.
+// Các môn của ScienceHub: phần "Lớp học & học phí" chỉ lấy lớp của các môn này từ app quản lý.
 // Viết đúng như danh sách môn của app quản lý (src/lib/subjects.js).
 export const CLASS_SUBJECTS = ['Vật Lí', 'Hóa học']
 
-// App giao bài (ScienceApp). Tab Tra cứu điểm vẫn chuyển tiếp tới địa chỉ .vercel.app (vercel.json), không phụ thuộc DNS.
+// App giao bài (ScienceApp). Phần Tra cứu điểm vẫn chuyển tiếp tới địa chỉ .vercel.app (vercel.json), không phụ thuộc DNS.
 export const HOMEWORK_APP_URL = 'https://baitap.sciencehub.id.vn'
 
-// Các tab của web: thanh ngang trên máy tính, thanh tab đáy trên điện thoại.
+// Các phần của trang chủ một trang, theo thứ tự cuộn; cũng là các mục của thanh ngang trên máy tính và thanh tab đáy
+// trên điện thoại (liên kết /#id, đang xem phần nào thì mục đó sáng lên). id là id của phần trên trang chủ
+// (src/components/parts/Part.astro); địa chỉ cũ /lop-hoc, /quy-dinh, /dang-ky, /tra-cuu-diem chuyển về /#id.
 export const NAV_ITEMS = [
-  { href: '/', label: 'Trang chủ', short: 'Trang chủ', icon: 'home' },
-  { href: '/lop-hoc', label: 'Lớp học & học phí', short: 'Lớp học', icon: 'classes' },
-  { href: '/quy-dinh', label: 'Quy định', short: 'Quy định', icon: 'rules' },
-  { href: '/dang-ky', label: 'Đăng ký học', short: 'Đăng ký', icon: 'register' },
-  { href: '/tra-cuu-diem', label: 'Tra cứu điểm', short: 'Xem điểm', icon: 'scores' },
+  { id: 'trang-chu', label: 'Trang chủ', short: 'Trang chủ', icon: 'home' },
+  { id: 'lop-hoc', label: 'Lớp học & học phí', short: 'Lớp học', icon: 'classes' },
+  { id: 'quy-dinh', label: 'Quy định', short: 'Quy định', icon: 'rules' },
+  { id: 'dang-ky', label: 'Đăng ký học', short: 'Đăng ký', icon: 'register' },
+  { id: 'tra-cuu-diem', label: 'Tra cứu điểm', short: 'Xem điểm', icon: 'scores' },
 ]

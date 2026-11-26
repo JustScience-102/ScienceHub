@@ -1,9 +1,7 @@
-// Script riêng của trang chủ (src/pages/index.astro). JavaScript thuần, không thư viện. Hiện dần khi cuộn và nút liên
-// hệ nổi dùng chung cho mọi trang: src/scripts/page-effects.js (nạp ở layouts/Base.astro).
+// Script riêng của phần Trang chủ (src/pages/index.astro): câu hỏi vì sao, con số chạy. JavaScript thuần, không thư
+// viện. Hiện dần khi cuộn, nút liên hệ nổi, thanh tab sáng theo phần đang xem dùng chung cho mọi trang:
+// src/scripts/page-effects.js, src/scripts/scroll-spy.js (nạp ở layouts/Base.astro).
 // Mọi phần đều chạy được khi thiếu JavaScript: nội dung đã có sẵn trong HTML, script chỉ thêm tương tác.
-import { api } from '../lib/api.js'
-import { buildSections, daysText, sectionDays, sharedTeacher, subjectStyle } from '../lib/catalog.js'
-import { CLASS_SUBJECTS } from '../data/center.js'
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -93,67 +91,5 @@ function setupCountUp() {
   }
 }
 
-// ===== Các lớp đang mở (lấy từ /api/lop-hoc như trang Lớp học & học phí) =====
-// Mỗi môn một thẻ, mỗi khối một dòng. Lỗi tải thì bỏ khung xem trước, chỉ còn nút sang trang Lớp học.
-async function setupSchedulePreview() {
-  const box = document.querySelector('[data-schedule]')
-  const cardTemplate = document.getElementById('mau-the-mon')
-  const rowTemplate = document.getElementById('mau-dong-khoi')
-  if (!box || !cardTemplate || !rowTemplate) return
-
-  let data
-  try {
-    data = await api('/api/lop-hoc')
-  } catch {
-    box.remove()
-    return
-  }
-  const sections = buildSections(data?.classes ?? [], CLASS_SUBJECTS)
-  if (sections.length === 0) {
-    box.remove()
-    const empty = document.querySelector('[data-schedule-empty]')
-    if (empty) empty.hidden = false
-    return
-  }
-
-  const bySubject = new Map()
-  for (const section of sections) {
-    if (!bySubject.has(section.subject)) bySubject.set(section.subject, [])
-    bySubject.get(section.subject).push(section)
-  }
-  const cards = []
-  for (const [subject, list] of bySubject) {
-    const card = cardTemplate.content.firstElementChild.cloneNode(true)
-    const style = subjectStyle(subject)
-    card.querySelector('[data-bar]').classList.add(...style.bar.split(' '))
-    const tag = card.querySelector('[data-tag]')
-    tag.textContent = subject
-    tag.classList.add(...style.tag.split(' '))
-    const rows = card.querySelector('[data-rows]')
-    for (const section of list) {
-      const row = rowTemplate.content.firstElementChild.cloneNode(true)
-      row.querySelector('[data-link]').href = `/dang-ky?mon=${encodeURIComponent(section.subject)}&khoi=${section.grade}`
-      const grade = row.querySelector('[data-grade]')
-      grade.textContent = `Lớp ${section.grade}`
-      const hidden = document.createElement('span')
-      hidden.className = 'sr-only'
-      hidden.textContent = ` môn ${section.subject}`
-      grade.append(hidden)
-      const days = daysText(sectionDays(section, data.today))
-      row.querySelector('[data-days]').textContent = days ? `Có ca học: ${days}` : 'Xem lịch ở trang Lớp học'
-      const teacher = sharedTeacher(section)
-      const teacherLine = row.querySelector('[data-teacher]')
-      if (teacher) teacherLine.textContent = `Giáo viên: ${teacher}`
-      else teacherLine.remove()
-      rows.append(row)
-    }
-    cards.push(card)
-  }
-  box.replaceChildren(...cards)
-  box.removeAttribute('aria-busy')
-  document.dispatchEvent(new Event('layout-changed'))
-}
-
 setupWhy()
 setupCountUp()
-setupSchedulePreview()

@@ -1,0 +1,22 @@
+---
+// Phần "Tra cứu điểm" (cuối trang chủ): ScoreLookup.jsx trên nền giấy kẻ ô (khung đã có tiêu đề h2 nên không có
+// PartHeader) và dòng hỗ trợ. Khung chỉ dựng khi cuộn gần tới (client:visible): lúc dựng mới hỏi máy chủ ScienceApp xem
+// máy này đã đăng nhập chưa, khách chỉ xem trang chủ thì không gọi. Có ô nhập nên ẩn nút Zalo/Gọi nổi.
+// Địa chỉ cũ /tra-cuu-diem, /phu-huynh (mã QR của app giao bài) chuyển về #tra-cuu-diem.
+import { MessageCircle } from 'lucide-react'
+import ScoreLookup from '../ScoreLookup.jsx'
+import Part from './Part.astro'
+import { CENTER } from '../../data/center.js'
+---
+<Part id="tra-cuu-diem" hideFloating class="tone-grid border-t border-slate-200">
+  <div class="mx-auto max-w-5xl px-4 pt-8 pb-10 sm:pt-12 sm:pb-16">
+    <ScoreLookup client:visible={{ rootMargin: '600px' }} />
+    <p class="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm text-slate-600">
+      <MessageCircle size={16} aria-hidden="true" className="text-brand-600" />
+      Cần hỗ trợ tra cứu điểm? Nhắn Zalo cho thầy
+      <a href={`https://zalo.me/${CENTER.phone}`} target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-700 hover:underline">
+        {CENTER.phoneShown}
+      </a>
+    </p>
+  </div>
+</Part>

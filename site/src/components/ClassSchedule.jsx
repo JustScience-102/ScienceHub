@@ -1,9 +1,12 @@
-// Lịch học các lớp đang mở (trang Lớp học & học phí), lấy từ app quản lý qua /api/lop-hoc (site/api/lop-hoc.js).
+// Lịch học các lớp đang mở (phần Lớp học & học phí của trang chủ), lấy từ app quản lý qua /api/lop-hoc
+// (site/api/lop-hoc.js; dùng chung một lần tải với form đăng ký, loadCatalog). Nút "Đăng ký lịch này" đưa xuống phần
+// Đăng ký của cùng trang và chọn sẵn môn + khối trong form (src/lib/registerPick.js).
 // Lớp thuộc nhóm lớp hiện theo phần (khung riêng từng phần, nối bằng dấu +): mỗi phần là một nội dung, phụ huynh
 // chọn một ca cho mỗi phần; kèm ví dụ các cách chọn đúng (✓) và một cách sai (✕) tính từ lịch thật.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
-import { api } from '../lib/api.js'
+import { loadCatalog } from '../lib/api.js'
+import { registerHref, requestPick } from '../lib/registerPick.js'
 import {
   buildSections,
   classLabel,
@@ -34,7 +37,7 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
 
   useEffect(() => {
     let cancelled = false
-    api('/api/lop-hoc')
+    loadCatalog()
       .then((result) => {
         if (!cancelled) setData(result)
       })
@@ -155,14 +158,15 @@ function Section({ section, today }) {
       <div className={`h-1.5 ${style.bar}`} aria-hidden="true" />
       <div className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+          <h4 className="flex items-center gap-2 text-lg font-bold text-slate-800">
             <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
             Lớp {section.grade}
-          </h3>
+          </h4>
           <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
             {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
             <a
-              href={`/dang-ky?mon=${encodeURIComponent(section.subject)}&khoi=${section.grade}`}
+              href={registerHref(section.subject, section.grade)}
+              onClick={(event) => requestPick(event, section.subject, section.grade)}
               className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 sm:min-h-10 sm:w-auto"
             >
               Đăng ký lịch này

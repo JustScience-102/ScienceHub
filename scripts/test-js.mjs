@@ -292,17 +292,7 @@ await test('Cách chọn: bỏ cách trùng giờ; hai ca cùng phần trùng th
   const mixed = catalog.buildSections([list[0], { ...list[1], teacher: 'Trần Thị Lan' }], [])[0]
   assert.equal(catalog.sharedTeacher(mixed), null, 'khác giáo viên thì ghi từng lớp')
 })
-await test('Trang chủ, "Các lớp đang mở": các thứ có ca học của một khối (chỉ lịch đang áp dụng)', () => {
-  const sections = catalog.buildSections(
-    [...SAMPLE, cls('li12b', 'Vật Lí', 12, 5, null, [row(8, '07:30', '09:30'), row(2, '19:00', '21:00', '2026-12-10')])],
-    siteCenter.CLASS_SUBJECTS,
-  )
-  const li12 = sections.find((s) => s.subject === 'Vật Lí' && s.grade === 12)
-  assert.deepEqual(catalog.sectionDays(li12, TODAY), [2, 3, 5, 6, 8], 'gồm cả lớp lẻ, bỏ lịch chưa áp dụng')
-  assert.equal(catalog.daysText([2, 3, 5, 6, 8]), 'Thứ 2, 3, 5, 6, Chủ nhật')
-  assert.equal(catalog.daysText([8]), 'Chủ nhật')
-  assert.equal(catalog.daysText([4, 7]), 'Thứ 4, 7')
-  assert.equal(catalog.daysText([]), '')
+await test('Lịch học: màu nhãn từng môn', () => {
   assert.equal(catalog.subjectStyle('Hóa học').tag, 'bg-chem-100 text-chem-800', 'Hóa học màu cam')
   assert.equal(catalog.subjectStyle('VẬT LÍ').tag, 'bg-physics-100 text-physics-800', 'Vật Lí màu xanh dương')
 })

@@ -1,39 +1,48 @@
 ---
-// Trang chủ: các dải nền tràn hết chiều ngang (Base wide), mỗi phần một component ở src/components/home/.
+// Trang chủ một trang: cuộn từ trên xuống lần lượt là 5 phần Trang chủ, Lớp học & học phí, Quy định, Đăng ký học,
+// Tra cứu điểm; thanh tab (đáy điện thoại, ngang máy tính) sáng mục của phần đang xem (src/scripts/scroll-spy.js).
+// Phần Trang chủ: các dải ở src/components/home/; các phần còn lại ở src/components/parts/.
 // Nội dung sửa được: src/data/trang-chu.js (con số, nhận xét, ảnh, phù hợp với ai), src/data/cau-hoi-vi-sao.js,
-// src/data/center.js (liên hệ). Script: src/scripts/home.js.
+// src/data/center.js (liên hệ), src/data/fees.js (học phí). Script riêng: src/scripts/home.js.
 import Base from '../layouts/Base.astro'
-import CallToAction from '../components/home/CallToAction.astro'
 import ClassPhotos from '../components/home/ClassPhotos.astro'
 import FitForWho from '../components/home/FitForWho.astro'
 import FloatingContact from '../components/FloatingContact.astro'
 import Hero from '../components/home/Hero.astro'
-import SchedulePreview from '../components/home/SchedulePreview.astro'
 import StatsReviews from '../components/home/StatsReviews.astro'
 import TechHighlights from '../components/home/TechHighlights.astro'
 import WhyQuestion from '../components/home/WhyQuestion.astro'
+import Classes from '../components/parts/Classes.astro'
+import Part from '../components/parts/Part.astro'
+import Register from '../components/parts/Register.astro'
+import Rules from '../components/parts/Rules.astro'
+import Scores from '../components/parts/Scores.astro'
 import { homeImage } from '../components/home/images.js'
 import { PHOTOS, filledReviews, filledStats } from '../data/trang-chu.js'
 
-// Thứ tự các phần; phần nào không có dữ liệu thì bỏ, rồi xếp nền xen kẽ: giấy kẻ ô / trắng / xanh rất nhạt.
+// Các dải của phần Trang chủ; dải nào không có dữ liệu thì bỏ, rồi xếp nền xen kẽ: giấy kẻ ô / trắng / xanh rất nhạt.
 const SECTIONS = [
-  { Part: WhyQuestion, show: true },
-  { Part: TechHighlights, show: true },
-  { Part: SchedulePreview, show: true },
-  { Part: ClassPhotos, show: PHOTOS.some((photo) => homeImage(photo.file)) },
-  { Part: StatsReviews, show: filledStats().length > 0 || filledReviews().length > 0 },
-  { Part: FitForWho, show: true },
+  { Section: WhyQuestion, show: true },
+  { Section: TechHighlights, show: true },
+  { Section: ClassPhotos, show: PHOTOS.some((photo) => homeImage(photo.file)) },
+  { Section: StatsReviews, show: filledStats().length > 0 || filledReviews().length > 0 },
+  { Section: FitForWho, show: true },
 ]
 const TONES = ['grid', 'white', 'tint']
-const parts = SECTIONS.filter((section) => section.show).map((section, index) => ({
-  Part: section.Part,
+const sections = SECTIONS.filter((section) => section.show).map((section, index) => ({
+  Section: section.Section,
   tone: TONES[index % TONES.length],
 }))
 ---
 <Base wide>
-  <Hero />
-  {parts.map(({ Part, tone }) => <Part tone={tone} />)}
-  <CallToAction />
+  <Part id="trang-chu">
+    <Hero />
+    {sections.map(({ Section, tone }) => <Section tone={tone} />)}
+  </Part>
+  <Classes />
+  <Rules />
+  <Register />
+  <Scores />
   <FloatingContact />
 </Base>
 
