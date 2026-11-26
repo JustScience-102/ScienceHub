@@ -52,10 +52,11 @@ trong trang dùng):
    thoại), `ClassPhotos`, `StatsReviews`, `FitForWho` ("phù hợp với ai?", chỉ có ở đây). Dải không có dữ liệu thì bỏ;
    nền các dải còn lại tự xen kẽ giấy kẻ ô / trắng / xanh rất nhạt.
 2. **Lớp học & học phí** (`#lop-hoc`, `parts/Classes.astro`): dải Học phí `#hoc-phi` (`FeeInfo`: thẻ giá to, Trung tâm
-   thu học phí, "Quy định thu học phí"); dải Lịch học `#lich-hoc` (`ClassSchedule.jsx`, `client:load`): thanh lọc
-   môn/khối **dính dưới thanh tiêu đề** khi cuộn, mỗi hàng nút cuộn ngang, nút môn đang chọn mang màu môn
-   (`subjectStyle().chip`); đổi bộ lọc lúc đã cuộn sâu thì đưa đầu danh sách về dưới thanh lọc; nút "Đăng ký lịch này"
-   rộng hết ngang trên điện thoại.
+   thu học phí, "Quy định thu học phí"); dải Lịch học `#lich-hoc` (`ClassSchedule.jsx`, `client:load`), bố cục gọn
+   cho điện thoại: câu giải thích lịch chia theo phần một lần ở đầu; thanh lọc khối một hàng **dính dưới thanh tiêu đề**
+   khi cuộn (đổi khối lúc đã cuộn sâu thì đưa đầu danh sách về dưới thanh lọc); mỗi môn + khối một thẻ nhỏ xếp theo
+   khối rồi môn (máy tính 2 thẻ một hàng): nhãn môn, nút "Đăng ký", dòng "2 buổi/tuần · Giáo viên", mỗi phần một dòng
+   "Phần 1 · chọn 1 trong 2 ca" với các ca là ô nhỏ; lớp lẻ "Học cả N buổi mỗi tuần" / "Chọn 1 trong N lớp".
 3. **Quy định** (`#quy-dinh`, `parts/Rules.astro`): mỗi mục một dải `#noi-quy`, `#xin-nghi`, `#lich-theo-phan`; nút
    "Nhắn Zalo báo nghỉ cho thầy"; học phí buổi nghỉ trỏ về `#hoc-phi`.
 4. **Đăng ký học** (`#dang-ky`, `parts/Register.astro`): form `RegistrationForm.jsx` (`client:visible`) trên nền giấy kẻ

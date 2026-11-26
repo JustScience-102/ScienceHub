@@ -230,12 +230,15 @@ Chi tiết kỹ thuật: `site/README.md`.
   dựng (và hỏi máy chủ ScienceApp) khi cuộn gần tới.
 - **Lớp học & học phí** (mốc M2, xong 25/11/2026): lịch học các lớp Vật Lí, Hóa học (`CLASS_SUBJECTS` ở
   `site/src/data/center.js`) lấy tự động qua `/api/lop-hoc`, gom theo môn + khối. Học phí đặt **trước** lịch học
-  (người dùng chốt 25/11/2026). Lớp thuộc nhóm lớp hiện mỗi phần một khung màu nối bằng dấu "+", câu "Mỗi tuần con
-  học 2 buổi: 1 buổi Phần 1 + 1 buổi Phần 2", và "Ví dụ cách chọn lịch" tính từ lịch thật (`partCombos`: mỗi phần một
-  ca, bỏ cách trùng giờ; ✓ các cách đúng, ✕ một cách sai cùng phần). Mỗi lớp ghi "Nhóm N" (như `classTitle` của app
-  này), các buổi đang áp dụng và "Lịch mới từ DD/MM/YYYY" nếu đã đặt lịch mới; tên giáo viên ghi một lần ở đầu mục
-  nếu cả mục cùng giáo viên; nút "Đăng ký lịch này" cuộn xuống phần Đăng ký và chọn sẵn môn + khối trong form (cùng
-  khối thì thêm môn, khác khối thì đổi khối; địa chỉ `/?mon=…&khoi=…#dang-ky` mở ở tab mới cũng chọn sẵn).
+  (người dùng chốt 25/11/2026). **Bố cục gọn cho điện thoại** (người dùng chốt 26/11/2026, thay khung từng phần nối
+  "+" và "Ví dụ cách chọn lịch" ✓/✕ đã bỏ): mỗi môn + khối một thẻ nhỏ, xếp theo khối rồi theo môn (máy tính 2 thẻ một
+  hàng, mỗi hàng một khối); thanh lọc khối một hàng. Nhóm lớp: mỗi phần một dòng **"Phần 1 · chọn 1 trong 2 ca"** ("có 1
+  ca" khi phần chỉ có 1 ca), các ca là ô nhỏ "Thứ 2 17:00–19:00" (không ghi "Nhóm N"). Lớp lẻ: "Học cả N buổi mỗi tuần"
+  (một lớp) hoặc "Chọn 1 trong N lớp" (mỗi lớp ghi "Nhóm N"). Câu giải thích lịch chia theo phần ghi một lần ở đầu
+  lịch, liên kết tới mục Quy định. Lịch sắp đổi: dòng "Từ DD/MM/YYYY, ca … đổi sang …"; ca chưa bắt đầu ghi "Từ
+  DD/MM/YYYY:". Tên giáo viên ghi một lần ở đầu thẻ nếu cả mục cùng giáo viên. Nút "Đăng ký" cuộn xuống phần Đăng ký
+  và chọn sẵn môn + khối trong form (cùng khối thì thêm môn, khác khối thì đổi khối; địa chỉ `/?mon=…&khoi=…#dang-ky`
+  mở ở tab mới cũng chọn sẵn). Form đăng ký vẫn ghi "Nhóm N" và chặn chọn 2 ca cùng phần.
 - **Đăng ký học** (mốc M3, 25/11/2026; `RegistrationForm.jsx`, `site/src/lib/registration.js`, `site/api/dang-ky.js`):
   4 bước (học sinh: họ tên, trường, SĐT, khối; môn và lịch; phụ huynh: họ tên, SĐT; thêm: **mã HS giới thiệu**, ghi chú),
   ô đồng ý Chính sách bảo mật, ô bẫy chống spam. Lịch: mỗi phần của nhóm lớp là một nhóm nút chọn (radio) nên không

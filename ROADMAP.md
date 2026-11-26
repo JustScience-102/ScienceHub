@@ -7,7 +7,7 @@
 
 ## 0. Trạng thái hiện tại (24/11/2026)
 - **Đang chạy:** https://science-hub-iota.vercel.app, mã nhánh `main`, Database V3 trên project Supabase `ScienceHub`. Dữ liệu V2 đã chuyển sang (lần cuối 04/11/2026); project Supabase cũ đã xóa.
-- **Kiểm thử:** `npm test` đạt 27 tình huống JS + 126 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
+- **Kiểm thử:** `npm test` đạt 26 tình huống JS + 126 tình huống Database; lint 0 cảnh báo; build app và `build:site` sạch.
 - **SQL trên Supabase khớp mã trong kho:** người dùng đã chạy lại `08_ops.sql` và `09_grants.sql` sau đợt dọn mã 24/11/2026 (khôi phục chỉ nhận file sao lưu V3).
 - **Đang làm: trang giới thiệu sciencehub.id.vn (`site/`, `ARCHITECTURE.md` mục 5).** Tên miền mua 24/11/2026 (hết hạn 24/11/2028). Các mốc:
   - **M0 – Tên miền: DNS xong 24/11/2026** (nhà đăng ký dùng DNS `zonedns.vn`; A `@` → `216.198.79.1`; CNAME `www`, `quanly`, `baitap` → giá trị riêng `…vercel-dns-017.com` Vercel cấp). Cả 4 địa chỉ chạy HTTPS; tab Tra cứu điểm chạy trên bản thật. `sciencehub.id.vn` là địa chỉ chính, `www` chuyển về (25/11/2026). Còn lại (người dùng làm tay): thêm `https://quanly.sciencehub.id.vn/**` vào Redirect URL của Supabase Authentication (Site URL đổi sang tên miền mới khi đã chạy).
@@ -28,6 +28,18 @@
 ---
 
 ## 1. Thay đổi gần đây
+
+### 26/11/2026 — Trang giới thiệu: lịch học các lớp gọn cho điện thoại
+- Người dùng nhận xét lịch học dài, cồng kềnh trên điện thoại (đo trên bản thật 390×844: dải lịch học 5.176px, khoảng 6
+  màn hình; mỗi môn + khối gần trọn một màn hình) và chốt: bỏ "Ví dụ cách chọn lịch", chỉ cần ghi rõ mỗi phần chọn 1
+  trong 2 ca.
+- `ClassSchedule.jsx` viết lại: mỗi môn + khối một thẻ nhỏ (mỗi phần một dòng "Phần 1 · chọn 1 trong 2 ca", ca là ô
+  nhỏ), xếp theo khối rồi môn (máy tính 2 thẻ một hàng), thanh lọc khối một hàng (bỏ lọc môn), câu giải thích lịch
+  chia theo phần một lần ở đầu, nút "Đăng ký" nhỏ ở góc thẻ. Với lịch thật: dải lịch học còn 1.863px (khoảng 2,2 màn
+  hình), mỗi thẻ 246px; trên máy tính 1.100px.
+- Bỏ `partCombos` (cùng 2 test; thay bằng test giáo viên chung của một mục) và màu nút lọc môn `subjectStyle().chip`.
+- Kiểm tra lại trên Chrome headless: lịch thật và các trường hợp hiếm (lịch sắp đổi, ca bắt đầu sau, nhóm + lớp lẻ,
+  nhiều lớp lẻ khác giáo viên, lớp chưa có lịch); 47 ý của đợt "một trang cuộn" vẫn đạt.
 
 ### 26/11/2026 — Trang giới thiệu: gộp thành một trang cuộn, thanh tab sáng theo phần đang xem
 - Người dùng chốt: cả web là một trang cuộn, lần lượt Trang chủ → Lớp học & học phí → Quy định → Đăng ký học → Tra cứu

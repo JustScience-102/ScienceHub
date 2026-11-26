@@ -259,38 +259,18 @@ await test('Lịch đang áp dụng hôm nay và lịch mới sắp áp dụng; 
     assert.ok(!subject.includes('|'), 'api/lop-hoc.js gửi danh sách môn ngăn cách bằng "|"')
   }
 })
-await test('Ví dụ cách chọn lịch theo phần (lịch Vật Lí 10 thật): đủ 4 cách đúng, 1 cách sai cùng phần', () => {
-  const G10 = { id: 'g10', name: 'Vật Lí 10' }
-  const li10 = [
-    cls('n1', 'Vật Lí', 10, 1, { ...G10, part: 1 }, [row(2, '17:00', '19:00')]),
-    cls('n2', 'Vật Lí', 10, 2, { ...G10, part: 1 }, [row(3, '14:30', '16:30')]),
-    cls('n3', 'Vật Lí', 10, 3, { ...G10, part: 2 }, [row(5, '17:00', '19:00')]),
-    cls('n4', 'Vật Lí', 10, 4, { ...G10, part: 2 }, [row(6, '14:30', '16:30')]),
-  ]
-  const [section] = catalog.buildSections(li10, siteCenter.CLASS_SUBJECTS)
-  const r = catalog.partCombos(section.groups[0], TODAY)
-  assert.deepEqual(r.combos, ['Thứ 2 + Thứ 5', 'Thứ 2 + Thứ 6', 'Thứ 3 + Thứ 5', 'Thứ 3 + Thứ 6'])
-  assert.equal(r.total, 4)
-  assert.deepEqual(r.wrongExample, { label: 'Thứ 2 + Thứ 3', part: 1 })
-  assert.equal(catalog.sharedTeacher(section), 'Nguyễn Hải Nam')
-})
-await test('Cách chọn: bỏ cách trùng giờ; hai ca cùng phần trùng thứ thì ghi thêm giờ; phần chỉ 1 ca thì không có ví dụ sai', () => {
+await test('Giáo viên ghi một lần ở đầu thẻ khi cả mục cùng giáo viên, khác nhau thì ghi từng ca', () => {
   const g = { id: 'g', name: 'Hóa học 12' }
   const list = [
     cls('a', 'Hóa học', 12, 1, { ...g, part: 1 }, [row(2, '17:00', '19:00')]),
     cls('b', 'Hóa học', 12, 2, { ...g, part: 1 }, [row(2, '19:30', '21:30')]),
-    cls('c', 'Hóa học', 12, 3, { ...g, part: 2 }, [row(2, '18:00', '20:00')]),
+    cls('c', 'Hóa học', 12, 3, { ...g, part: 2 }, [row(5, '18:00', '20:00')]),
   ]
   const [section] = catalog.buildSections(list, siteCenter.CLASS_SUBJECTS)
-  const r = catalog.partCombos(section.groups[0], TODAY)
-  assert.equal(r.total, 0, 'ca phần 2 (Thứ 2 18:00–20:00) trùng giờ cả hai ca phần 1')
-  assert.deepEqual(r.wrongExample, { label: 'Thứ 2 (17:00) + Thứ 2 (19:30)', part: 1 })
-  const onlyOne = catalog.buildSections([list[0], { ...list[2], schedules: [row(5, '18:00', '20:00')] }], [])[0]
-  const r2 = catalog.partCombos(onlyOne.groups[0], TODAY)
-  assert.deepEqual(r2.combos, ['Thứ 2 + Thứ 5'])
-  assert.equal(r2.wrongExample, null)
+  assert.deepEqual(section.groups[0].parts.map((p) => [p.part, p.classes.length]), [[1, 2], [2, 1]])
+  assert.equal(catalog.sharedTeacher(section), 'Nguyễn Hải Nam')
   const mixed = catalog.buildSections([list[0], { ...list[1], teacher: 'Trần Thị Lan' }], [])[0]
-  assert.equal(catalog.sharedTeacher(mixed), null, 'khác giáo viên thì ghi từng lớp')
+  assert.equal(catalog.sharedTeacher(mixed), null, 'khác giáo viên thì ghi từng ca')
 })
 await test('Lịch học: màu nhãn từng môn', () => {
   assert.equal(catalog.subjectStyle('Hóa học').tag, 'bg-chem-100 text-chem-800', 'Hóa học màu cam')

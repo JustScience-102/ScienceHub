@@ -1,16 +1,18 @@
 // Lịch học các lớp đang mở (phần Lớp học & học phí của trang chủ), lấy từ app quản lý qua /api/lop-hoc
-// (site/api/lop-hoc.js; dùng chung một lần tải với form đăng ký, loadCatalog). Nút "Đăng ký lịch này" đưa xuống phần
-// Đăng ký của cùng trang và chọn sẵn môn + khối trong form (src/lib/registerPick.js).
-// Lớp thuộc nhóm lớp hiện theo phần (khung riêng từng phần, nối bằng dấu +): mỗi phần là một nội dung, phụ huynh
-// chọn một ca cho mỗi phần; kèm ví dụ các cách chọn đúng (✓) và một cách sai (✕) tính từ lịch thật.
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, CalendarClock, Check, Loader2, Phone, X } from 'lucide-react'
+// (site/api/lop-hoc.js; dùng chung một lần tải với form đăng ký, loadCatalog). Nút "Đăng ký" đưa xuống phần Đăng ký
+// của cùng trang và chọn sẵn môn + khối trong form (src/lib/registerPick.js).
+// Bố cục gọn cho điện thoại (người dùng chốt 26/11/2026): mỗi môn + khối một thẻ nhỏ, xếp theo khối rồi theo môn (máy
+// tính 2 thẻ một hàng, mỗi hàng một khối). Nhóm lớp: mỗi phần một dòng "Phần 1 · chọn 1 trong 2 ca", các ca là ô nhỏ
+// xếp ngang. Lớp lẻ: "học cả N buổi" (một lớp) hoặc "chọn 1 trong N lớp" (nhiều lớp, mỗi lớp ghi "Nhóm N").
+// Câu giải thích lịch chia theo phần ghi một lần ở đầu lịch. Thanh lọc khối một hàng, dính dưới thanh tiêu đề.
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight, CalendarClock, Layers, Loader2, Phone } from 'lucide-react'
 import { loadCatalog } from '../lib/api.js'
 import { registerHref, requestPick } from '../lib/registerPick.js'
 import {
+  DAY_LABELS,
   buildSections,
   classLabel,
-  partCombos,
   sessionText,
   sharedTeacher,
   splitSchedule,
@@ -18,19 +20,18 @@ import {
   vnDateText,
 } from '../lib/catalog.js'
 
-// Nút lọc: một hàng cuộn ngang trên điện thoại; nút môn đang chọn mang màu của môn (subjectStyle().chip).
-function chipClass(on, activeClass = 'border-brand-600 bg-brand-600 text-white') {
+// Nút lọc khối: một hàng cuộn ngang trên điện thoại.
+function chipClass(on) {
   return `inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors ${
-    on ? activeClass : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+    on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`
 }
 
 export default function ClassSchedule({ subjects, phone, phoneShown }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
-  const [subject, setSubject] = useState('all')
   const [grade, setGrade] = useState('all')
-  // Thanh lọc dính dưới thanh tiêu đề khi cuộn; đổi môn/khối lúc đã cuộn sâu thì đưa đầu danh sách về ngay dưới thanh lọc.
+  // Thanh lọc dính dưới thanh tiêu đề khi cuộn; đổi khối lúc đã cuộn sâu thì đưa đầu danh sách về ngay dưới thanh lọc.
   const barRef = useRef(null)
   const listRef = useRef(null)
   const filtered = useRef(false)
@@ -54,16 +55,15 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
     const bar = barRef.current?.getBoundingClientRect()
     const list = listRef.current?.getBoundingClientRect()
     if (bar && list && list.top < bar.bottom) window.scrollBy(0, list.top - bar.bottom - 12)
-  }, [subject, grade])
+  }, [grade])
 
-  const sections = useMemo(() => buildSections(data?.classes ?? [], subjects), [data, subjects])
-  const subjectList = [...new Set(sections.map((s) => s.subject))]
-  const gradeList = [...new Set(sections.filter((s) => subject === 'all' || s.subject === subject).map((s) => s.grade))].sort(
-    (a, b) => a - b,
+  // Theo khối rồi theo môn (sort giữ thứ tự môn của buildSections): hai môn của cùng một khối nằm cạnh nhau.
+  const sections = useMemo(
+    () => [...buildSections(data?.classes ?? [], subjects)].sort((a, b) => a.grade - b.grade),
+    [data, subjects],
   )
-  const shown = sections.filter(
-    (s) => (subject === 'all' || s.subject === subject) && (grade === 'all' || s.grade === grade),
-  )
+  const grades = [...new Set(sections.map((s) => s.grade))]
+  const shown = sections.filter((s) => grade === 'all' || s.grade === grade)
 
   if (error) {
     return (
@@ -93,55 +93,46 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
   }
 
   return (
-    <div className="space-y-4">
-      {(subjectList.length > 1 || gradeList.length > 1) && (
+    <div className="space-y-3">
+      {sections.some((s) => s.groups.length > 0) && (
+        <p className="flex items-start gap-2.5 rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+          <Layers size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+          <span>
+            Lớp chia theo phần (<b>Phần 1, Phần 2</b>): mỗi tuần con học mỗi phần 1 buổi, <b>chọn 1 ca trong mỗi
+            phần</b>.{' '}
+            <a href="#lich-theo-phan" className="font-semibold text-brand-700 hover:underline">
+              Xem giải thích
+            </a>
+          </span>
+        </p>
+      )}
+
+      {grades.length > 1 && (
         <div
           ref={barRef}
-          className="sticky top-16 z-10 -mx-4 space-y-2 border-b border-brand-100 bg-brand-50/95 px-4 py-2.5 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:border sm:px-3"
+          className="sticky top-16 z-10 -mx-4 border-b border-brand-100 bg-brand-50/95 px-4 py-2.5 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:border sm:px-3"
         >
-          {subjectList.length > 1 && (
-            <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Lọc theo môn">
-              {['all', ...subjectList].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  role="radio"
-                  aria-checked={subject === s}
-                  className={chipClass(subject === s, s === 'all' ? undefined : subjectStyle(s).chip)}
-                  onClick={() => {
-                    filtered.current = true
-                    setSubject(s)
-                    setGrade('all')
-                  }}
-                >
-                  {s === 'all' ? 'Tất cả môn' : s}
-                </button>
-              ))}
-            </div>
-          )}
-          {gradeList.length > 1 && (
-            <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Lọc theo khối">
-              {['all', ...gradeList].map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  role="radio"
-                  aria-checked={grade === g}
-                  className={chipClass(grade === g)}
-                  onClick={() => {
-                    filtered.current = true
-                    setGrade(g)
-                  }}
-                >
-                  {g === 'all' ? 'Tất cả khối' : `Lớp ${g}`}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Lọc theo khối">
+            {['all', ...grades].map((g) => (
+              <button
+                key={g}
+                type="button"
+                role="radio"
+                aria-checked={grade === g}
+                className={chipClass(grade === g)}
+                onClick={() => {
+                  filtered.current = true
+                  setGrade(g)
+                }}
+              >
+                {g === 'all' ? 'Tất cả khối' : `Lớp ${g}`}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      <div ref={listRef} className="scroll-mt-40 space-y-4">
+      <div ref={listRef} className="grid gap-3 md:grid-cols-2">
         {shown.map((section) => (
           <Section key={section.key} section={section} today={data.today} />
         ))}
@@ -153,149 +144,168 @@ export default function ClassSchedule({ subjects, phone, phoneShown }) {
 function Section({ section, today }) {
   const style = subjectStyle(section.subject)
   const teacher = sharedTeacher(section)
+  // Số buổi/tuần chỉ ghi khi mục là đúng một nhóm lớp (mỗi phần 1 buổi).
+  const perWeek = section.groups.length === 1 && section.singles.length === 0 ? section.groups[0].parts.length : null
+  const meta = [perWeek && `${perWeek} buổi/tuần`, teacher && `Giáo viên: ${teacher}`].filter(Boolean).join(' · ')
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className={`h-1.5 ${style.bar}`} aria-hidden="true" />
-      <div className="p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <h4 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+      <div className={`h-1 ${style.bar}`} aria-hidden="true" />
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h4 className="flex min-w-0 flex-wrap items-center gap-2 text-lg leading-tight font-bold text-slate-800">
             <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${style.tag}`}>{section.subject}</span>
             Lớp {section.grade}
           </h4>
-          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
-            {teacher && <span className="text-sm text-slate-500">Giáo viên: {teacher}</span>}
-            <a
-              href={registerHref(section.subject, section.grade)}
-              onClick={(event) => requestPick(event, section.subject, section.grade)}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 sm:min-h-10 sm:w-auto"
-            >
-              Đăng ký lịch này
-              <ArrowRight size={16} aria-hidden="true" />
-            </a>
-          </div>
+          <a
+            href={registerHref(section.subject, section.grade)}
+            onClick={(event) => requestPick(event, section.subject, section.grade)}
+            aria-label={`Đăng ký ${section.subject} lớp ${section.grade}`}
+            className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg bg-brand-600 px-3.5 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Đăng ký
+            <ArrowRight size={16} aria-hidden="true" />
+          </a>
         </div>
+        {meta && <p className="mt-1 text-sm text-slate-500">{meta}</p>}
 
-        {section.groups.map((group) => (
-          <GroupBlock key={group.id} group={group} today={today} showTeacher={!teacher} />
-        ))}
-
-        {section.singles.length > 0 && (
-          <div className="mt-4">
-            {section.groups.length > 0 && <p className="mb-2 text-sm font-semibold text-slate-700">Các lớp khác</p>}
-            <ul className="space-y-2">
-              {section.singles.map((cls) => (
-                <li key={cls.id} className="rounded-lg border border-slate-200 p-3">
-                  <ClassLine cls={cls} today={today} showTeacher={!teacher} />
-                </li>
+        <div className="mt-3 space-y-3">
+          {section.groups.map((group) => (
+            <div key={group.id} className="space-y-3">
+              {section.groups.length > 1 && <p className="text-sm font-semibold text-slate-800">{group.name}</p>}
+              {group.parts.map((part) => (
+                <PartRow key={part.part} part={part} today={today} showTeacher={!teacher} />
               ))}
-            </ul>
-          </div>
-        )}
+            </div>
+          ))}
+          {section.singles.length > 0 && (
+            <Singles classes={section.singles} hasGroups={section.groups.length > 0} today={today} showTeacher={!teacher} />
+          )}
+        </div>
       </div>
     </section>
   )
 }
 
-function GroupBlock({ group, today, showTeacher }) {
-  const { combos, total, wrongExample } = partCombos(group, today)
-  const perWeek = group.parts.map((p) => `1 buổi Phần ${p.part}`).join(' + ')
+function PartRow({ part, today, showTeacher }) {
+  const count = part.classes.length
   return (
-    <div className="mt-4 space-y-3">
-      <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-brand-900">
-        <p className="text-base font-semibold">
-          Mỗi tuần con học {group.parts.length} buổi: {perWeek}.
-        </p>
-        <p className="mt-1 text-sm">
-          Mỗi phần là một nội dung riêng và mở nhiều ca. Phụ huynh <b>chọn 1 ca trong mỗi phần</b>; không chọn 2 ca của
-          cùng một phần vì hai ca đó học cùng nội dung.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
-        {group.parts.map((part, index) => (
-          <Fragment key={part.part}>
-            {index > 0 && (
-              <div className="flex items-center justify-center" aria-hidden="true">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-xl font-bold text-white">
-                  +
-                </span>
-              </div>
-            )}
-            <div className="flex-1 overflow-hidden rounded-xl border-2 border-brand-300">
-              <div className="flex items-center justify-between gap-2 bg-brand-600 px-4 py-2 text-white">
-                <span className="text-base font-bold">Phần {part.part}</span>
-                <span className="text-sm">
-                  {part.classes.length > 1 ? `Chọn 1 trong ${part.classes.length} ca` : 'Có 1 ca'}
-                </span>
-              </div>
-              <ul className="divide-y divide-slate-100 bg-white">
-                {part.classes.map((cls) => (
-                  <li key={cls.id} className="px-4 py-3">
-                    <ClassLine cls={cls} today={today} showTeacher={showTeacher} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Fragment>
+    <div>
+      <p className="text-sm">
+        <b className="text-brand-700">Phần {part.part}</b>
+        <span className="text-slate-700"> · {count > 1 ? `chọn 1 trong ${count} ca` : 'có 1 ca'}</span>
+      </p>
+      <ul className="mt-1.5 flex flex-wrap gap-2">
+        {part.classes.map((cls) => (
+          <ClassSlots key={cls.id} cls={cls} today={today} showTeacher={showTeacher} joined />
         ))}
-      </div>
-
-      {combos.length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-700">Ví dụ cách chọn lịch</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {combos.map((combo) => (
-              <li
-                key={combo}
-                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800 ring-1 ring-emerald-200"
-              >
-                <Check size={14} aria-hidden="true" />
-                <span>
-                  {combo}
-                  <span className="sr-only">: được</span>
-                </span>
-              </li>
-            ))}
-            {total > combos.length && (
-              <li className="inline-flex items-center px-1 text-sm text-slate-500">và {total - combos.length} cách khác</li>
-            )}
-          </ul>
-          {wrongExample && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700 ring-1 ring-red-200">
-              <X size={14} aria-hidden="true" />
-              {wrongExample.label}: không được, vì cùng Phần {wrongExample.part}
-            </p>
-          )}
-        </div>
-      )}
+      </ul>
+      <Changes classes={part.classes} today={today} />
     </div>
   )
 }
 
-function ClassLine({ cls, today, showTeacher }) {
-  const { current, upcoming } = splitSchedule(cls.schedules ?? [], today)
+// Lớp không thuộc nhóm: một lớp thì học cả các buổi của lớp; nhiều lớp thì chọn một lớp (ghi "Nhóm N", giáo viên
+// ghi cạnh tên lớp nếu các lớp khác giáo viên).
+function Singles({ classes, hasGroups, today, showTeacher }) {
+  const one = classes.length === 1
+  const sessions = one ? splitSchedule(classes[0].schedules ?? [], today).current.length : 0
+  const rule = !one
+    ? `chọn 1 trong ${classes.length} lớp`
+    : sessions > 1
+      ? `học cả ${sessions} buổi mỗi tuần`
+      : sessions === 1
+        ? '1 buổi mỗi tuần'
+        : 'lịch học'
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <b className="text-slate-800">{classLabel(cls)}</b>
-          {current.map((row) => (
-            <span key={`${row.day}-${row.start}`} className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-700">
-              {sessionText(row)}
-            </span>
+      <p className="text-sm">
+        {hasGroups && <b className="text-brand-700">Lớp khác · </b>}
+        <span className="text-slate-700">{hasGroups ? rule : rule.charAt(0).toUpperCase() + rule.slice(1)}</span>
+      </p>
+      {one ? (
+        <ul className="mt-1.5 flex flex-wrap gap-2">
+          <ClassSlots cls={classes[0]} today={today} showTeacher={showTeacher} />
+        </ul>
+      ) : (
+        <ul className="mt-1.5 space-y-2">
+          {classes.map((cls) => (
+            <li key={cls.id}>
+              <p className="text-sm">
+                <b className="text-slate-800">{classLabel(cls)}</b>
+                {showTeacher && cls.teacher && <span className="text-slate-500"> · {cls.teacher}</span>}
+              </p>
+              <ul className="mt-1 flex flex-wrap gap-2">
+                <ClassSlots cls={cls} today={today} showTeacher={false} />
+              </ul>
+            </li>
           ))}
-          {current.length === 0 && !upcoming && <span className="text-sm text-slate-400">Chưa có lịch</span>}
-        </div>
-        {showTeacher && cls.teacher && <span className="text-sm text-slate-500">Giáo viên: {cls.teacher}</span>}
-      </div>
-      {upcoming && (
-        <p className="mt-2 flex items-start gap-1.5 text-sm text-amber-800">
-          <CalendarClock size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-          <span>
-            {current.length > 0 ? 'Lịch mới' : 'Bắt đầu'} từ {vnDateText(upcoming.from)}: {upcoming.rows.map(sessionText).join(', ')}
-          </span>
-        </p>
+        </ul>
       )}
+      <Changes classes={classes} today={today} />
     </div>
   )
+}
+
+const SLOT = 'inline-flex flex-wrap items-baseline gap-x-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700'
+
+function Session({ row }) {
+  return (
+    <>
+      <b className="font-semibold text-slate-900">{DAY_LABELS[row.day] ?? `Thứ ${row.day}`}</b>
+      <span>
+        {row.start}–{row.end}
+      </span>
+    </>
+  )
+}
+
+// Các ô buổi học của một lớp. joined: cả lớp là một ô (một ca của phần; lớp hiếm khi có hơn một buổi thì nối bằng
+// "+"); không thì mỗi buổi một ô. Lớp chưa có lịch đang áp dụng mà đã đặt lịch mới thì ô ghi "Từ DD/MM/YYYY".
+function ClassSlots({ cls, today, showTeacher, joined = false }) {
+  const { current, upcoming } = splitSchedule(cls.schedules ?? [], today)
+  const rows = current.length > 0 ? current : (upcoming?.rows ?? [])
+  const prefix = current.length === 0 && upcoming && (
+    <span className="font-medium text-amber-800">Từ {vnDateText(upcoming.from)}:</span>
+  )
+  const teacher = showTeacher && cls.teacher && <span className="text-slate-500">· {cls.teacher}</span>
+  if (rows.length === 0) {
+    return <li className={`${SLOT} text-slate-400`}>Chưa có lịch</li>
+  }
+  if (joined) {
+    return (
+      <li className={SLOT}>
+        {prefix}
+        {rows.map((row, i) => (
+          <span key={`${row.day}-${row.start}`} className="inline-flex items-baseline gap-x-1.5">
+            {i > 0 && <span aria-hidden="true">+</span>}
+            <Session row={row} />
+          </span>
+        ))}
+        {teacher}
+      </li>
+    )
+  }
+  return rows.map((row) => (
+    <li key={`${row.day}-${row.start}`} className={SLOT}>
+      {prefix}
+      <Session row={row} />
+      {teacher}
+    </li>
+  ))
+}
+
+// Lớp đang học mà đã đặt lịch mới: ghi một dòng đổi lịch dưới các ô.
+function Changes({ classes, today }) {
+  const changes = classes
+    .map((cls) => ({ cls, ...splitSchedule(cls.schedules ?? [], today) }))
+    .filter((c) => c.current.length > 0 && c.upcoming)
+  return changes.map(({ cls, current, upcoming }) => (
+    <p key={cls.id} className="mt-1.5 flex items-start gap-1.5 text-sm text-amber-800">
+      <CalendarClock size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+      <span>
+        Từ {vnDateText(upcoming.from)}, ca {current.map(sessionText).join(' + ')} đổi sang{' '}
+        {upcoming.rows.map(sessionText).join(' + ')}
+      </span>
+    </p>
+  ))
 }
